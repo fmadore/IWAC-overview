@@ -7,5 +7,8 @@ export default defineConfig({
   base: '/IWAC-overview/', // Replace with your repository name
   build: {
     outDir: 'docs', // GitHub Pages will serve from /docs
+    rollupOptions: {
+      input: './index.html'
+    }
   }
 })

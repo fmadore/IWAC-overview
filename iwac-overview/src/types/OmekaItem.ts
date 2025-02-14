@@ -7,6 +7,7 @@ export interface OmekaItem {
     language: string;
     keywords: string[];
     dateAdded: string;
+    item_set_title: string;
     // Add more specific fields based on your items.json structure
 }
 

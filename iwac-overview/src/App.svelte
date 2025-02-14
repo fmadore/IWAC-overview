@@ -4,11 +4,12 @@
   import svelteLogo from './assets/svelte.svg'
   import viteLogo from '/vite.svg'
   import Counter from './lib/Counter.svelte'
+  import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
 
   // Import visualization components here
   // They will be created in the next steps
 
-  let activeTab = 'overview';
+  let activeTab = 'countries';
 
   onMount(() => {
     itemsStore.loadItems();
@@ -46,10 +47,13 @@
     {:else if $itemsStore.error}
       <div class="error">{$itemsStore.error}</div>
     {:else}
-      <div class="visualization-grid">
-        <!-- Visualization components will be added here -->
-        <p>Select a visualization from the tabs above</p>
-      </div>
+      {#if activeTab === 'countries'}
+        <CountryDistribution />
+      {:else}
+        <div class="visualization-grid">
+          <p>Select a visualization from the tabs above</p>
+        </div>
+      {/if}
     {/if}
   </div>
 </main>
@@ -128,21 +132,5 @@
 
   .error {
     color: red;
-  }
-
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
   }
 </style>
