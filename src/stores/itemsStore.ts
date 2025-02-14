@@ -13,7 +13,8 @@ const createItemsStore = () => {
         loadItems: async () => {
             update(state => ({ ...state, loading: true, error: null }));
             try {
-                const response = await fetch('/items.json');
+                const basePath = import.meta.env.DEV ? '' : '/IWAC-overview';
+                const response = await fetch(`${basePath}/items.json`);
                 const items = await response.json();
                 set({ items, loading: false, error: null });
             } catch (error) {
