@@ -52,62 +52,60 @@
     let height = 0;
     let container: HTMLDivElement;
     let currentNode: d3.HierarchyRectangularNode<HierarchyDatum>;
+    let g: d3.Selection<SVGGElement, unknown, null, undefined>;
+    let root: d3.HierarchyRectangularNode<HierarchyDatum>;
 
-    function zoom(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
-        if (!d.parent) return; // Don't zoom on root
-
-        const transition = d3.select(container)
-            .select('svg')
-            .transition()
-            .duration(750)
-            .ease(d3.easeCubicInOut);
-
-        // If we're already zoomed into this node, zoom out to root
-        if (currentNode === d) {
-            currentNode = d.parent;
-            displayNode(currentNode, transition);
-            return;
-        }
-
-        // If we're zooming into a new node
-        currentNode = d;
-        displayNode(d, transition);
+    /* Added helper function to compute the bounding box of a node and its descendants */
+    function getBoundingBox(node: d3.HierarchyRectangularNode<HierarchyDatum>): { x0: number, y0: number, x1: number, y1: number } {
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        node.descendants().forEach(d => {
+            if (d.x0 < x0) x0 = d.x0;
+            if (d.y0 < y0) y0 = d.y0;
+            if (d.x1 > x1) x1 = d.x1;
+            if (d.y1 > y1) y1 = d.y1;
+        });
+        return { x0, y0, x1, y1 };
     }
 
-    function displayNode(
-        d: d3.HierarchyRectangularNode<HierarchyDatum>,
-        transition: d3.Transition<d3.BaseType, unknown, null, undefined>
-    ) {
-        // Calculate the scale and translation to center the node
-        const x = d.x0;
-        const y = d.y0;
-        const dx = d.x1 - d.x0;
-        const dy = d.y1 - d.y0;
+    function zoom(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        // Traverse up from the clicked node until its parent equals the current selection
+        let newSelected: d3.HierarchyRectangularNode<HierarchyDatum> = d;
+        while (newSelected.parent && newSelected.parent !== currentNode) {
+            newSelected = newSelected.parent;
+        }
+        // If the newSelected node has children, update currentNode
+        if (newSelected && newSelected.children) {
+            currentNode = newSelected;
+        } else {
+            currentNode = newSelected;
+        }
 
-        // Add some padding around the zoomed area
-        const padding = 0.05;
-        const scale = Math.min(
-            width / (dx * (1 + padding * 2)),
-            height / (dy * (1 + padding * 2))
-        );
+        // Select the main container group for zooming
+        const mainGroup = d3.select(container).select('svg').select('g');
+        const transition = mainGroup.transition().duration(750);
 
-        const translateX = width / 2 - (x + dx / 2) * scale;
-        const translateY = height / 2 - (y + dy / 2) * scale;
+        // Compute bounding box of the selected node (including its descendants)
+        const bbox = getBoundingBox(currentNode);
+        const boxWidth = bbox.x1 - bbox.x0;
+        const boxHeight = bbox.y1 - bbox.y0;
+        const newScale = Math.min(width / boxWidth, height / boxHeight) * 0.9; // 0.9 for padding
+        const cx = (bbox.x0 + bbox.x1) / 2;
+        const cy = (bbox.y0 + bbox.y1) / 2;
+        const translateX = width / 2 - newScale * cx;
+        const translateY = height / 2 - newScale * cy;
 
-        // Apply the transform to the container group
-        transition.selectAll('g')
-            .attr('transform', `translate(${translateX},${translateY})scale(${scale})`);
+        transition.attr('transform', `translate(${translateX},${translateY}) scale(${newScale})`);
 
-        // Update visibility of text based on available space
-        d3.select(container)
-            .selectAll('text')
-            .style('display', function(n: any) {
-                const node = n as d3.HierarchyRectangularNode<HierarchyDatum>;
-                if (!node.parent) return 'none';
-                const width = (node.x1 - node.x0) * scale;
-                const height = (node.y1 - node.y0) * scale;
-                return width > 30 && height > 20 ? 'block' : 'none';
-            });
+        // Update text visibility based on the new scale
+        transition.on('end', () => {
+            mainGroup.selectAll('text')
+                .style('display', function(n: any) {
+                    const node = n as d3.HierarchyRectangularNode<HierarchyDatum>;
+                    const cellWidth = (node.x1 - node.x0) * newScale;
+                    const cellHeight = (node.y1 - node.y0) * newScale;
+                    return cellWidth > 50 && cellHeight > 30 ? 'block' : 'none';
+                });
+        });
     }
 
     function createTreemap() {
@@ -125,10 +123,11 @@
         const svg = d3.select(container)
             .append('svg')
             .attr('width', width)
-            .attr('height', height);
+            .attr('height', height)
+            .style('font-family', 'sans-serif');
 
         // Create container group for zooming
-        const g = svg.append('g');
+        g = svg.append('g');
 
         // Process data
         const hierarchyData = processData($itemsStore.items as Item[]);
@@ -137,20 +136,19 @@
         const treemapLayout = d3.treemap<HierarchyDatum>()
             .size([width, height])
             .paddingTop(28)
-            .paddingRight(3)
-            .paddingBottom(3)
-            .paddingLeft(3)
+            .paddingRight(7)
+            .paddingBottom(7)
+            .paddingLeft(7)
             .round(true);
 
         treemapLayout(hierarchyData);
-        // Cast to HierarchyRectangularNode to get x0, y0, etc.
-        const root = hierarchyData as d3.HierarchyRectangularNode<HierarchyDatum>;
+        root = hierarchyData as d3.HierarchyRectangularNode<HierarchyDatum>;
         currentNode = root;
 
         // Color scale for countries
-        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+        const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 
-        // Create cells for all nodes (including parents)
+        // Create cells for all nodes
         const cell = g.selectAll('g')
             .data(root.descendants())
             .join('g')
@@ -158,53 +156,50 @@
 
         // Add rectangles
         cell.append('rect')
-            .attr('width', d => d.x1 - d.x0)
-            .attr('height', d => d.y1 - d.y0)
+            .attr('width', d => Math.max(0, d.x1 - d.x0))
+            .attr('height', d => Math.max(0, d.y1 - d.y0))
             .attr('fill', d => {
-                if (!d.parent) return 'none'; // root node
-                if (d.depth === 1) return colorScale(d.data.name); // country
-                // Convert the brightened color to a string
+                if (!d.parent) return 'none';
+                if (d.depth === 1) return colorScale(d.data.name);
                 const baseColor = d3.color(colorScale(d.parent.data.name));
                 return baseColor ? d3.rgb(baseColor).brighter(0.5).toString() : '#ccc';
             })
-            .attr('fill-opacity', d => d.depth === 1 ? 0.6 : 0.8)
             .attr('stroke', '#fff')
             .attr('stroke-width', d => d.depth === 1 ? 2 : 1)
             .style('cursor', d => d.depth <= 1 ? 'pointer' : 'default')
             .on('click', (event, d) => d.depth <= 1 && zoom(event, d));
 
-        // Add text labels with better positioning and sizing
-        cell.append('text')
+        // Add text labels
+        const text = cell.append('text')
+            .style('user-select', 'none')
+            .attr('pointer-events', 'none')
             .attr('x', 4)
             .attr('y', d => d.depth === 1 ? 20 : 13)
-            .attr('fill', d => d.depth === 1 ? 'black' : 'white')
+            .attr('fill', d => d.depth === 1 ? '#000' : '#fff')
             .attr('font-weight', d => d.depth === 1 ? 'bold' : 'normal')
-            .attr('font-size', d => d.depth === 1 ? '14px' : '12px')
-            .text(d => `${d.data.name}${d.value ? ` (${d.value})` : ''}`)
-            .each(function(d) {
-                const self = d3.select(this);
-                const node = self.node();
-                if (!node) return;
-                let textLength = node.getComputedTextLength();
-                const boxWidth = d.x1 - d.x0;
-                
-                if (textLength > boxWidth - 8) {
-                    let text = d.data.name;
-                    while (text.length > 0 && textLength > boxWidth - 8) {
-                        text = text.slice(0, -1);
-                        self.text(text + '...' + (d.value ? ` (${d.value})` : ''));
-                        textLength = node.getComputedTextLength();
-                    }
-                }
-            });
+            .attr('font-size', d => d.depth === 1 ? '14px' : '12px');
 
-        // Add tooltips with more information
+        text.append('tspan')
+            .text(d => d.data.name);
+
+        text.append('tspan')
+            .attr('fill-opacity', 0.7)
+            .text(d => d.value ? ` (${d.value})` : '');
+
+        // Update text visibility initially
+        text.style('display', function(d) {
+            const width = d.x1 - d.x0;
+            const height = d.y1 - d.y0;
+            return width > 50 && height > 30 ? 'block' : 'none';
+        });
+
+        // Add tooltips
         cell.append('title')
             .text(d => {
                 if (d.depth === 1) {
-                    return `Country: ${d.data.name}\nTotal Items: ${d.value}\nClick to zoom`;
+                    return `${d.data.name}\nTotal Items: ${d.value}\nClick to zoom`;
                 } else if (d.depth === 2) {
-                    return `Country: ${d.parent?.data.name}\nSet: ${d.data.name}\nItems: ${d.value}`;
+                    return `${d.parent?.data.name} > ${d.data.name}\nItems: ${d.value}`;
                 }
                 return '';
             });
