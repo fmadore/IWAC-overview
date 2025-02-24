@@ -154,16 +154,6 @@
                 .on('mousemove', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => showTooltip(event, d))
                 .on('mouseout', hideTooltip);
 
-            cell.append('title')
-                .text((d: d3.HierarchyRectangularNode<HierarchyDatum>) => {
-                    if (d === node) {
-                        return `${node.data.name}\nTotal Items: ${node.value}\nClick to zoom out`;
-                    } else if (d.children) {
-                        return `${d.data.name}\nItems: ${d.value}\nClick to zoom in`;
-                    }
-                    return '';
-                });
-
             cell.append('rect')
                 .attr('fill', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? '#fff' : d.children ? '#ccc' : '#ddd')
                 .attr('stroke', '#fff')
