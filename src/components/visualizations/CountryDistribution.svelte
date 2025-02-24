@@ -54,6 +54,7 @@
     let currentNode: d3.HierarchyRectangularNode<HierarchyDatum>;
     let g: d3.Selection<SVGGElement, unknown, null, undefined>;
     let root: d3.HierarchyRectangularNode<HierarchyDatum>;
+    let tooltip: HTMLDivElement;
 
     // New createTreemap function with custom tiling and zoom transitions
     function createTreemap() {
@@ -121,6 +122,10 @@
                     .on('click', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => zoomout(d));
             }
 
+            cell.on('mouseover', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => showTooltip(event, d))
+                .on('mousemove', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => showTooltip(event, d))
+                .on('mouseout', hideTooltip);
+
             cell.append('title')
                 .text((d: d3.HierarchyRectangularNode<HierarchyDatum>) => {
                     if (d === node) {
@@ -170,16 +175,57 @@
         }
     }
 
+    // Create tooltip element
+    function createTooltip() {
+        tooltip = document.createElement('div');
+        tooltip.style.position = 'absolute';
+        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        tooltip.style.color = 'white';
+        tooltip.style.padding = '5px';
+        tooltip.style.borderRadius = '3px';
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.display = 'none';
+        document.body.appendChild(tooltip);
+    }
+
+    // Update tooltip content and position
+    function showTooltip(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        const totalValue = root.value || 0;
+        const parentValue = d.parent ? d.parent.value || 0 : totalValue;
+        const value = d.value || 0;
+        const percentageOfParent = ((value / parentValue) * 100).toFixed(2);
+        const percentageOfTotal = ((value / totalValue) * 100).toFixed(2);
+
+        tooltip.innerHTML = `
+            <strong>${d.data.name}</strong><br>
+            Items: ${value}<br>
+            % of Parent: ${percentageOfParent}%<br>
+            % of Total: ${percentageOfTotal}%
+        `;
+        tooltip.style.left = `${event.pageX + 10}px`;
+        tooltip.style.top = `${event.pageY + 10}px`;
+        tooltip.style.display = 'block';
+    }
+
+    // Hide tooltip
+    function hideTooltip() {
+        tooltip.style.display = 'none';
+    }
+
     // Update visualization when data changes or on resize
     $: if ($itemsStore.items) createTreemap();
 
     onMount(() => {
+        createTooltip();
         const resizeObserver = new ResizeObserver(() => {
             createTreemap();
         });
 
         resizeObserver.observe(container);
-        return () => resizeObserver.disconnect();
+        return () => {
+            resizeObserver.disconnect();
+            document.body.removeChild(tooltip);
+        };
     });
 </script>
 
