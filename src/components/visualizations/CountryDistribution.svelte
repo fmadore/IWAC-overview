@@ -74,7 +74,12 @@
 
     // Update breadcrumb content
     function updateBreadcrumb(node: d3.HierarchyRectangularNode<HierarchyDatum>) {
-        const path = node.ancestors().reverse().map(d => d.data.name === 'root' ? 'All' : d.data.name).join(' / ');
+        let ancestors = node.ancestors();
+        // Always ensure the root node is displayed as "IWAC"
+        const path = ancestors
+            .reverse()
+            .map(d => d === root || d.data.name === 'root' ? 'IWAC' : d.data.name)
+            .join(' / ');
         log(`Breadcrumb updated: ${path}`);
         breadcrumb.textContent = path;
     }
