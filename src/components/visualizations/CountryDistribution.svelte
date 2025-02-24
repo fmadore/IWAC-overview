@@ -101,7 +101,7 @@
             .append('svg')
             .attr('width', width)
             .attr('height', height)
-            .attr('viewBox', `0 -30 ${width} ${height + 30}`)
+            .attr('viewBox', `0 -60 ${width} ${height + 60}`)
             .style('font', '10px sans-serif');
 
         // Define custom tiling function to adapt aspect ratio when zooming
@@ -124,6 +124,15 @@
         treemapLayout(hierarchyData);
         root = hierarchyData as d3.HierarchyRectangularNode<HierarchyDatum>;
         currentNode = root;
+
+        // Add title after root is defined
+        svg.append('text')
+            .attr('x', width / 2)
+            .attr('y', -40)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '16px')
+            .attr('font-weight', 'bold')
+            .text(`Distribution of ${root.value} items by country and sub-collection`);
 
         // Create scales for positioning (y-scale adjusted for header height)
         const x = d3.scaleLinear().rangeRound([0, width]).domain([0, width]);
