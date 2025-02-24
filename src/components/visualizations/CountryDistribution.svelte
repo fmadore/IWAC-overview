@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
+    import { log } from '../../utils/logger';
 
     // Added interfaces for item and hierarchy datum
     interface Item {
@@ -55,6 +56,28 @@
     let g: d3.Selection<SVGGElement, unknown, null, undefined>;
     let root: d3.HierarchyRectangularNode<HierarchyDatum>;
     let tooltip: HTMLDivElement;
+    let breadcrumb: HTMLDivElement;
+
+    // Create breadcrumb element
+    function createBreadcrumb() {
+        breadcrumb = document.createElement('div');
+        breadcrumb.style.position = 'absolute';
+        breadcrumb.style.top = '10px';
+        breadcrumb.style.left = '10px';
+        breadcrumb.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+        breadcrumb.style.padding = '5px 10px';
+        breadcrumb.style.borderRadius = '3px';
+        breadcrumb.style.fontSize = '12px';
+        breadcrumb.style.pointerEvents = 'none';
+        document.body.appendChild(breadcrumb);
+    }
+
+    // Update breadcrumb content
+    function updateBreadcrumb(node: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        const path = node.ancestors().reverse().map(d => d.data.name === 'root' ? 'All' : d.data.name).join(' / ');
+        log(`Breadcrumb updated: ${path}`);
+        breadcrumb.textContent = path;
+    }
 
     // New createTreemap function with custom tiling and zoom transitions
     function createTreemap() {
@@ -154,6 +177,7 @@
         // Zoom in by rendering a new view for the selected node
         function zoomin(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
             currentNode = d;
+            updateBreadcrumb(d);
             const newX = d3.scaleLinear().rangeRound([0, width]).domain([d.x0, d.x1]);
             const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([d.y0, d.y1]);
             const oldGroup = g;
@@ -166,6 +190,7 @@
         function zoomout(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
             if (!d.parent) return;
             currentNode = d.parent;
+            updateBreadcrumb(d.parent);
             const newX = d3.scaleLinear().rangeRound([0, width]).domain([d.parent.x0, d.parent.x1]);
             const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([d.parent.y0, d.parent.y1]);
             const oldGroup = g;
@@ -217,6 +242,7 @@
 
     onMount(() => {
         createTooltip();
+        createBreadcrumb();
         const resizeObserver = new ResizeObserver(() => {
             createTreemap();
         });
@@ -225,6 +251,7 @@
         return () => {
             resizeObserver.disconnect();
             document.body.removeChild(tooltip);
+            document.body.removeChild(breadcrumb);
         };
     });
 </script>
