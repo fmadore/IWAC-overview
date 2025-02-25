@@ -63,69 +63,15 @@
     let g: d3.Selection<SVGGElement, unknown, null, undefined>;
     let root: d3.HierarchyRectangularNode<HierarchyDatum>;
     let tooltip: HTMLDivElement;
-    let breadcrumb: HTMLDivElement;
-
-    // Create breadcrumb element with clickable segments
-    function createBreadcrumb() {
-        if (!container) return;
-        
-        breadcrumb = document.createElement('div');
-        breadcrumb.style.position = 'absolute';
-        breadcrumb.style.top = '10px';
-        breadcrumb.style.left = '10px';
-        breadcrumb.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-        breadcrumb.style.padding = '5px 10px';
-        breadcrumb.style.borderRadius = '3px';
-        breadcrumb.style.fontSize = '12px';
-        breadcrumb.style.zIndex = '100';
-        breadcrumb.classList.add('breadcrumb-trail');
-        container.appendChild(breadcrumb);
-    }
 
     // Forward declare zoom functions so TypeScript knows they exist
     let zoomin: (d: d3.HierarchyRectangularNode<HierarchyDatum>) => void;
     let zoomout: (d: d3.HierarchyRectangularNode<HierarchyDatum>) => void;
     let resetToRoot: () => void;
 
-    // Update breadcrumb content with clickable segments
-    function updateBreadcrumb(node: d3.HierarchyRectangularNode<HierarchyDatum>) {
-        let ancestors = node.ancestors().reverse();
-        breadcrumb.innerHTML = '';
-        
-        ancestors.forEach((d, i) => {
-            const name = d === root || d.data.name === 'root' ? 'IWAC' : d.data.name;
-            const segment = document.createElement('span');
-            segment.textContent = name;
-            segment.classList.add('breadcrumb-segment');
-            
-            // Make breadcrumb segments clickable
-            if (i < ancestors.length - 1) {
-                segment.style.cursor = 'pointer';
-                segment.style.color = '#0066cc';
-                segment.addEventListener('click', () => {
-                    if (d !== currentNode) {
-                        if (d === root) {
-                            resetToRoot();
-                        } else {
-                            zoomin(d);
-                        }
-                    }
-                });
-            } else {
-                segment.style.fontWeight = 'bold';
-            }
-            
-            breadcrumb.appendChild(segment);
-            
-            if (i < ancestors.length - 1) {
-                const separator = document.createElement('span');
-                separator.textContent = ' / ';
-                separator.style.color = '#999';
-                breadcrumb.appendChild(separator);
-            }
-        });
-        
-        log(`Breadcrumb updated for: ${node.data.name}`);
+    // Replace updateBreadcrumb with a simpler function to log the current node
+    function logCurrentNode(node: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        log(`Current node: ${node.data.name}`);
     }
 
     // Create color scales based on selected scheme
@@ -281,7 +227,6 @@
                 .on('mouseenter', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => {
                     showTooltip(event, d);
                     selectedNode = d;
-                    // Removed: updateInfoPanel(d);
                     
                     // Highlight the cell
                     d3.select(event.currentTarget as Element)
@@ -363,7 +308,7 @@
         // Zoom in by rendering a new view for the selected node
         zoomin = function(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
             currentNode = d;
-            updateBreadcrumb(d);
+            logCurrentNode(d);
             const newX = d3.scaleLinear().rangeRound([0, width]).domain([d.x0, d.x1]);
             const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([d.y0, d.y1]);
             const oldGroup = g;
@@ -376,7 +321,7 @@
         zoomout = function(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
             if (!d.parent) return;
             currentNode = d.parent;
-            updateBreadcrumb(d.parent);
+            logCurrentNode(d.parent);
             const newX = d3.scaleLinear().rangeRound([0, width]).domain([d.parent.x0, d.parent.x1]);
             const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([d.parent.y0, d.parent.y1]);
             const oldGroup = g;
@@ -389,7 +334,7 @@
         resetToRoot = function() {
             if (currentNode === root) return;
             currentNode = root;
-            updateBreadcrumb(root);
+            logCurrentNode(root);
             const newX = d3.scaleLinear().rangeRound([0, width]).domain([0, width]);
             const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([0, height - 30]);
             const oldGroup = g;
@@ -408,7 +353,7 @@
     function resetToRootExternal() {
         if (currentNode === root) return;
         currentNode = root;
-        updateBreadcrumb(root);
+        logCurrentNode(root);
         createTreemap(); // Recreate the entire treemap
     }
 
@@ -500,7 +445,6 @@
         
         // Now create UI elements in the correct order
         createTooltip();
-        createBreadcrumb();
         
         // Create the initial visualization
         if ($itemsStore.items && $itemsStore.items.length > 0) {
@@ -524,10 +468,6 @@
             // Clean up tooltip
             if (tooltip && document.body.contains(tooltip)) {
                 document.body.removeChild(tooltip);
-            }
-            
-            if (breadcrumb && breadcrumb.parentNode) {
-                breadcrumb.parentNode.removeChild(breadcrumb);
             }
         };
     });
@@ -561,15 +501,6 @@
 
     .error {
         color: red;
-    }
-
-    :global(.breadcrumb-segment) {
-        display: inline-block;
-        padding: 2px 4px;
-    }
-
-    :global(.breadcrumb-segment:hover) {
-        text-decoration: underline;
     }
 
     :global(.search-highlight rect) {
