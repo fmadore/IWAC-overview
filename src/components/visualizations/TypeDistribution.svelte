@@ -60,8 +60,11 @@
             .filter(option => option.selected)
             .map(option => option.value);
         
-        // Filter items by selected countries and valid publication dates
+        // Filter items by selected countries, valid publication dates, and exclude "Notice d'autorité" type
         const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
+            // Exclude items with type "Notice d'autorité"
+            if (item.type === "Notice d'autorité") return false;
+            
             // Filter by publication date
             const year = extractYear(item.publication_date);
             if (!year) return false;
@@ -114,19 +117,24 @@
     function generateCountryFacets() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Get items with publication dates
-        const itemsWithDates = $itemsStore.items.filter(item => extractYear(item.publication_date) !== null);
+        // Get items with publication dates and exclude "Notice d'autorité" type
+        const itemsWithDates = $itemsStore.items.filter(item => 
+            extractYear(item.publication_date) !== null && 
+            item.type !== "Notice d'autorité"
+        );
         
         // Group by country
         const countryGroups = d3.group(itemsWithDates, (d: OmekaItem) => d.country || 'Unknown');
         
-        // Convert to facet options format
+        // Convert to facet options format, excluding "Unknown" country
         countryOptions = Array.from(countryGroups, ([country, items]) => ({
             value: country,
             label: country,
             count: items.length,
             selected: false // Initially not selected
-        })).sort((a, b) => b.count - a.count);
+        }))
+        .filter(option => option.value !== 'Unknown') // Exclude "Unknown" country
+        .sort((a, b) => b.count - a.count);
     }
 
     // Generate array of all years present in the data
@@ -134,6 +142,7 @@
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
         const years = $itemsStore.items
+            .filter(item => item.type !== "Notice d'autorité") // Exclude "Notice d'autorité" type
             .map(item => extractYear(item.publication_date))
             .filter((year): year is number => year !== null);
         
