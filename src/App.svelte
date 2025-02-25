@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { itemsStore } from './stores/itemsStore';
+  import { t, language } from './stores/translationStore';
+  import LanguageToggle from './components/LanguageToggle.svelte';
+  import TranslationContext from './components/TranslationContext.svelte';
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
   import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
   import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
@@ -14,12 +17,12 @@
 
   const tabs = [
     // { id: 'overview', label: 'Overview' },
-    { id: 'countries', label: 'Country Distribution' },
-    { id: 'languages', label: 'Languages' },
-    { id: 'timeline', label: 'Timeline' },
-    { id: 'types', label: 'Type Distribution' },
-    { id: 'categories', label: 'Index Categories' },
-    { id: 'words', label: 'Word Distribution' },
+    { id: 'countries', label: 'tab.countries' },
+    { id: 'languages', label: 'tab.languages' },
+    { id: 'timeline', label: 'tab.timeline' },
+    { id: 'types', label: 'tab.types' },
+    { id: 'categories', label: 'tab.categories' },
+    { id: 'words', label: 'tab.words' },
   ];
 
   onMount(() => {
@@ -27,45 +30,50 @@
   });
 </script>
 
-<main>
-  <header>
-    <h1>IWAC Database Overview</h1>
-    <nav>
-      {#each tabs as tab}
-        <button 
-          class:active={activeTab === tab.id}
-          on:click={() => activeTab = tab.id}
-        >
-          {tab.label}
-        </button>
-      {/each}
-    </nav>
-  </header>
+<TranslationContext>
+  <main>
+    <header>
+      <div class="header-top">
+        <h1>{t('app.title')}</h1>
+        <LanguageToggle />
+      </div>
+      <nav>
+        {#each tabs as tab}
+          <button 
+            class:active={activeTab === tab.id}
+            on:click={() => activeTab = tab.id}
+          >
+            {t(tab.label)}
+          </button>
+        {/each}
+      </nav>
+    </header>
 
-  <div class="content">
-    {#if $itemsStore.loading}
-      <div class="loading">Loading database...</div>
-    {:else if $itemsStore.error}
-      <div class="error">{$itemsStore.error}</div>
-    {:else}
-      {#if activeTab === 'countries'}
-        <CountryDistribution />
-      {:else if activeTab === 'languages'}
-        <LanguageDistribution />
-      {:else if activeTab === 'categories'}
-        <IndexDistribution />
-      {:else if activeTab === 'timeline'}
-        <TimelineDistribution />
-      {:else if activeTab === 'types'}
-        <TypeDistribution />
+    <div class="content">
+      {#if $itemsStore.loading}
+        <div class="loading">{t('ui.loading')}</div>
+      {:else if $itemsStore.error}
+        <div class="error">{$itemsStore.error}</div>
       {:else}
-        <div class="visualization-grid">
-          <p>Select a visualization from the tabs above</p>
-        </div>
+        {#if activeTab === 'countries'}
+          <CountryDistribution />
+        {:else if activeTab === 'languages'}
+          <LanguageDistribution />
+        {:else if activeTab === 'categories'}
+          <IndexDistribution />
+        {:else if activeTab === 'timeline'}
+          <TimelineDistribution />
+        {:else if activeTab === 'types'}
+          <TypeDistribution />
+        {:else}
+          <div class="visualization-grid">
+            <p>{t('ui.select_visualization')}</p>
+          </div>
+        {/if}
       {/if}
-    {/if}
-  </div>
-</main>
+    </div>
+  </main>
+</TranslationContext>
 
 <style>
   :global(body) {
@@ -84,9 +92,16 @@
     margin-bottom: var(--spacing-xl);
   }
 
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+  }
+
   h1 {
     color: var(--text-color-primary);
-    margin-bottom: var(--spacing-md);
+    margin: 0;
   }
 
   nav {

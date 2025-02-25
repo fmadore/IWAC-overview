@@ -2,9 +2,11 @@
     import { onMount } from 'svelte';
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
+    import { t } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
 
     export let title: string;
+    export let translationKey: string = '';
     export let description: string = '';
 
     let container: HTMLDivElement;
@@ -46,13 +48,13 @@
             .attr('text-anchor', 'middle')
             .style('font-size', 'var(--font-size-lg)')
             .style('fill', 'var(--text-color-primary)')
-            .text(title);
+            .text(translationKey ? t(translationKey) : title);
     }
 </script>
 
 <div class="visualization-container" bind:this={container}>
     {#if $itemsStore.loading}
-        <div class="loading">Loading...</div>
+        <div class="loading">{t('ui.loading')}</div>
     {:else if $itemsStore.error}
         <div class="error">{$itemsStore.error}</div>
     {/if}
