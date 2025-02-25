@@ -50,14 +50,12 @@
         // Define the start date (April 1, 2024)
         const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
         
-        // Filter items based on selected facets
-        let filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
-            // Skip items without created_date
+        // First, calculate the starting total from items before April 2024
+        let startingTotal = 0;
+        
+        // Apply country and type filters consistently
+        const filterItem = (item: OmekaItem) => {
             if (!item.created_date) return false;
-            
-            // Skip items created before April 2024
-            const itemDate = new Date(item.created_date);
-            if (itemDate < startDate) return false;
             
             // Apply country filter if not 'all'
             if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
@@ -66,11 +64,31 @@
             if (selectedType !== 'all' && item.type !== selectedType) return false;
             
             return true;
+        };
+        
+        // Calculate items from before April 2024 (our starting total)
+        const beforeAprilItems = $itemsStore.items.filter(item => {
+            if (!filterItem(item)) return false;
+            
+            const itemDate = new Date(item.created_date);
+            return itemDate < startDate;
         });
         
-        totalItems = filteredItems.length;
+        startingTotal = beforeAprilItems.length;
         
-        if (totalItems === 0) return [];
+        // Filter items for April 2024 and onwards (for monthly visualization)
+        let filteredItems = $itemsStore.items.filter(item => {
+            if (!filterItem(item)) return false;
+            
+            // Only include items from April 2024 onwards in the monthly breakdown
+            const itemDate = new Date(item.created_date);
+            return itemDate >= startDate;
+        });
+        
+        // Total items is the sum of starting total and filtered items
+        totalItems = startingTotal + filteredItems.length;
+        
+        if (filteredItems.length === 0) return [];
         
         // Extract the month from created_date and count occurrences
         const monthCounts = new Map<string, number>();
@@ -103,11 +121,13 @@
             .sort((a, b) => a.date.getTime() - b.date.getTime());
         
         // Calculate cumulative totals and percentages
-        let runningTotal = 0;
+        // Start with the initial total from before April 2024
+        let runningTotal = startingTotal;
         monthsArray.forEach(month => {
             runningTotal += month.count;
             month.total = runningTotal;
-            month.percentage = (month.count / totalItems) * 100;
+            // Calculate percentage based on the count relative to all items added since April
+            month.percentage = (month.count / filteredItems.length) * 100;
         });
         
         // Calculate max values for scaling
@@ -297,7 +317,7 @@
             .attr('font-size', 'var(--font-size-lg)')
             .attr('font-weight', 'bold')
             .attr('fill', 'var(--text-color-primary)')
-            .text(`Database Growth Timeline (${totalItems} items)`);
+            .text(`Database Growth Timeline (${totalItems} total items)`);
             
         // Add legend
         const legendGroup = svg.append('g')
