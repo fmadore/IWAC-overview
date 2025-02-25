@@ -13,6 +13,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
   - [Country Distribution](#country-distribution)
   - [Language Distribution](#language-distribution)
   - [Index Distribution](#index-distribution)
+  - [Timeline Distribution](#timeline-distribution)
 - [Creating New Visualizations](#creating-new-visualizations)
 - [Extending Functionality](#extending-functionality)
 - [Development Setup](#development-setup)
@@ -27,6 +28,7 @@ Key features:
 - Country distribution treemap visualization
 - Language distribution pie chart with faceted filtering
 - Index distribution bar chart with category breakdown
+- Timeline visualization showing database growth over time
 - Responsive design
 - Clean, modern UI
 - Type-safe development with TypeScript
@@ -44,7 +46,8 @@ IWAC-overview/
 │   │       ├── BaseVisualization.svelte  # Base component for visualizations
 │   │       ├── CountryDistribution.svelte  # Country distribution treemap
 │   │       ├── LanguageDistribution.svelte  # Language distribution pie chart
-│   │       └── IndexDistribution.svelte  # Index distribution bar chart
+│   │       ├── IndexDistribution.svelte  # Index distribution bar chart
+│   │       └── TimelineDistribution.svelte  # Timeline showing database growth
 │   ├── stores/           # Svelte stores for state management
 │   │   └── itemsStore.ts  # Store for database items
 │   ├── types/            # TypeScript type definitions
@@ -99,6 +102,20 @@ A bar chart visualization that shows the distribution of index items (type "Noti
 - Top 5 categories summary with percentage breakdown
 - Statistics panel showing total items and category count
 - Responsive design that adapts to different screen sizes
+
+### TimelineDistribution.svelte
+
+A dual-axis line chart visualization that shows the growth of the database over time:
+- Tracks monthly additions and cumulative totals using the "created_date" field
+- Interactive visualization with hover effects and tooltips
+- Faceted filtering by country and document type
+- Blue line with dots representing monthly additions
+- Green dotted line representing the cumulative total items
+- Detailed tooltips showing monthly counts and percentages
+- Summary statistics showing total items, time period, and average monthly additions
+- List of peak growth months with their contribution percentages
+- Responsive design that adapts to different screen sizes
+- Color-coded legend for clarity
 
 ## Data Management
 
@@ -188,6 +205,22 @@ Features:
 - Top 5 categories summary with percentage breakdown
 - Statistics panel showing total index items and number of categories
 - Responsive design that adapts to different screen sizes
+
+### Timeline Distribution
+
+The Timeline Distribution visualization uses a dual-axis line chart to show the growth of the database over time.
+
+Features:
+- Tracks monthly additions and cumulative totals using the "created_date" field
+- Interactive visualization with hover effects and tooltips
+- Faceted filtering by country and document type
+- Blue line with dots representing monthly additions
+- Green dotted line representing the cumulative total items
+- Detailed tooltips showing monthly counts and percentages
+- Summary statistics showing total items, time period, and average monthly additions
+- List of peak growth months with their contribution percentages
+- Responsive design that adapts to different screen sizes
+- Color-coded legend for clarity
 
 ## Creating New Visualizations
 
@@ -320,6 +353,7 @@ To add a new visualization to the application:
      import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
      import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
      import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
+     import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
      import YourNewVisualization from './components/visualizations/YourNewVisualization.svelte';
      
      // ...existing code...
@@ -338,6 +372,8 @@ To add a new visualization to the application:
          <LanguageDistribution />
        {:else if activeTab === 'categories'}
          <IndexDistribution />
+       {:else if activeTab === 'timeline'}
+         <TimelineDistribution />
        {:else if activeTab === 'your-new-tab'}
          <YourNewVisualization />
        {:else}
@@ -359,6 +395,7 @@ To add a new visualization to the application:
      { id: 'countries', label: 'Country Distribution' },
      { id: 'languages', label: 'Languages' },
      { id: 'categories', label: 'Index Categories' },
+     { id: 'timeline', label: 'Timeline' },
      { id: 'your-new-tab', label: 'Your New Visualization' },
      // ... other tabs ...
    ];

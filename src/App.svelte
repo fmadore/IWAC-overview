@@ -4,6 +4,7 @@
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
   import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
   import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
+  import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
 
   // Import visualization components here
   // They will be created in the next steps
@@ -52,6 +53,8 @@
         <LanguageDistribution />
       {:else if activeTab === 'categories'}
         <IndexDistribution />
+      {:else if activeTab === 'timeline'}
+        <TimelineDistribution />
       {:else}
         <div class="visualization-grid">
           <p>Select a visualization from the tabs above</p>
