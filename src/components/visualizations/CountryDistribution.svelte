@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, tick } from 'svelte';
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
@@ -19,6 +19,13 @@
 
     // Extend the base visualization
     import BaseVisualization from './BaseVisualization.svelte';
+
+    // Configuration options
+    let colorScheme = 'viridis'; // Options: 'viridis', 'spectral', 'blues'
+    let showLabels = true;
+    let searchQuery = '';
+    let searchResults: d3.HierarchyRectangularNode<HierarchyDatum>[] = [];
+    let selectedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
 
     // Function to process data into hierarchical structure
     function processData(items: Item[]): d3.HierarchyNode<HierarchyDatum> {
@@ -58,8 +65,10 @@
     let tooltip: HTMLDivElement;
     let breadcrumb: HTMLDivElement;
 
-    // Create breadcrumb element
+    // Create breadcrumb element with clickable segments
     function createBreadcrumb() {
+        if (!container) return;
+        
         breadcrumb = document.createElement('div');
         breadcrumb.style.position = 'absolute';
         breadcrumb.style.top = '10px';
@@ -68,23 +77,125 @@
         breadcrumb.style.padding = '5px 10px';
         breadcrumb.style.borderRadius = '3px';
         breadcrumb.style.fontSize = '12px';
-        breadcrumb.style.pointerEvents = 'none';
-        document.body.appendChild(breadcrumb);
+        breadcrumb.style.zIndex = '100';
+        breadcrumb.classList.add('breadcrumb-trail');
+        container.appendChild(breadcrumb);
     }
 
-    // Update breadcrumb content
+    // Forward declare zoom functions so TypeScript knows they exist
+    let zoomin: (d: d3.HierarchyRectangularNode<HierarchyDatum>) => void;
+    let zoomout: (d: d3.HierarchyRectangularNode<HierarchyDatum>) => void;
+    let resetToRoot: () => void;
+
+    // Update breadcrumb content with clickable segments
     function updateBreadcrumb(node: d3.HierarchyRectangularNode<HierarchyDatum>) {
-        let ancestors = node.ancestors();
-        // Always ensure the root node is displayed as "IWAC"
-        const path = ancestors
-            .reverse()
-            .map(d => d === root || d.data.name === 'root' ? 'IWAC' : d.data.name)
-            .join(' / ');
-        log(`Breadcrumb updated: ${path}`);
-        breadcrumb.textContent = path;
+        let ancestors = node.ancestors().reverse();
+        breadcrumb.innerHTML = '';
+        
+        ancestors.forEach((d, i) => {
+            const name = d === root || d.data.name === 'root' ? 'IWAC' : d.data.name;
+            const segment = document.createElement('span');
+            segment.textContent = name;
+            segment.classList.add('breadcrumb-segment');
+            
+            // Make breadcrumb segments clickable
+            if (i < ancestors.length - 1) {
+                segment.style.cursor = 'pointer';
+                segment.style.color = '#0066cc';
+                segment.addEventListener('click', () => {
+                    if (d !== currentNode) {
+                        if (d === root) {
+                            resetToRoot();
+                        } else {
+                            zoomin(d);
+                        }
+                    }
+                });
+            } else {
+                segment.style.fontWeight = 'bold';
+            }
+            
+            breadcrumb.appendChild(segment);
+            
+            if (i < ancestors.length - 1) {
+                const separator = document.createElement('span');
+                separator.textContent = ' / ';
+                separator.style.color = '#999';
+                breadcrumb.appendChild(separator);
+            }
+        });
+        
+        log(`Breadcrumb updated for: ${node.data.name}`);
     }
 
-    // New createTreemap function with custom tiling and zoom transitions
+    // Create color scales based on selected scheme
+    function getColorScale(scheme: string, domain: [number, number]) {
+        switch(scheme) {
+            case 'viridis':
+                return d3.scaleSequential(d3.interpolateViridis).domain(domain);
+            case 'spectral':
+                return d3.scaleSequential(d3.interpolateSpectral).domain(domain);
+            case 'blues':
+                return d3.scaleSequential(d3.interpolateBlues).domain(domain);
+            default:
+                return d3.scaleSequential(d3.interpolateViridis).domain(domain);
+        }
+    }
+
+    // Handle search functionality
+    function handleSearch() {
+        // No need for this function since we removed the search input
+        // But keeping a stub in case it's called elsewhere
+        return;
+    }
+    
+    // Create notification for search result - keeping this but simplifying
+    function createSearchNotification(node: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        // No need for this function since we're not showing search results
+        // But keeping a stub in case it's called elsewhere
+        return;
+    }
+    
+    // Download visualization as SVG
+    function downloadVisualization() {
+        if (!container) return;
+        
+        const svgElement = container.querySelector('svg');
+        if (!svgElement) return;
+        
+        // Create a copy of the SVG to modify for download
+        const svgCopy = svgElement.cloneNode(true) as SVGElement;
+        
+        // Add CSS styles inline
+        const styleElement = document.createElement('style');
+        styleElement.textContent = `
+            text { font-family: sans-serif; }
+            .treemap-cell rect { stroke: white; }
+            .search-highlight rect { stroke: #ff5500; stroke-width: 2px; }
+        `;
+        svgCopy.insertBefore(styleElement, svgCopy.firstChild);
+        
+        // Convert SVG to string
+        const serializer = new XMLSerializer();
+        let svgString = serializer.serializeToString(svgCopy);
+        
+        // Add XML declaration
+        svgString = '<?xml version="1.0" standalone="no"?>\n' + svgString;
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        link.download = 'iwac_treemap.svg';
+        
+        // Make sure document.body exists before appending
+        if (document && document.body) {
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    // New createTreemap function with enhanced interactivity
     function createTreemap() {
         if (!container || !$itemsStore.items.length) return;
 
@@ -120,10 +231,13 @@
         const treemapLayout = d3.treemap<HierarchyDatum>()
             .tile(tile)
             .size([width, height - 30])
-            .padding(7);
+            .padding(7)
+            .paddingTop(15);  // Increase padding for better label visibility
+            
         treemapLayout(hierarchyData);
         root = hierarchyData as d3.HierarchyRectangularNode<HierarchyDatum>;
         currentNode = root;
+        selectedNode = null;
 
         // Add title after root is defined
         svg.append('text')
@@ -138,60 +252,128 @@
         const x = d3.scaleLinear().rangeRound([0, width]).domain([0, width]);
         const y = d3.scaleLinear().rangeRound([0, height - 30]).domain([0, height - 30]);
 
+        // Create color scale based on selected scheme
+        const values = root.leaves().map(d => d.value || 0);
+        const minValue = d3.min(values) || 0;
+        const maxValue = d3.max(values) || 1;
+        const colorScale = getColorScale(colorScheme, [minValue, maxValue]);
+
         // Initial render at the root level
         g = svg.append('g');
-        render(g, root, x, y);
+        render(g, root, x, y, colorScale);
 
         // Render function draws nodes and attaches click events for zooming
-        function render(group: d3.Selection<SVGGElement, any, null, undefined>, node: d3.HierarchyRectangularNode<HierarchyDatum>, xScale: d3.ScaleLinear<number, number>, yScale: d3.ScaleLinear<number, number>) {
+        function render(
+            group: d3.Selection<SVGGElement, any, null, undefined>, 
+            node: d3.HierarchyRectangularNode<HierarchyDatum>, 
+            xScale: d3.ScaleLinear<number, number>, 
+            yScale: d3.ScaleLinear<number, number>,
+            colors: d3.ScaleSequential<string>
+        ) {
             const nodes = node.children ? [node].concat(node.children) : [node];
             const cell = group.selectAll('g')
                 .data(nodes)
                 .join('g')
-                .attr('transform', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? `translate(0,-30)` : `translate(${xScale(d.x0)},${yScale(d.y0) + 30})`);
+                .attr('class', 'treemap-cell')
+                .attr('data-id', d => d.data.name)
+                .attr('transform', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => 
+                    d === node ? `translate(0,-30)` : `translate(${xScale(d.x0)},${yScale(d.y0) + 30})`)
+                .on('mouseenter', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => {
+                    showTooltip(event, d);
+                    selectedNode = d;
+                    // Removed: updateInfoPanel(d);
+                    
+                    // Highlight the cell
+                    d3.select(event.currentTarget as Element)
+                        .select('rect')
+                        .attr('stroke', '#ff5500')
+                        .attr('stroke-width', 2);
+                })
+                .on('mouseleave', (event: MouseEvent) => {
+                    hideTooltip();
+                    
+                    // Remove highlight
+                    d3.select(event.currentTarget as Element)
+                        .select('rect')
+                        .attr('stroke', '#fff')
+                        .attr('stroke-width', 1);
+                });
 
             cell.filter((d: d3.HierarchyRectangularNode<HierarchyDatum>) => d !== node && !!d.children)
                 .attr('cursor', 'pointer')
                 .on('click', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => zoomin(d));
+                
             if (node !== root) {
                 cell.filter((d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node)
                     .attr('cursor', 'pointer')
                     .on('click', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => zoomout(d));
             }
 
-            cell.on('mouseover', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => showTooltip(event, d))
-                .on('mousemove', (event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) => showTooltip(event, d))
-                .on('mouseout', hideTooltip);
-
+            // Add rectangles with color scale based on value
             cell.append('rect')
-                .attr('fill', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? '#fff' : d.children ? '#ccc' : '#ddd')
+                .attr('fill', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => {
+                    if (d === node) return '#fff';
+                    if (!d.children) {
+                        // Leaf nodes get color based on value
+                        return colors(d.value || 0);
+                    }
+                    // Parent nodes get color based on average of children
+                    const childValues = d.children.map(c => c.value || 0);
+                    const avgValue = d3.mean(childValues) || 0;
+                    return colors(avgValue);
+                })
                 .attr('stroke', '#fff')
-                .attr('width', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? width : xScale(d.x1) - xScale(d.x0))
-                .attr('height', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? 30 : yScale(d.y1) - yScale(d.y0));
+                .attr('width', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => 
+                    d === node ? width : xScale(d.x1) - xScale(d.x0))
+                .attr('height', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => 
+                    d === node ? 30 : yScale(d.y1) - yScale(d.y0));
 
-            cell.append('text')
-                .attr('x', 4)
-                .attr('y', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? 20 : 13)
-                .attr('fill', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? '#000' : (d.children ? '#000' : '#fff'))
-                .attr('font-weight', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? 'bold' : 'normal')
-                .attr('font-size', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? '14px' : '12px')
-                .text((d: d3.HierarchyRectangularNode<HierarchyDatum>) => d.data.name);
+            // Add text labels if enabled and if there's enough space
+            if (showLabels) {
+                cell.append('text')
+                    .attr('x', 4)
+                    .attr('y', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => d === node ? 20 : 13)
+                    .attr('fill', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => {
+                        if (d === node) return '#000';
+                        
+                        // Calculate brightness of background for text contrast
+                        const rect = d3.select(`[data-id="${d.data.name}"]`).select('rect');
+                        const fill = rect.attr('fill') || '#ccc';
+                        const rgb = d3.rgb(fill);
+                        const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+                        
+                        return brightness > 125 ? '#000' : '#fff';
+                    })
+                    .attr('font-weight', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => 
+                        d === node ? 'bold' : 'normal')
+                    .attr('font-size', (d: d3.HierarchyRectangularNode<HierarchyDatum>) => 
+                        d === node ? '14px' : '12px')
+                    .text((d: d3.HierarchyRectangularNode<HierarchyDatum>) => {
+                        // Only show text if the cell is big enough
+                        const cellWidth = d === node ? width : xScale(d.x1) - xScale(d.x0);
+                        const cellHeight = d === node ? 30 : yScale(d.y1) - yScale(d.y0);
+                        
+                        if (cellWidth < 30 || cellHeight < 15) return '';
+                        
+                        return d.data.name + (d.value ? ` (${d.value})` : '');
+                    });
+            }
         }
 
         // Zoom in by rendering a new view for the selected node
-        function zoomin(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        zoomin = function(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
             currentNode = d;
             updateBreadcrumb(d);
             const newX = d3.scaleLinear().rangeRound([0, width]).domain([d.x0, d.x1]);
             const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([d.y0, d.y1]);
             const oldGroup = g;
             g = svg.append('g');
-            render(g, d, newX, newY);
+            render(g, d, newX, newY, colorScale);
             oldGroup.transition().duration(750).style('opacity', 0).remove();
-        }
+        };
 
         // Zoom out by rendering the parent view of the current node
-        function zoomout(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        zoomout = function(d: d3.HierarchyRectangularNode<HierarchyDatum>) {
             if (!d.parent) return;
             currentNode = d.parent;
             updateBreadcrumb(d.parent);
@@ -199,26 +381,62 @@
             const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([d.parent.y0, d.parent.y1]);
             const oldGroup = g;
             g = svg.insert('g', '*');
-            render(g, d.parent, newX, newY);
+            render(g, d.parent, newX, newY, colorScale);
             oldGroup.transition().duration(750).style('opacity', 0).remove();
+        };
+        
+        // Reset to root view
+        resetToRoot = function() {
+            if (currentNode === root) return;
+            currentNode = root;
+            updateBreadcrumb(root);
+            const newX = d3.scaleLinear().rangeRound([0, width]).domain([0, width]);
+            const newY = d3.scaleLinear().rangeRound([0, height - 30]).domain([0, height - 30]);
+            const oldGroup = g;
+            g = svg.insert('g', '*');
+            render(g, root, newX, newY, colorScale);
+            oldGroup.transition().duration(750).style('opacity', 0).remove();
+        };
+        
+        // Update UI based on search results
+        if (searchQuery && searchResults.length > 0) {
+            handleSearch();
         }
     }
+    
+    // Define an external resetToRoot function for standalone use
+    function resetToRootExternal() {
+        if (currentNode === root) return;
+        currentNode = root;
+        updateBreadcrumb(root);
+        createTreemap(); // Recreate the entire treemap
+    }
 
-    // Create tooltip element
+    // Create tooltip element with enhanced styling
     function createTooltip() {
         tooltip = document.createElement('div');
         tooltip.style.position = 'absolute';
-        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
         tooltip.style.color = 'white';
-        tooltip.style.padding = '5px';
-        tooltip.style.borderRadius = '3px';
+        tooltip.style.padding = '8px 12px';
+        tooltip.style.borderRadius = '4px';
         tooltip.style.pointerEvents = 'none';
         tooltip.style.display = 'none';
-        document.body.appendChild(tooltip);
+        tooltip.style.fontSize = '12px';
+        tooltip.style.zIndex = '1000';
+        tooltip.style.maxWidth = '200px';
+        tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        
+        // Make sure document.body exists before appending
+        if (document && document.body) {
+            document.body.appendChild(tooltip);
+        }
     }
 
     // Update tooltip content and position
     function showTooltip(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
+        if (!tooltip || !root) return;
+        
         const totalValue = root.value || 0;
         const parentValue = d.parent ? d.parent.value || 0 : totalValue;
         const value = d.value || 0;
@@ -226,36 +444,91 @@
         const percentageOfTotal = ((value / totalValue) * 100).toFixed(2);
 
         tooltip.innerHTML = `
-            <strong>${d.data.name}</strong><br>
-            Items: ${value}<br>
-            % of Parent: ${percentageOfParent}%<br>
-            % of Total: ${percentageOfTotal}%
+            <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                ${d.data.name}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                <span>Items:</span><span style="text-align:right;font-weight:bold;">${value}</span>
+                <span>% of Parent:</span><span style="text-align:right;font-weight:bold;">${percentageOfParent}%</span>
+                <span>% of Total:</span><span style="text-align:right;font-weight:bold;">${percentageOfTotal}%</span>
+            </div>
+            ${d.children ? `<div style="font-style:italic;margin-top:4px;font-size:10px;">Click to zoom in</div>` : ''}
+            ${d === currentNode && d !== root ? `<div style="font-style:italic;margin-top:4px;font-size:10px;">Click to zoom out</div>` : ''}
         `;
-        tooltip.style.left = `${event.pageX + 10}px`;
-        tooltip.style.top = `${event.pageY + 10}px`;
+        
+        // Position tooltip with smart placement
+        const tooltipWidth = 200; // Approximate width
+        const tooltipHeight = 120; // Approximate height
+        
+        let left = event.pageX + 10;
+        let top = event.pageY + 10;
+        
+        // Adjust if tooltip would go off the right edge
+        if (left + tooltipWidth > window.innerWidth) {
+            left = event.pageX - tooltipWidth - 10;
+        }
+        
+        // Adjust if tooltip would go off the bottom edge
+        if (top + tooltipHeight > window.innerHeight) {
+            top = event.pageY - tooltipHeight - 10;
+        }
+        
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
         tooltip.style.display = 'block';
     }
 
     // Hide tooltip
     function hideTooltip() {
-        tooltip.style.display = 'none';
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
     }
 
     // Update visualization when data changes or on resize
     $: if ($itemsStore.items) createTreemap();
 
-    onMount(() => {
+    onMount(async () => {
+        // Wait for initial tick to ensure the component is mounted
+        await tick();
+        
+        // Check if container exists before proceeding
+        if (!container) {
+            console.error('Container element not found');
+            return;
+        }
+        
+        // Now create UI elements in the correct order
         createTooltip();
         createBreadcrumb();
-        const resizeObserver = new ResizeObserver(() => {
+        
+        // Create the initial visualization
+        if ($itemsStore.items && $itemsStore.items.length > 0) {
             createTreemap();
+        } else {
+            // Load items if not already loaded
+            itemsStore.loadItems();
+        }
+        
+        const resizeObserver = new ResizeObserver(() => {
+            if (container) {
+                createTreemap();
+            }
         });
 
         resizeObserver.observe(container);
+        
         return () => {
             resizeObserver.disconnect();
-            document.body.removeChild(tooltip);
-            document.body.removeChild(breadcrumb);
+            
+            // Clean up tooltip
+            if (tooltip && document.body.contains(tooltip)) {
+                document.body.removeChild(tooltip);
+            }
+            
+            if (breadcrumb && breadcrumb.parentNode) {
+                breadcrumb.parentNode.removeChild(breadcrumb);
+            }
         };
     });
 </script>
@@ -276,6 +549,7 @@
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
     }
 
     .loading, .error {
@@ -287,5 +561,27 @@
 
     .error {
         color: red;
+    }
+
+    :global(.breadcrumb-segment) {
+        display: inline-block;
+        padding: 2px 4px;
+    }
+
+    :global(.breadcrumb-segment:hover) {
+        text-decoration: underline;
+    }
+
+    :global(.search-highlight rect) {
+        stroke: #ff5500 !important;
+        stroke-width: 2px !important;
+        stroke-dasharray: 5, 2;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% { stroke-opacity: 0.6; }
+        50% { stroke-opacity: 1; }
+        100% { stroke-opacity: 0.6; }
     }
 </style> 
