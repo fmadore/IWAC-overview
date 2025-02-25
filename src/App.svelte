@@ -61,76 +61,77 @@
 <style>
   :global(body) {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-    background-color: #f5f5f5;
+    font-family: var(--font-family-primary);
+    background-color: var(--background-color);
   }
 
   main {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: var(--spacing-xl);
   }
 
   header {
-    margin-bottom: 2rem;
+    margin-bottom: var(--spacing-xl);
   }
 
   h1 {
-    color: #333;
-    margin-bottom: 1rem;
+    color: var(--text-color-primary);
+    margin-bottom: var(--spacing-md);
   }
 
   nav {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--spacing-xs);
     flex-wrap: wrap;
-    background: white;
-    padding: 0.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: var(--card-background);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--card-shadow);
   }
 
   button {
-    padding: 0.5rem 1rem;
+    padding: var(--spacing-xs) var(--spacing-md);
     border: none;
     background: transparent;
     cursor: pointer;
-    border-radius: 4px;
-    color: #666;
-    transition: all 0.2s;
+    border-radius: var(--border-radius-sm);
+    color: var(--text-color-secondary);
+    transition: all var(--transition-fast);
   }
 
   button:hover {
-    background: #f0f0f0;
-    color: #333;
+    background: var(--divider-color);
+    color: var(--text-color-primary);
   }
 
   button.active {
-    background: #333;
-    color: white;
+    background: var(--primary-color);
+    color: var(--text-color-light);
   }
 
   .content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: var(--card-background);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--card-shadow);
     min-height: 500px;
   }
 
   .visualization-grid {
     display: grid;
-    gap: 2rem;
+    gap: var(--spacing-xl);
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   }
 
   .loading, .error {
     text-align: center;
-    padding: 2rem;
-    font-size: 1.2em;
+    padding: var(--spacing-xl);
+    font-size: var(--font-size-lg);
+    color: var(--text-color-secondary);
   }
 
   .error {
-    color: red;
+    color: var(--error-color);
   }
 </style>

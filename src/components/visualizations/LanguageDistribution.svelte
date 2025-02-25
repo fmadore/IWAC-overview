@@ -192,6 +192,9 @@
             legend.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
             legend.style.maxHeight = '300px';
             legend.style.overflowY = 'auto';
+            legend.style.color = 'var(--text-color-primary)';
+            legend.style.fontFamily = 'var(--font-family-primary)';
+            legend.style.fontSize = 'var(--font-size-sm)';
             container.appendChild(legend);
         }
     }
@@ -201,12 +204,12 @@
         if (!legend) return;
         
         legend.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:8px;font-size:14px;">Languages (${data.length})</div>
+            <div style="font-weight:bold;margin-bottom:8px;font-size:14px;color:var(--text-color-primary);">Languages (${data.length})</div>
             <div style="display:grid;grid-template-columns:20px auto 40px;gap:4px;font-size:12px;">
                 ${data.map((d, i) => `
                     <div style="width:12px;height:12px;background-color:${colorScale(d.language)};border-radius:2px;margin-top:2px;"></div>
-                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.language}</div>
-                    <div style="text-align:right;">${d.count}</div>
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-color-primary);">${d.language}</div>
+                    <div style="text-align:right;color:var(--text-color-secondary);">${d.count}</div>
                 `).join('')}
             </div>
         `;
@@ -227,6 +230,7 @@
                 .style('left', '50%')
                 .style('transform', 'translate(-50%, -50%)')
                 .style('text-align', 'center')
+                .style('color', 'var(--text-color-secondary)')
                 .text('No language data available with the current filters');
             return;
         }
@@ -304,6 +308,7 @@
             .attr('x', 0)
             .attr('font-size', '20px')
             .attr('font-weight', 'bold')
+            .attr('fill', 'var(--text-color-primary)')
             .text(`Language Distribution (${totalItems} items)`);
         
         // Update the legend with current data
@@ -424,47 +429,50 @@
     .filters {
         display: flex;
         flex-wrap: wrap;
-        gap: 15px;
-        padding: 15px;
-        background-color: #f5f5f5;
-        border-radius: 8px 8px 0 0;
-        border-bottom: 1px solid #ddd;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        background-color: var(--background-color);
+        border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+        border-bottom: 1px solid var(--border-color);
     }
     
     .filter-group {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: var(--spacing-xs);
     }
     
     label {
-        font-size: 12px;
+        font-size: var(--font-size-xs);
         font-weight: bold;
-        color: #555;
+        color: var(--text-color-secondary);
     }
     
     select {
-        padding: 8px 12px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
-        background-color: white;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        border-radius: var(--border-radius-sm);
+        border: 1px solid var(--border-color);
+        background-color: var(--card-background);
+        color: var(--text-color-primary);
         min-width: 200px;
+        font-family: var(--font-family-primary);
+        font-size: var(--font-size-sm);
     }
     
     .summary {
         margin-left: auto;
         display: flex;
         align-items: flex-end;
-        font-size: 14px;
-        color: #666;
+        font-size: var(--font-size-sm);
+        color: var(--text-color-secondary);
     }
     
     .pie-container {
         flex: 1;
         min-height: 500px;
         position: relative;
-        background: white;
-        border-radius: 0 0 8px 8px;
+        background: var(--card-background);
+        border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
     }
     
     .loading, .error {
@@ -472,9 +480,10 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        color: var(--text-color-secondary);
     }
     
     .error {
-        color: red;
+        color: var(--error-color);
     }
 </style> 

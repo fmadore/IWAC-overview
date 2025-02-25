@@ -8,6 +8,10 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Project Structure](#project-structure)
 - [Core Components](#core-components)
 - [Data Management](#data-management)
+- [Theme System](#theme-system)
+- [Visualizations](#visualizations)
+  - [Country Distribution](#country-distribution)
+  - [Language Distribution](#language-distribution)
 - [Creating New Visualizations](#creating-new-visualizations)
 - [Extending Functionality](#extending-functionality)
 - [Development Setup](#development-setup)
@@ -20,9 +24,11 @@ The IWAC Database Overview is a Svelte-based application that offers a set of in
 Key features:
 - Interactive D3.js visualizations
 - Country distribution treemap visualization
+- Language distribution pie chart with faceted filtering
 - Responsive design
 - Clean, modern UI
 - Type-safe development with TypeScript
+- Centralized theming system with CSS variables
 
 ## Project Structure
 
@@ -34,7 +40,8 @@ IWAC-overview/
 │   ├── components/       # UI components
 │   │   └── visualizations/  # Visualization components
 │   │       ├── BaseVisualization.svelte  # Base component for visualizations
-│   │       └── CountryDistribution.svelte  # Country distribution treemap
+│   │       ├── CountryDistribution.svelte  # Country distribution treemap
+│   │       └── LanguageDistribution.svelte  # Language distribution pie chart
 │   ├── stores/           # Svelte stores for state management
 │   │   └── itemsStore.ts  # Store for database items
 │   ├── types/            # TypeScript type definitions
@@ -43,6 +50,7 @@ IWAC-overview/
 │   │   └── logger.ts      # Logging utility
 │   ├── App.svelte        # Main application component
 │   ├── app.css           # Global styles
+│   ├── theme.css         # Centralized theme system with CSS variables
 │   └── main.ts           # Application entry point
 ├── index.html            # HTML entry point
 └── README.md             # This documentation file
@@ -70,6 +78,15 @@ A treemap visualization that shows the distribution of items by country and sub-
 - Tooltips with detailed information
 - Responsive layout
 
+### LanguageDistribution.svelte
+
+A pie chart visualization that shows the distribution of items by language with dynamic filtering capabilities:
+- Interactive pie chart with hover effects
+- Filtering by country and document type
+- Real-time updates as filters change
+- Color-coded legend with counts and percentages
+- Tooltips with detailed information
+
 ## Data Management
 
 ### itemsStore.ts
@@ -84,6 +101,65 @@ A Svelte store that manages the loading and state of database items. It provides
 TypeScript interfaces that define the structure of database items and visualization data:
 - OmekaItem: Represents an individual item from the IWAC database
 - VisualizationData: Manages the state of items, loading, and errors
+
+## Theme System
+
+The application uses a centralized theming system implemented with CSS variables. This allows for consistent styling across all components and makes it easy to update the look and feel of the entire application by changing just a few values.
+
+### theme.css
+
+The theme file defines variables for:
+
+- **Colors**: Primary, secondary, background, card, text, and status colors
+- **Typography**: Font families, sizes, and weights
+- **Spacing**: Consistent spacing scale for margins and padding
+- **Border Radius**: Standardized corner rounding
+- **Shadows**: Consistent shadow styles
+- **Transitions**: Animation timing
+- **Z-index Layers**: Standardized stacking contexts
+
+Example usage:
+
+```css
+.element {
+  color: var(--text-color-primary);
+  background-color: var(--card-background);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-fast);
+}
+```
+
+The theme system also includes utility classes for common styling needs:
+
+```html
+<div class="text-primary bg-card">Themed content</div>
+```
+
+## Visualizations
+
+### Country Distribution
+
+The Country Distribution visualization uses a treemap to show the hierarchical breakdown of items by country and sub-collection. 
+
+Features:
+- Hierarchical navigation through zooming in/out
+- Color intensity representing item counts
+- Interactive tooltips showing detailed information
+- Responsive scaling to container size
+
+### Language Distribution
+
+The Language Distribution visualization uses a pie chart to show the distribution of items by language, with faceted filtering capabilities.
+
+Features:
+- Interactive pie chart with hover effects and animations
+- Filtering by country and document type using dropdown menus
+- Color-coded segments with corresponding legend
+- Tooltips showing count and percentage information
+- Summary statistics showing total items and language count
+- Responsive design that adapts to container size
 
 ## Creating New Visualizations
 
@@ -185,9 +261,9 @@ To add a new visualization to the application:
            width: 100%;
            height: 600px;
            position: relative;
-           background: white;
-           border-radius: 8px;
-           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+           background: var(--card-background);
+           border-radius: var(--border-radius-md);
+           box-shadow: var(--card-shadow);
            overflow: hidden;
        }
 
@@ -196,10 +272,11 @@ To add a new visualization to the application:
            top: 50%;
            left: 50%;
            transform: translate(-50%, -50%);
+           color: var(--text-color-secondary);
        }
 
        .error {
-           color: red;
+           color: var(--error-color);
        }
    </style>
    ```
@@ -213,6 +290,7 @@ To add a new visualization to the application:
      import { onMount } from 'svelte';
      import { itemsStore } from './stores/itemsStore';
      import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
+     import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
      import YourNewVisualization from './components/visualizations/YourNewVisualization.svelte';
      
      // ...existing code...
@@ -227,6 +305,8 @@ To add a new visualization to the application:
      {:else}
        {#if activeTab === 'countries'}
          <CountryDistribution />
+       {:else if activeTab === 'languages'}
+         <LanguageDistribution />
        {:else if activeTab === 'your-new-tab'}
          <YourNewVisualization />
        {:else}
@@ -246,9 +326,23 @@ To add a new visualization to the application:
    const tabs = [
      { id: 'overview', label: 'Overview' },
      { id: 'countries', label: 'Country Distribution' },
+     { id: 'languages', label: 'Languages' },
      { id: 'your-new-tab', label: 'Your New Visualization' },
      // ... other tabs ...
    ];
+   ```
+
+4. **Use the theme system for consistent styling**
+
+   Make sure to use theme variables in your component styles for consistency:
+
+   ```css
+   .your-element {
+     color: var(--text-color-primary);
+     background-color: var(--card-background);
+     padding: var(--spacing-md);
+     border-radius: var(--border-radius-md);
+   }
    ```
 
 ## Extending Functionality

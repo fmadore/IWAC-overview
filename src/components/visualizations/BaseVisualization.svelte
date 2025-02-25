@@ -44,7 +44,8 @@
             .attr('x', width / 2)
             .attr('y', margin.top / 2)
             .attr('text-anchor', 'middle')
-            .style('font-size', '1.2em')
+            .style('font-size', 'var(--font-size-lg)')
+            .style('fill', 'var(--text-color-primary)')
             .text(title);
     }
 </script>
@@ -63,10 +64,10 @@
         height: 100%;
         min-height: 400px;
         position: relative;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        padding: 1rem;
+        background: var(--card-background);
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--card-shadow);
+        padding: var(--spacing-md);
     }
 
     .loading, .error {
@@ -74,9 +75,10 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        color: var(--text-color-secondary);
     }
 
     .error {
-        color: red;
+        color: var(--error-color);
     }
 </style> 
