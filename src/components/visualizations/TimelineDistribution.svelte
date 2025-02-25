@@ -12,6 +12,7 @@
         monthFormatted: string; // Display format (e.g., "Mar 2024")
         count: number;       // Number of items added in this month
         total: number;       // Cumulative total as of this month
+        percentage: number;  // Percentage of total
     }
 
     interface FacetOption {
@@ -46,10 +47,17 @@
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return [];
         
+        // Define the start date (April 1, 2024)
+        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
+        
         // Filter items based on selected facets
         let filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
             // Skip items without created_date
             if (!item.created_date) return false;
+            
+            // Skip items created before April 2024
+            const itemDate = new Date(item.created_date);
+            if (itemDate < startDate) return false;
             
             // Apply country filter if not 'all'
             if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
@@ -88,16 +96,18 @@
                     month,
                     monthFormatted: displayFormat(date),
                     count,
-                    total: 0 // Will calculate cumulative total next
+                    total: 0, // Will calculate cumulative total next
+                    percentage: 0 // Will calculate percentage next
                 };
             })
             .sort((a, b) => a.date.getTime() - b.date.getTime());
         
-        // Calculate cumulative totals
+        // Calculate cumulative totals and percentages
         let runningTotal = 0;
         monthsArray.forEach(month => {
             runningTotal += month.count;
             month.total = runningTotal;
+            month.percentage = (month.count / totalItems) * 100;
         });
         
         // Calculate max values for scaling
@@ -111,8 +121,15 @@
     function generateFacetOptions() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Get only items with created_date
-        const itemsWithDate = $itemsStore.items.filter(item => item.created_date);
+        // Define the start date (April 1, 2024)
+        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
+        
+        // Get only items with created_date and after April 2024
+        const itemsWithDate = $itemsStore.items.filter(item => {
+            if (!item.created_date) return false;
+            const itemDate = new Date(item.created_date);
+            return itemDate >= startDate;
+        });
         
         // Generate country options
         const countries = d3.rollup(
@@ -127,7 +144,8 @@
                 value: country,
                 label: country,
                 count
-            })).sort((a, b) => b.count - a.count)
+            })).filter(option => option.value !== "Unknown") // Remove Unknown option
+            .sort((a, b) => b.count - a.count)
         ];
         
         // Generate type options
@@ -166,25 +184,36 @@
         }
     }
     
-    // Show tooltip with month information
-    function showTooltip(event: MouseEvent, d: MonthlyData) {
+    // Show tooltip with data information
+    function showTooltip(event: MouseEvent, d: MonthlyData, type: 'monthly' | 'total') {
         if (!tooltip) return;
         
-        const percentOfTotal = ((d.count / totalItems) * 100).toFixed(1);
+        const monthName = d.date.toLocaleString('default', { month: 'long' });
+        const year = d.date.getFullYear();
         
-        tooltip.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                ${d.monthFormatted}
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                <span>Added this month:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
-                <span>Total items:</span><span style="text-align:right;font-weight:bold;">${d.total}</span>
-                <span>% of all additions:</span><span style="text-align:right;font-weight:bold;">${percentOfTotal}%</span>
-            </div>
-        `;
+        if (type === 'monthly') {
+            tooltip.innerHTML = `
+                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                    ${monthName} ${year}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                    <span>New Items:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
+                    <span>Percentage:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
+                </div>
+            `;
+        } else {
+            tooltip.innerHTML = `
+                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                    ${monthName} ${year}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                    <span>Total Items:</span><span style="text-align:right;font-weight:bold;">${d.total}</span>
+                </div>
+            `;
+        }
         
-        const tooltipWidth = 220;
-        const tooltipHeight = 120;
+        const tooltipWidth = 200;
+        const tooltipHeight = 100;
         
         let left = event.pageX + 10;
         let top = event.pageY + 10;
@@ -213,7 +242,7 @@
     function createTimeline() {
         if (!container) return;
         
-        // Process data
+        // Process data with current filters
         const data = processData();
         if (!data || data.length === 0) {
             d3.select(container).select('svg').remove();
@@ -229,7 +258,7 @@
             return;
         }
         
-        // Update timelineData for reactive updates
+        // Update timeline data for reactive updates
         timelineData = data;
         
         // Remove previous content
@@ -239,12 +268,7 @@
         // Get container dimensions
         const rect = container.getBoundingClientRect();
         width = rect.width;
-        height = rect.height - 40; // Leave space for title
-        
-        // Set margins
-        const margin = { top: 60, right: 80, bottom: 80, left: 60 };
-        const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
+        height = rect.height - 120; // Leave space for filters at top and legend
         
         // Create SVG container
         const svg = d3.select(container)
@@ -253,167 +277,284 @@
             .attr('height', height)
             .attr('viewBox', `0 0 ${width} ${height}`);
             
-        // Create chart group
-        const chart = svg.append('g')
+        // Set margins
+        const margin = { top: 40, right: 50, bottom: 50, left: 60 };
+        const chartWidth = width - margin.left - margin.right;
+        
+        // Calculate individual chart heights
+        const chartHeight = (height - margin.top - margin.bottom - 30) / 2; // 30px gap between charts
+        
+        // Create x scale for both charts (shared)
+        const xScale = d3.scaleTime()
+            .domain(d3.extent(data, d => d.date))
+            .range([0, chartWidth]);
+            
+        // Create title with total count
+        svg.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('x', width / 2)
+            .attr('y', 20)
+            .attr('font-size', 'var(--font-size-lg)')
+            .attr('font-weight', 'bold')
+            .attr('fill', 'var(--text-color-primary)')
+            .text(`Database Growth Timeline (${totalItems} items)`);
+            
+        // Add legend
+        const legendGroup = svg.append('g')
+            .attr('transform', `translate(${width - margin.right}, ${margin.top - 10})`);
+            
+        // Monthly additions legend item
+        legendGroup.append('line')
+            .attr('x1', -100)
+            .attr('y1', 0)
+            .attr('x2', -80)
+            .attr('y2', 0)
+            .attr('stroke', 'var(--primary-color)')
+            .attr('stroke-width', 2)
+            .attr('marker-end', 'url(#circle)');
+            
+        legendGroup.append('text')
+            .attr('x', -75)
+            .attr('y', 4)
+            .attr('fill', 'var(--text-color-primary)')
+            .attr('font-size', 'var(--font-size-sm)')
+            .text('Monthly Additions');
+            
+        // Total items legend item
+        legendGroup.append('line')
+            .attr('x1', -100)
+            .attr('y1', 20)
+            .attr('x2', -80)
+            .attr('y2', 20)
+            .attr('stroke', 'var(--secondary-color)')
+            .attr('stroke-width', 2)
+            .attr('stroke-dasharray', '4 2');
+            
+        legendGroup.append('text')
+            .attr('x', -75)
+            .attr('y', 24)
+            .attr('fill', 'var(--text-color-primary)')
+            .attr('font-size', 'var(--font-size-sm)')
+            .text('Total Items');
+            
+        // Create circle marker definition for line points
+        svg.append('defs').append('marker')
+            .attr('id', 'circle')
+            .attr('viewBox', '-5 -5 10 10')
+            .attr('refX', 0)
+            .attr('refY', 0)
+            .attr('markerWidth', 5)
+            .attr('markerHeight', 5)
+            .append('circle')
+            .attr('r', 3)
+            .attr('fill', 'var(--primary-color)');
+
+        // CHART 1: Monthly Additions
+        // =========================
+        const chart1 = svg.append('g')
             .attr('transform', `translate(${margin.left}, ${margin.top})`);
-        
-        // Create scales
-        const xScale = d3.scalePoint<string>()
-            .domain(data.map(d => d.monthFormatted))
-            .range([0, chartWidth])
-            .padding(0.5);
             
-        // Left y-axis for monthly additions
+        // Create y scale for monthly chart
         const yScaleMonthly = d3.scaleLinear()
-            .domain([0, maxMonthlyCount * 1.1]) // Add 10% padding at top
+            .domain([0, d3.max(data, d => d.count) * 1.1])
             .range([chartHeight, 0]);
             
-        // Right y-axis for total items
-        const yScaleTotal = d3.scaleLinear()
-            .domain([0, maxTotalCount * 1.1]) // Add 10% padding at top
-            .range([chartHeight, 0]);
-        
-        // Create and append x-axis
-        const xAxis = d3.axisBottom(xScale);
-        chart.append('g')
+        // Create grid lines for monthly chart
+        chart1.append('g')
+            .attr('class', 'grid')
+            .selectAll('line')
+            .data(yScaleMonthly.ticks(5))
+            .enter()
+            .append('line')
+            .attr('x1', 0)
+            .attr('x2', chartWidth)
+            .attr('y1', d => yScaleMonthly(d))
+            .attr('y2', d => yScaleMonthly(d))
+            .attr('stroke', 'var(--divider-color)')
+            .attr('stroke-width', 0.5);
+            
+        // Create x-axis for monthly chart
+        chart1.append('g')
             .attr('class', 'x-axis')
             .attr('transform', `translate(0, ${chartHeight})`)
-            .call(xAxis)
+            .call(d3.axisBottom(xScale)
+                .ticks(d3.timeMonth.every(1))
+                .tickFormat(d3.timeFormat('%Y-%m')))
             .selectAll('text')
-            .attr('transform', 'rotate(-45)')
+            .style('font-size', 'var(--font-size-xs)')
+            .style('fill', 'var(--text-color-primary)')
             .style('text-anchor', 'end')
             .attr('dx', '-.8em')
             .attr('dy', '.15em')
-            .style('font-size', 'var(--font-size-xs)')
-            .style('fill', 'var(--text-color-primary)');
-        
-        // Create and append left y-axis
-        const yAxisMonthly = d3.axisLeft(yScaleMonthly).ticks(5);
-        chart.append('g')
+            .attr('transform', 'rotate(-45)');
+            
+        // Create y-axis for monthly chart
+        chart1.append('g')
             .attr('class', 'y-axis')
-            .call(yAxisMonthly)
+            .call(d3.axisLeft(yScaleMonthly).ticks(5))
             .selectAll('text')
             .style('font-size', 'var(--font-size-xs)')
             .style('fill', 'var(--text-color-primary)');
             
-        // Create and append right y-axis
-        const yAxisTotal = d3.axisRight(yScaleTotal).ticks(5);
-        chart.append('g')
-            .attr('class', 'y-axis-right')
-            .attr('transform', `translate(${chartWidth}, 0)`)
-            .call(yAxisTotal)
+        // Add y-axis label for monthly chart
+        chart1.append('text')
+            .attr('class', 'axis-label')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', -40)
+            .attr('x', -chartHeight / 2)
+            .attr('text-anchor', 'middle')
+            .style('font-size', 'var(--font-size-sm)')
+            .style('fill', 'var(--text-color-secondary)')
+            .text('Monthly Additions');
+            
+        // Create line generator for monthly data
+        const lineMonthly = d3.line<MonthlyData>()
+            .x(d => xScale(d.date))
+            .y(d => yScaleMonthly(d.count))
+            .curve(d3.curveMonotoneX);
+            
+        // Add the line path for monthly data
+        chart1.append('path')
+            .datum(data)
+            .attr('fill', 'none')
+            .attr('stroke', 'var(--primary-color)')
+            .attr('stroke-width', 2)
+            .attr('d', lineMonthly);
+            
+        // Add dots for each data point in monthly chart
+        const dotsMonthly = chart1.selectAll('.dot-monthly')
+            .data(data)
+            .enter()
+            .append('circle')
+            .attr('class', 'dot-monthly')
+            .attr('cx', d => xScale(d.date))
+            .attr('cy', d => yScaleMonthly(d.count))
+            .attr('r', 4)
+            .attr('fill', 'var(--primary-color)')
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
+            .on('mouseenter', function(event, d) {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr('r', 6);
+                showTooltip(event, d, 'monthly');
+            })
+            .on('mousemove', function(event, d) {
+                showTooltip(event, d, 'monthly');
+            })
+            .on('mouseleave', function() {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr('r', 4);
+                hideTooltip();
+            });
+
+        // CHART 2: Total Items
+        // =========================
+        const chart2 = svg.append('g')
+            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 30})`);
+            
+        // Create y scale for total chart
+        const yScaleTotal = d3.scaleLinear()
+            .domain([0, d3.max(data, d => d.total) * 1.1])
+            .range([chartHeight, 0]);
+            
+        // Create grid lines for total chart
+        chart2.append('g')
+            .attr('class', 'grid')
+            .selectAll('line')
+            .data(yScaleTotal.ticks(5))
+            .enter()
+            .append('line')
+            .attr('x1', 0)
+            .attr('x2', chartWidth)
+            .attr('y1', d => yScaleTotal(d))
+            .attr('y2', d => yScaleTotal(d))
+            .attr('stroke', 'var(--divider-color)')
+            .attr('stroke-width', 0.5);
+            
+        // Create x-axis for total chart
+        chart2.append('g')
+            .attr('class', 'x-axis')
+            .attr('transform', `translate(0, ${chartHeight})`)
+            .call(d3.axisBottom(xScale)
+                .ticks(d3.timeMonth.every(1))
+                .tickFormat(d3.timeFormat('%Y-%m')))
+            .selectAll('text')
+            .style('font-size', 'var(--font-size-xs)')
+            .style('fill', 'var(--text-color-primary)')
+            .style('text-anchor', 'end')
+            .attr('dx', '-.8em')
+            .attr('dy', '.15em')
+            .attr('transform', 'rotate(-45)');
+            
+        // Create y-axis for total chart
+        chart2.append('g')
+            .attr('class', 'y-axis')
+            .call(d3.axisLeft(yScaleTotal).ticks(5))
             .selectAll('text')
             .style('font-size', 'var(--font-size-xs)')
             .style('fill', 'var(--text-color-primary)');
-        
-        // Add axis labels
-        chart.append('text')
-            .attr('class', 'x-axis-label')
+            
+        // Add y-axis label for total chart
+        chart2.append('text')
+            .attr('class', 'axis-label')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', -40)
+            .attr('x', -chartHeight / 2)
+            .attr('text-anchor', 'middle')
+            .style('font-size', 'var(--font-size-sm)')
+            .style('fill', 'var(--text-color-secondary)')
+            .text('Total Items');
+            
+        // Add x-axis label (only need it on the bottom chart)
+        chart2.append('text')
+            .attr('class', 'axis-label')
             .attr('text-anchor', 'middle')
             .attr('x', chartWidth / 2)
-            .attr('y', chartHeight + margin.bottom - 10)
+            .attr('y', chartHeight + 40)
             .style('font-size', 'var(--font-size-sm)')
             .style('fill', 'var(--text-color-secondary)')
             .text('Month');
             
-        // Left y-axis label
-        chart.append('text')
-            .attr('class', 'y-axis-label-left')
-            .attr('text-anchor', 'middle')
-            .attr('transform', `rotate(-90)`)
-            .attr('x', -chartHeight / 2)
-            .attr('y', -margin.left + 15)
-            .style('font-size', 'var(--font-size-sm)')
-            .style('fill', '#3366cc') // Match the monthly additions line color
-            .text('Monthly Additions');
+        // Create line generator for total data
+        const lineTotal = d3.line<MonthlyData>()
+            .x(d => xScale(d.date))
+            .y(d => yScaleTotal(d.total))
+            .curve(d3.curveMonotoneX);
             
-        // Right y-axis label
-        chart.append('text')
-            .attr('class', 'y-axis-label-right')
-            .attr('text-anchor', 'middle')
-            .attr('transform', `rotate(90)`)
-            .attr('x', chartHeight / 2)
-            .attr('y', -chartWidth - margin.right + 15)
-            .style('font-size', 'var(--font-size-sm)')
-            .style('fill', '#00aa00') // Match the total items line color
-            .text('Total Items');
-        
-        // Create line generator for monthly additions
-        const monthlyLine = d3.line<MonthlyData>()
-            .x(d => xScale(d.monthFormatted) || 0)
-            .y(d => yScaleMonthly(d.count));
-        
-        // Create line generator for total items
-        const totalLine = d3.line<MonthlyData>()
-            .x(d => xScale(d.monthFormatted) || 0)
-            .y(d => yScaleTotal(d.total));
-        
-        // Add monthly additions line
-        chart.append('path')
+        // Add the line path for total data
+        chart2.append('path')
             .datum(data)
-            .attr('class', 'monthly-line')
             .attr('fill', 'none')
-            .attr('stroke', '#3366cc') // Blue color for monthly additions
+            .attr('stroke', 'var(--secondary-color)')
             .attr('stroke-width', 2)
-            .attr('d', monthlyLine);
+            .attr('stroke-dasharray', '4 2')
+            .attr('d', lineTotal);
             
-        // Add total items line (dashed)
-        chart.append('path')
-            .datum(data)
-            .attr('class', 'total-line')
-            .attr('fill', 'none')
-            .attr('stroke', '#00aa00') // Green color for total items
-            .attr('stroke-width', 2)
-            .attr('stroke-dasharray', '4,4') // Dashed line
-            .attr('d', totalLine);
-        
-        // Add dots for monthly additions
-        chart.selectAll('.monthly-dot')
+        // Add dots for each data point in total chart
+        const dotsTotal = chart2.selectAll('.dot-total')
             .data(data)
             .enter()
             .append('circle')
-            .attr('class', 'monthly-dot')
-            .attr('cx', d => xScale(d.monthFormatted) || 0)
-            .attr('cy', d => yScaleMonthly(d.count))
-            .attr('r', 4)
-            .attr('fill', '#3366cc')
-            .on('mouseenter', function(event, d) {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('r', 6);
-                showTooltip(event, d);
-            })
-            .on('mousemove', function(event, d) {
-                showTooltip(event, d);
-            })
-            .on('mouseleave', function() {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('r', 4);
-                hideTooltip();
-            });
-            
-        // Add dots for total items
-        chart.selectAll('.total-dot')
-            .data(data)
-            .enter()
-            .append('circle')
-            .attr('class', 'total-dot')
-            .attr('cx', d => xScale(d.monthFormatted) || 0)
+            .attr('class', 'dot-total')
+            .attr('cx', d => xScale(d.date))
             .attr('cy', d => yScaleTotal(d.total))
             .attr('r', 4)
-            .attr('fill', '#00aa00')
+            .attr('fill', 'var(--secondary-color)')
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
             .on('mouseenter', function(event, d) {
                 d3.select(this)
                     .transition()
                     .duration(200)
                     .attr('r', 6);
-                showTooltip(event, d);
+                showTooltip(event, d, 'total');
             })
             .on('mousemove', function(event, d) {
-                showTooltip(event, d);
+                showTooltip(event, d, 'total');
             })
             .on('mouseleave', function() {
                 d3.select(this)
@@ -422,66 +563,6 @@
                     .attr('r', 4);
                 hideTooltip();
             });
-        
-        // Add legend
-        const legend = svg.append('g')
-            .attr('class', 'legend')
-            .attr('transform', `translate(${width / 2}, 30)`);
-            
-        // Monthly additions legend
-        legend.append('line')
-            .attr('x1', -80)
-            .attr('y1', 0)
-            .attr('x2', -60)
-            .attr('y2', 0)
-            .attr('stroke', '#3366cc')
-            .attr('stroke-width', 2);
-            
-        legend.append('circle')
-            .attr('cx', -70)
-            .attr('cy', 0)
-            .attr('r', 4)
-            .attr('fill', '#3366cc');
-            
-        legend.append('text')
-            .attr('x', -55)
-            .attr('y', 4)
-            .style('font-size', 'var(--font-size-xs)')
-            .style('fill', 'var(--text-color-primary)')
-            .text('Monthly Additions');
-            
-        // Total items legend
-        legend.append('line')
-            .attr('x1', 70)
-            .attr('y1', 0)
-            .attr('x2', 90)
-            .attr('y2', 0)
-            .attr('stroke', '#00aa00')
-            .attr('stroke-width', 2)
-            .attr('stroke-dasharray', '4,4');
-            
-        legend.append('circle')
-            .attr('cx', 80)
-            .attr('cy', 0)
-            .attr('r', 4)
-            .attr('fill', '#00aa00');
-            
-        legend.append('text')
-            .attr('x', 95)
-            .attr('y', 4)
-            .style('font-size', 'var(--font-size-xs)')
-            .style('fill', 'var(--text-color-primary)')
-            .text('Total Items');
-        
-        // Add title
-        svg.append('text')
-            .attr('text-anchor', 'middle')
-            .attr('x', width / 2)
-            .attr('y', margin.top / 2)
-            .attr('font-size', 'var(--font-size-lg)')
-            .attr('font-weight', 'bold')
-            .attr('fill', 'var(--text-color-primary)')
-            .text(`Database Growth Over Time (${totalItems} items)`);
     }
     
     // Handle country filter change
