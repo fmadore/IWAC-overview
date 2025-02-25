@@ -187,6 +187,11 @@
 
     // Create tooltip element
     function createTooltip() {
+        // Remove existing tooltip if it exists to prevent duplicates
+        if (tooltip && document.body.contains(tooltip)) {
+            document.body.removeChild(tooltip);
+        }
+        
         tooltip = document.createElement('div');
         tooltip.style.position = 'absolute';
         tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
@@ -206,7 +211,9 @@
     
     // Show tooltip with data information
     function showTooltip(event: MouseEvent, d: MonthlyData, type: 'monthly' | 'total') {
-        if (!tooltip) return;
+        if (!tooltip || !document.body.contains(tooltip)) {
+            createTooltip(); // Recreate tooltip if it doesn't exist
+        }
         
         const monthName = d.date.toLocaleString('default', { month: 'long' });
         const year = d.date.getFullYear();
@@ -253,7 +260,7 @@
     
     // Hide tooltip
     function hideTooltip() {
-        if (tooltip) {
+        if (tooltip && document.body.contains(tooltip)) {
             tooltip.style.display = 'none';
         }
     }
@@ -288,7 +295,8 @@
         // Get container dimensions
         const rect = container.getBoundingClientRect();
         width = rect.width;
-        height = rect.height - 100; // Reduce space to make total height more compact
+        // Increase the height for less cramped charts
+        height = rect.height - 50; // Reduced from -100 to -50 to give more height
         
         // Create SVG container
         const svg = d3.select(container)
@@ -298,11 +306,11 @@
             .attr('viewBox', `0 0 ${width} ${height}`);
             
         // Set margins
-        const margin = { top: 30, right: 50, bottom: 50, left: 60 };
+        const margin = { top: 30, right: 60, bottom: 50, left: 70 }; // Increased left and right margins
         const chartWidth = width - margin.left - margin.right;
         
-        // Calculate individual chart heights - reduce the gap between charts from 30 to 15px
-        const chartHeight = (height - margin.top - margin.bottom - 15) / 2; // 15px gap between charts
+        // Calculate individual chart heights - increase gap between charts to 50px
+        const chartHeight = (height - margin.top - margin.bottom - 50) / 2; // Increased from 20px to 50px gap
         
         // Create x scale for both charts (shared)
         const xScale = d3.scaleTime()
@@ -318,6 +326,16 @@
             .attr('font-weight', 'bold')
             .attr('fill', 'var(--text-color-primary)')
             .text(`Database Growth Timeline (${totalItems} total items)`);
+            
+        // Add divider line between charts
+        svg.append('line')
+            .attr('x1', margin.left)
+            .attr('y1', margin.top + chartHeight + 25) // Position in the middle of the gap
+            .attr('x2', width - margin.right)
+            .attr('y2', margin.top + chartHeight + 25)
+            .attr('stroke', 'var(--divider-color)')
+            .attr('stroke-width', 1)
+            .attr('stroke-dasharray', '3,3'); // Dotted line
             
         // Add legend
         const legendGroup = svg.append('g')
@@ -474,7 +492,7 @@
         // CHART 2: Total Items
         // =========================
         const chart2 = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 15})`); // Reduce the gap from 30 to 15px
+            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 50})`); // Increased from 20px to 50px gap
             
         // Create y scale for total chart
         const yScaleTotal = d3.scaleLinear()
@@ -710,7 +728,7 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-sm); /* Add gap between elements */
+        gap: var(--spacing-md); /* Increased gap between elements */
     }
     
     .filters {
@@ -756,11 +774,12 @@
     
     .chart-container {
         flex: 1;
-        min-height: 450px; /* Reduce from 500px to 450px */
+        min-height: 650px; /* Increased from 550px to 650px for more space */
         position: relative;
         background: var(--card-background);
         border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
-        margin-bottom: var(--spacing-sm); /* Reduce from var(--spacing-md) to var(--spacing-sm) */
+        margin-bottom: var(--spacing-sm);
+        padding: var(--spacing-md); /* Added padding */
     }
     
     .stats {
