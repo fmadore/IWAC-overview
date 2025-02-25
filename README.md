@@ -14,6 +14,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
   - [Language Distribution](#language-distribution)
   - [Index Distribution](#index-distribution)
   - [Timeline Distribution](#timeline-distribution)
+  - [Type Distribution](#type-distribution)
 - [Creating New Visualizations](#creating-new-visualizations)
 - [Extending Functionality](#extending-functionality)
 - [Development Setup](#development-setup)
@@ -29,6 +30,7 @@ Key features:
 - Language distribution pie chart with faceted filtering
 - Index distribution bar chart with category breakdown
 - Timeline visualization showing database growth over time
+- Type distribution stacked bar chart showing items by type across years
 - Responsive design
 - Clean, modern UI
 - Type-safe development with TypeScript
@@ -47,7 +49,8 @@ IWAC-overview/
 │   │       ├── CountryDistribution.svelte  # Country distribution treemap
 │   │       ├── LanguageDistribution.svelte  # Language distribution pie chart
 │   │       ├── IndexDistribution.svelte  # Index distribution bar chart
-│   │       └── TimelineDistribution.svelte  # Timeline showing database growth
+│   │       ├── TimelineDistribution.svelte  # Timeline showing database growth
+│   │       └── TypeDistribution.svelte  # Type distribution stacked bar chart
 │   ├── stores/           # Svelte stores for state management
 │   │   └── itemsStore.ts  # Store for database items
 │   ├── types/            # TypeScript type definitions
@@ -122,9 +125,9 @@ Features:
 - Responsive design that adapts to different screen sizes
 - Color-coded legend for clarity
 
-### Type Distribution
+### TypeDistribution.svelte
 
-The Type Distribution visualization uses a stacked bar chart to show the distribution of items by type across publication years.
+A stacked bar chart visualization that shows the distribution of items by type across publication years.
 
 Features:
 - Stacked bar chart showing item types distributed by publication year
@@ -392,6 +395,7 @@ To add a new visualization to the application:
      import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
      import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
      import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
+     import TypeDistribution from './components/visualizations/TypeDistribution.svelte';
      import YourNewVisualization from './components/visualizations/YourNewVisualization.svelte';
      
      // ...existing code...
@@ -412,6 +416,8 @@ To add a new visualization to the application:
          <IndexDistribution />
        {:else if activeTab === 'timeline'}
          <TimelineDistribution />
+       {:else if activeTab === 'types'}
+         <TypeDistribution />
        {:else if activeTab === 'your-new-tab'}
          <YourNewVisualization />
        {:else}
@@ -429,11 +435,11 @@ To add a new visualization to the application:
 
    ```javascript
    const tabs = [
-     { id: 'overview', label: 'Overview' },
      { id: 'countries', label: 'Country Distribution' },
      { id: 'languages', label: 'Languages' },
-     { id: 'categories', label: 'Index Categories' },
      { id: 'timeline', label: 'Timeline' },
+     { id: 'types', label: 'Type Distribution' },
+     { id: 'categories', label: 'Index Categories' },
      { id: 'your-new-tab', label: 'Your New Visualization' },
      // ... other tabs ...
    ];

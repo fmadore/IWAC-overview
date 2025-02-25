@@ -13,7 +13,7 @@
   let activeTab = 'countries';
 
   const tabs = [
-    { id: 'overview', label: 'Overview' },
+    // { id: 'overview', label: 'Overview' },
     { id: 'countries', label: 'Country Distribution' },
     { id: 'languages', label: 'Languages' },
     { id: 'timeline', label: 'Timeline' },
