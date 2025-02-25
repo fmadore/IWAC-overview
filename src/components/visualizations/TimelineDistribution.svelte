@@ -288,7 +288,7 @@
         // Get container dimensions
         const rect = container.getBoundingClientRect();
         width = rect.width;
-        height = rect.height - 120; // Leave space for filters at top and legend
+        height = rect.height - 100; // Reduce space to make total height more compact
         
         // Create SVG container
         const svg = d3.select(container)
@@ -298,11 +298,11 @@
             .attr('viewBox', `0 0 ${width} ${height}`);
             
         // Set margins
-        const margin = { top: 40, right: 50, bottom: 50, left: 60 };
+        const margin = { top: 30, right: 50, bottom: 50, left: 60 };
         const chartWidth = width - margin.left - margin.right;
         
-        // Calculate individual chart heights
-        const chartHeight = (height - margin.top - margin.bottom - 30) / 2; // 30px gap between charts
+        // Calculate individual chart heights - reduce the gap between charts from 30 to 15px
+        const chartHeight = (height - margin.top - margin.bottom - 15) / 2; // 15px gap between charts
         
         // Create x scale for both charts (shared)
         const xScale = d3.scaleTime()
@@ -474,7 +474,7 @@
         // CHART 2: Total Items
         // =========================
         const chart2 = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 30})`);
+            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 15})`); // Reduce the gap from 30 to 15px
             
         // Create y scale for total chart
         const yScaleTotal = d3.scaleLinear()
@@ -710,6 +710,7 @@
         height: 100%;
         display: flex;
         flex-direction: column;
+        gap: var(--spacing-sm); /* Add gap between elements */
     }
     
     .filters {
@@ -755,11 +756,11 @@
     
     .chart-container {
         flex: 1;
-        min-height: 500px;
+        min-height: 450px; /* Reduce from 500px to 450px */
         position: relative;
         background: var(--card-background);
         border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
-        margin-bottom: var(--spacing-md);
+        margin-bottom: var(--spacing-sm); /* Reduce from var(--spacing-md) to var(--spacing-sm) */
     }
     
     .stats {
