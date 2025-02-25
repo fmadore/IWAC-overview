@@ -122,6 +122,21 @@ Features:
 - Responsive design that adapts to different screen sizes
 - Color-coded legend for clarity
 
+### Type Distribution
+
+The Type Distribution visualization uses a stacked bar chart to show the distribution of items by type across publication years.
+
+Features:
+- Stacked bar chart showing item types distributed by publication year
+- Extract years from various date formats (YYYY, YYYY-MM, YYYY-MM-DD)
+- Multi-select country filtering with checkbox facets
+- Year range slider to adjust the time period displayed
+- Interactive visualization with hover effects and detailed tooltips
+- Color-coded stacks for different item types with legend
+- Detailed tooltips showing count and percentage breakdown by type for each year
+- Summary statistics showing total items and publication years range
+- Responsive design that adapts to different screen sizes
+
 ## Data Management
 
 ### itemsStore.ts
@@ -229,6 +244,21 @@ Features:
 - List of peak growth months with their contribution percentages
 - Responsive design that adapts to different screen sizes
 - Color-coded legend for clarity
+
+### Type Distribution
+
+The Type Distribution visualization uses a stacked bar chart to show the distribution of items by type across publication years.
+
+Features:
+- Stacked bar chart showing item types distributed by publication year
+- Extract years from various date formats (YYYY, YYYY-MM, YYYY-MM-DD)
+- Multi-select country filtering with checkbox facets
+- Year range slider to adjust the time period displayed
+- Interactive visualization with hover effects and detailed tooltips
+- Color-coded stacks for different item types with legend
+- Detailed tooltips showing count and percentage breakdown by type for each year
+- Summary statistics showing total items and publication years range
+- Responsive design that adapts to different screen sizes
 
 ## Creating New Visualizations
 

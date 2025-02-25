@@ -8,6 +8,7 @@ export interface OmekaItem {
     keywords: string[];
     dateAdded: string;
     item_set_title: string;
+    publication_date?: string; // Date when the item was published (YYYY, YYYY-MM, or YYYY-MM-DD format)
     // Add more specific fields based on your items.json structure
 }
 
