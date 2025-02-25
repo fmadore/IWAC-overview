@@ -12,6 +12,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Visualizations](#visualizations)
   - [Country Distribution](#country-distribution)
   - [Language Distribution](#language-distribution)
+  - [Index Distribution](#index-distribution)
 - [Creating New Visualizations](#creating-new-visualizations)
 - [Extending Functionality](#extending-functionality)
 - [Development Setup](#development-setup)
@@ -25,6 +26,7 @@ Key features:
 - Interactive D3.js visualizations
 - Country distribution treemap visualization
 - Language distribution pie chart with faceted filtering
+- Index distribution bar chart with category breakdown
 - Responsive design
 - Clean, modern UI
 - Type-safe development with TypeScript
@@ -41,7 +43,8 @@ IWAC-overview/
 │   │   └── visualizations/  # Visualization components
 │   │       ├── BaseVisualization.svelte  # Base component for visualizations
 │   │       ├── CountryDistribution.svelte  # Country distribution treemap
-│   │       └── LanguageDistribution.svelte  # Language distribution pie chart
+│   │       ├── LanguageDistribution.svelte  # Language distribution pie chart
+│   │       └── IndexDistribution.svelte  # Index distribution bar chart
 │   ├── stores/           # Svelte stores for state management
 │   │   └── itemsStore.ts  # Store for database items
 │   ├── types/            # TypeScript type definitions
@@ -86,6 +89,16 @@ A pie chart visualization that shows the distribution of items by language with 
 - Real-time updates as filters change
 - Color-coded legend with counts and percentages
 - Tooltips with detailed information
+
+### IndexDistribution.svelte
+
+A bar chart visualization that shows the distribution of index items (type "Notice d'autorité") by their categories:
+- Interactive bar chart with hover effects and animations
+- Category breakdown based on "item_set_title" field
+- Detailed tooltips showing count and percentage information
+- Top 5 categories summary with percentage breakdown
+- Statistics panel showing total items and category count
+- Responsive design that adapts to different screen sizes
 
 ## Data Management
 
@@ -160,6 +173,21 @@ Features:
 - Tooltips showing count and percentage information
 - Summary statistics showing total items and language count
 - Responsive design that adapts to container size
+
+### Index Distribution
+
+The Index Distribution visualization uses a bar chart to show how index items (with type "Notice d'autorité") are distributed across different categories.
+
+Features:
+- Interactive bar chart with hover effects and animations
+- Filtering for items of type "Notice d'autorité"
+- Categories determined by the "item_set_title" field
+- Color-coded bars for easy distinction between categories
+- Tooltips showing detailed information on hover
+- Rotated x-axis labels for better readability of category names
+- Top 5 categories summary with percentage breakdown
+- Statistics panel showing total index items and number of categories
+- Responsive design that adapts to different screen sizes
 
 ## Creating New Visualizations
 
@@ -291,6 +319,7 @@ To add a new visualization to the application:
      import { itemsStore } from './stores/itemsStore';
      import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
      import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
+     import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
      import YourNewVisualization from './components/visualizations/YourNewVisualization.svelte';
      
      // ...existing code...
@@ -307,6 +336,8 @@ To add a new visualization to the application:
          <CountryDistribution />
        {:else if activeTab === 'languages'}
          <LanguageDistribution />
+       {:else if activeTab === 'categories'}
+         <IndexDistribution />
        {:else if activeTab === 'your-new-tab'}
          <YourNewVisualization />
        {:else}
@@ -327,6 +358,7 @@ To add a new visualization to the application:
      { id: 'overview', label: 'Overview' },
      { id: 'countries', label: 'Country Distribution' },
      { id: 'languages', label: 'Languages' },
+     { id: 'categories', label: 'Index Categories' },
      { id: 'your-new-tab', label: 'Your New Visualization' },
      // ... other tabs ...
    ];

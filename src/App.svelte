@@ -3,6 +3,7 @@
   import { itemsStore } from './stores/itemsStore';
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
   import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
+  import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
 
   // Import visualization components here
   // They will be created in the next steps
@@ -15,8 +16,8 @@
     { id: 'languages', label: 'Languages' },
     { id: 'timeline', label: 'Timeline' },
     { id: 'types', label: 'Type Distribution' },
+    { id: 'categories', label: 'Index Categories' },
     { id: 'words', label: 'Word Distribution' },
-    { id: 'categories', label: 'Categories' },
   ];
 
   onMount(() => {
@@ -49,6 +50,8 @@
         <CountryDistribution />
       {:else if activeTab === 'languages'}
         <LanguageDistribution />
+      {:else if activeTab === 'categories'}
+        <IndexDistribution />
       {:else}
         <div class="visualization-grid">
           <p>Select a visualization from the tabs above</p>
