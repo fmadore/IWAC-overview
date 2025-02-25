@@ -18,6 +18,12 @@
         selected: boolean;
     }
 
+    // Add a new interface for type visibility
+    interface TypeVisibility {
+        type: string;
+        visible: boolean;
+    }
+
     // Visualization state
     let container: HTMLDivElement;
     let tooltip: HTMLDivElement;
@@ -28,6 +34,9 @@
     let selectedYearRange: [number, number] = [0, 0];
     let typeYearData: TypeYearData[] = [];
     let totalItems = 0;
+    
+    // Add state for type visibility
+    let typeVisibility: TypeVisibility[] = [];
 
     // Extract year from different date formats
     function extractYear(dateString: string): number | null {
@@ -261,13 +270,17 @@
 
     // Create or update the visualization
     function updateVisualization() {
-        if (!container) return;
+        if (!container) {
+            console.error('Container element not found in updateVisualization');
+            return;
+        }
         
         // Process data based on current filters
         typeYearData = processData();
         
         if (typeYearData.length === 0) {
             d3.select(container).select('svg').remove();
+            d3.select(container).select('.no-data').remove();
             d3.select(container).append('div')
                 .attr('class', 'no-data')
                 .style('position', 'absolute')
@@ -290,12 +303,31 @@
         height = rect.height;
         
         // Set margins
-        const margin = { top: 40, right: 80, bottom: 60, left: 60 };
+        const margin = { top: 40, right: 60, bottom: 120, left: 60 }; // Increased bottom margin for legend
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
         
-        // Group the data by year
-        const yearData = Array.from(d3.group(typeYearData, d => d.year), ([year, items]) => {
+        // Get all unique types
+        const types = Array.from(new Set(typeYearData.map(d => d.type)));
+        
+        // Initialize type visibility if not already set
+        if (typeVisibility.length === 0) {
+            typeVisibility = types.map(type => ({ type, visible: true }));
+        } else {
+            // Add any new types that weren't in the visibility list
+            const existingTypes = typeVisibility.map(t => t.type);
+            types.forEach(type => {
+                if (!existingTypes.includes(type)) {
+                    typeVisibility.push({ type, visible: true });
+                }
+            });
+        }
+        
+        // Group the data by year, only including visible types
+        const yearData = Array.from(d3.group(
+            typeYearData.filter(d => typeVisibility.find(t => t.type === d.type)?.visible ?? true),
+            d => d.year
+        ), ([year, items]) => {
             const result: any = { year };
             
             // Add count for each type
@@ -306,8 +338,10 @@
             return result;
         }).sort((a, b) => a.year - b.year);
         
-        // Get all unique types
-        const types = Array.from(new Set(typeYearData.map(d => d.type)));
+        // Get only visible types for the chart
+        const visibleTypes = types.filter(type => 
+            typeVisibility.find(t => t.type === type)?.visible ?? true
+        );
         
         // Create SVG
         const svg = d3.select(container)
@@ -327,12 +361,12 @@
         
         // Get maximum stacked value for y scale
         const stackedData = d3.stack<any>()
-            .keys(types)
+            .keys(visibleTypes)
             .value((d, key) => d[key] || 0)
             (yearData);
         
         const y = d3.scaleLinear()
-            .domain([0, d3.max(stackedData[stackedData.length - 1], d => d[1]) || 0])
+            .domain([0, d3.max(stackedData.length > 0 ? stackedData[stackedData.length - 1] : [], d => d[1]) || 0])
             .range([chartHeight, 0]);
         
         // Create color scale for types
@@ -412,26 +446,130 @@
             .attr('fill', 'var(--text-color-primary)')
             .text(`Item Types by Publication Year (${totalItems} items)`);
         
-        // Add legend
+        // Add interactive legend below the chart instead of on the right
+        const legendItemWidth = 150; // Width of each legend item
+        const legendItemsPerRow = Math.floor(chartWidth / legendItemWidth); // Number of items per row
+        const legendRowHeight = 25; // Height of each row
+        
         const legend = svg.append('g')
             .attr('class', 'legend')
-            .attr('transform', `translate(${width - margin.right + 20}, ${margin.top})`);
+            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 40})`);
+        
+        // Add legend title
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', -10)
+            .attr('font-size', 'var(--font-size-sm)')
+            .attr('font-weight', 'bold')
+            .attr('fill', 'var(--text-color-primary)')
+            .text('Toggle Types');
         
         types.forEach((type, i) => {
+            const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
+            
+            // Calculate position in grid layout
+            const row = Math.floor(i / legendItemsPerRow);
+            const col = i % legendItemsPerRow;
+            
+            // Create a group for each legend item
             const legendItem = legend.append('g')
-                .attr('transform', `translate(0, ${i * 20})`);
+                .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`) // Position in grid
+                .attr('class', 'legend-item')
+                .style('cursor', 'pointer');
             
+            // Add background for better click target
             legendItem.append('rect')
-                .attr('width', 12)
-                .attr('height', 12)
-                .attr('fill', color(type));
+                .attr('x', -5)
+                .attr('y', -5)
+                .attr('width', legendItemWidth - 10)
+                .attr('height', 20)
+                .attr('fill', 'transparent')
+                .attr('class', 'legend-hitbox');
             
-            legendItem.append('text')
-                .attr('x', 20)
-                .attr('y', 10)
-                .attr('font-size', 'var(--font-size-xs)')
+            // Add color box
+            legendItem.append('rect')
+                .attr('width', 14)
+                .attr('height', 14)
+                .attr('fill', color(type))
+                .attr('stroke', isVisible ? 'none' : '#999')
+                .attr('stroke-width', isVisible ? 0 : 1)
+                .attr('opacity', isVisible ? 1 : 0.5);
+            
+            // Add text
+            const text = legendItem.append('text')
+                .attr('x', 24)
+                .attr('y', 12)
+                .attr('font-size', 'var(--font-size-sm)')
                 .attr('fill', 'var(--text-color-primary)')
+                .style('opacity', isVisible ? 1 : 0.5)
                 .text(type);
+            
+            // Add strikethrough for hidden types
+            if (!isVisible) {
+                const textNode = text.node();
+                if (textNode) {
+                    const textWidth = textNode.getComputedTextLength();
+                    legendItem.append('line')
+                        .attr('x1', 24)
+                        .attr('y1', 12)
+                        .attr('x2', 24 + textWidth)
+                        .attr('y2', 12)
+                        .attr('stroke', 'var(--text-color-primary)')
+                        .attr('stroke-width', 1)
+                        .attr('opacity', 0.7);
+                }
+            }
+            
+            // Add click handler to the entire group
+            legendItem.on('click', () => {
+                // Add more visible debugging
+                console.log(`Clicked on type: ${type}`);
+                d3.select(container).append('div')
+                    .attr('class', 'debug-message')
+                    .style('position', 'fixed')
+                    .style('bottom', '10px')
+                    .style('left', '10px')
+                    .style('background', 'rgba(0,0,0,0.7)')
+                    .style('color', 'white')
+                    .style('padding', '5px 10px')
+                    .style('border-radius', '4px')
+                    .style('z-index', 9999)
+                    .text(`Toggled type: ${type}`)
+                    .transition()
+                    .duration(2000)
+                    .style('opacity', 0)
+                    .remove();
+                
+                const typeIndex = typeVisibility.findIndex(t => t.type === type);
+                if (typeIndex >= 0) {
+                    typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
+                    typeVisibility = [...typeVisibility]; // Trigger reactivity
+                    updateVisualization();
+                }
+            })
+            // Add keyboard event handlers for accessibility
+            .attr('tabindex', '0') // Make the element focusable
+            .on('keydown', (event) => {
+                // Toggle on Enter or Space key
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    const typeIndex = typeVisibility.findIndex(t => t.type === type);
+                    if (typeIndex >= 0) {
+                        typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
+                        typeVisibility = [...typeVisibility]; // Trigger reactivity
+                        updateVisualization();
+                    }
+                }
+            });
+            
+            // Add hover effects
+            legendItem.on('mouseenter', function() {
+                d3.select(this).select('text').style('font-weight', 'bold');
+                d3.select(this).select('.legend-hitbox').attr('fill', 'rgba(0,0,0,0.05)');
+            }).on('mouseleave', function() {
+                d3.select(this).select('text').style('font-weight', 'normal');
+                d3.select(this).select('.legend-hitbox').attr('fill', 'transparent');
+            });
         });
     }
 
@@ -446,7 +584,7 @@
         await tick();
         
         if (!container) {
-            console.error('Container element not found');
+            console.error('Container element not found in onMount');
             return;
         }
         
@@ -743,5 +881,21 @@
     
     .error {
         color: var(--error-color);
+    }
+    
+    :global(.legend-item:hover) {
+        filter: brightness(1.1);
+    }
+    
+    :global(.legend-item text) {
+        pointer-events: none;
+    }
+    
+    :global(.legend-item rect) {
+        pointer-events: none;
+    }
+    
+    :global(.legend-item line) {
+        pointer-events: none;
     }
 </style> 
