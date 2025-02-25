@@ -105,8 +105,13 @@ A bar chart visualization that shows the distribution of index items (type "Noti
 
 ### TimelineDistribution.svelte
 
-A dual-axis line chart visualization that shows the growth of the database over time:
+A dual-axis line chart visualization that shows the growth of the database over time.
+
+Features:
 - Tracks monthly additions and cumulative totals using the "created_date" field
+- Filters display to show only data from April 2024 onward, while maintaining the total count from March 2024 backup data
+- Visual divider line between charts to clearly separate monthly additions from cumulative growth
+- Optimized spacing between charts for better readability
 - Interactive visualization with hover effects and tooltips
 - Faceted filtering by country and document type
 - Blue line with dots representing monthly additions
@@ -212,6 +217,9 @@ The Timeline Distribution visualization uses a dual-axis line chart to show the 
 
 Features:
 - Tracks monthly additions and cumulative totals using the "created_date" field
+- Filters display to show only data from April 2024 onward, while maintaining the total count from March 2024 backup data
+- Visual divider line between charts to clearly separate monthly additions from cumulative growth
+- Optimized spacing between charts for better readability
 - Interactive visualization with hover effects and tooltips
 - Faceted filtering by country and document type
 - Blue line with dots representing monthly additions
