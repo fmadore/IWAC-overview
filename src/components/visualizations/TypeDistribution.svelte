@@ -39,7 +39,7 @@
     let typeVisibility: TypeVisibility[] = [];
 
     // Extract year from different date formats
-    function extractYear(dateString: string): number | null {
+    function extractYear(dateString?: string): number | null {
         if (!dateString) return null;
         
         // Handle YYYY format
@@ -475,6 +475,7 @@
             const legendItem = legend.append('g')
                 .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`) // Position in grid
                 .attr('class', 'legend-item')
+                .attr('role', 'button')
                 .style('cursor', 'pointer');
             
             // Add background for better click target
@@ -522,7 +523,6 @@
             
             // Add click handler to the entire group
             legendItem.on('click', () => {
-                // Add more visible debugging
                 console.log(`Clicked on type: ${type}`);
                 d3.select(container).append('div')
                     .attr('class', 'debug-message')
@@ -547,10 +547,8 @@
                     updateVisualization();
                 }
             })
-            // Add keyboard event handlers for accessibility
-            .attr('tabindex', '0') // Make the element focusable
+            .attr('tabindex', '0')
             .on('keydown', (event) => {
-                // Toggle on Enter or Space key
                 if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     const typeIndex = typeVisibility.findIndex(t => t.type === type);
