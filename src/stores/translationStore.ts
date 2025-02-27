@@ -39,6 +39,20 @@ export const translations: Translations = {
         'viz.all_countries': 'All Countries',
         'viz.all_types': 'All Types',
         'viz.no_data': 'No data available with the current filters',
+        'viz.distribution_items': 'Distribution of {0} items by country and sub-collection',
+        'viz.publication_year': 'Publication Year',
+        'viz.number_of_items': 'Number of Items',
+        'viz.toggle_types': 'Toggle Types',
+        'viz.toggled_type': 'Toggled type: {0}',
+        
+        // Country distribution specific
+        'viz.country.items': 'Items',
+        'viz.country.percent_parent': '% of Parent',
+        'viz.country.percent_total': '% of Total',
+        'viz.country.click_zoom_in': 'Click to zoom in',
+        'viz.country.click_zoom_out': 'Click to zoom out',
+        'viz.country.unknown': 'Unknown',
+        'viz.country.no_set': 'No Set',
     },
     fr: {
         // App navigation
@@ -66,6 +80,20 @@ export const translations: Translations = {
         'viz.all_countries': 'Tous les pays',
         'viz.all_types': 'Tous les types',
         'viz.no_data': 'Aucune donnée disponible avec les filtres actuels',
+        'viz.distribution_items': 'Répartition de {0} éléments par pays et sous-collection',
+        'viz.publication_year': 'Année de publication',
+        'viz.number_of_items': 'Nombre d\'éléments',
+        'viz.toggle_types': 'Basculer les types',
+        'viz.toggled_type': 'Type basculé : {0}',
+        
+        // Country distribution specific
+        'viz.country.items': 'Éléments',
+        'viz.country.percent_parent': '% du parent',
+        'viz.country.percent_total': '% du total',
+        'viz.country.click_zoom_in': 'Cliquer pour zoomer',
+        'viz.country.click_zoom_out': 'Cliquer pour dézoomer',
+        'viz.country.unknown': 'Inconnu',
+        'viz.country.no_set': 'Sans ensemble',
     }
 };
 
@@ -76,8 +104,15 @@ function createTranslationStore() {
     
     return {
         subscribe,
-        setLanguage: (language: Language) => set(language),
-        toggleLanguage: () => update(currentLang => currentLang === 'en' ? 'fr' : 'en')
+        setLanguage: (language: Language) => {
+            console.log('[TranslationStore] Setting language to:', language);
+            set(language);
+        },
+        toggleLanguage: () => update(currentLang => {
+            const newLang = currentLang === 'en' ? 'fr' : 'en';
+            console.log('[TranslationStore] Toggling language from', currentLang, 'to', newLang);
+            return newLang;
+        })
     };
 }
 
@@ -85,22 +120,28 @@ export const language = createTranslationStore();
 
 // Process a translation string with replacements
 function processTranslation(text: string, replacements: string[] = []): string {
-    return text.replace(/{(\d+)}/g, (match, index) => {
+    console.log('[TranslationStore] Processing translation:', { text, replacements });
+    const result = text.replace(/{(\d+)}/g, (match, index) => {
         const position = parseInt(index);
         return position < replacements.length ? replacements[position] : match;
     });
+    console.log('[TranslationStore] Processed result:', result);
+    return result;
 }
 
 // Helper function to translate a key (not reactive, use with caution)
 export function t(key: string, replacements: string[] = []): string {
     const currentLang = get(language);
+    console.log('[TranslationStore] t() translation lookup:', { key, currentLang, replacements });
     const translation = translations[currentLang]?.[key] || key;
     return processTranslation(translation, replacements);
 }
 
 // Create a derived store for reactive translations in components
 export function translate(key: string, replacements: string[] = []) {
+    console.log('[TranslationStore] Creating reactive translation for key:', key);
     return derived(language, ($language) => {
+        console.log('[TranslationStore] Reactive translation update:', { key, language: $language });
         const translation = translations[$language]?.[key] || key;
         return processTranslation(translation, replacements);
     });

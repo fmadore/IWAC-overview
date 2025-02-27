@@ -3,6 +3,7 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
+    import { t, translate } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
 
     // Define interfaces for data structures
@@ -37,6 +38,14 @@
 
     // Color scale for pie segments
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // Create reactive translations
+    const allCountriesText = translate('viz.all_countries');
+    const allTypesText = translate('viz.all_types');
+    const filterByCountryText = translate('viz.filter_by_country');
+    const filterByTypeText = translate('viz.filter_by_type');
+    const noDataText = translate('viz.no_data');
+    const showingItemsText = translate('viz.showing_items');
 
     // Process data based on current filters
     function processData() {
@@ -91,7 +100,7 @@
         );
         
         countryOptions = [
-            { value: 'all', label: 'All Countries', count: itemsWithLanguage.length },
+            { value: 'all', label: $allCountriesText, count: itemsWithLanguage.length },
             ...Array.from(countries, ([country, count]) => ({
                 value: country,
                 label: country,
@@ -107,7 +116,7 @@
         );
         
         typeOptions = [
-            { value: 'all', label: 'All Types', count: itemsWithLanguage.length },
+            { value: 'all', label: $allTypesText, count: itemsWithLanguage.length },
             ...Array.from(types, ([type, count]) => ({
                 value: type,
                 label: type,
@@ -231,7 +240,7 @@
                 .style('transform', 'translate(-50%, -50%)')
                 .style('text-align', 'center')
                 .style('color', 'var(--text-color-secondary)')
-                .text('No language data available with the current filters');
+                .text($noDataText);
             return;
         }
         
@@ -385,7 +394,7 @@
 <div class="language-visualization-container">
     <div class="filters">
         <div class="filter-group">
-            <label for="country-filter">Filter by Country:</label>
+            <label for="country-filter">{$filterByCountryText}:</label>
             <select id="country-filter" on:change={handleCountryChange} value={selectedCountry}>
                 {#each countryOptions as option}
                     <option value={option.value}>{option.label} ({option.count})</option>
@@ -394,7 +403,7 @@
         </div>
         
         <div class="filter-group">
-            <label for="type-filter">Filter by Type:</label>
+            <label for="type-filter">{$filterByTypeText}:</label>
             <select id="type-filter" on:change={handleTypeChange} value={selectedType}>
                 {#each typeOptions as option}
                     <option value={option.value}>{option.label} ({option.count})</option>
@@ -404,14 +413,14 @@
         
         <div class="summary">
             {#if languageCounts.length > 0}
-                <span>Showing {totalItems} items in {languageCounts.length} languages</span>
+                <span>{t('viz.showing_items', [totalItems.toString(), languageCounts.length.toString()])}</span>
             {/if}
         </div>
     </div>
     
     <div class="pie-container" bind:this={container}>
         {#if $itemsStore.loading}
-            <div class="loading">Loading...</div>
+            <div class="loading">{t('ui.loading')}</div>
         {:else if $itemsStore.error}
             <div class="error">{$itemsStore.error}</div>
         {/if}

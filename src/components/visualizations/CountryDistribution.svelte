@@ -3,6 +3,7 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
+    import { t, translate } from '../../stores/translationStore';
 
     // Added interfaces for item and hierarchy datum
     interface Item {
@@ -27,6 +28,17 @@
     let searchResults: d3.HierarchyRectangularNode<HierarchyDatum>[] = [];
     let selectedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
 
+    // Create reactive translations
+    const noDataText = translate('viz.no_data');
+    const distributionText = translate('viz.distribution_items');
+    const itemsText = translate('viz.country.items');
+    const percentParentText = translate('viz.country.percent_parent');
+    const percentTotalText = translate('viz.country.percent_total');
+    const clickZoomInText = translate('viz.country.click_zoom_in');
+    const clickZoomOutText = translate('viz.country.click_zoom_out');
+    const unknownText = translate('viz.country.unknown');
+    const noSetText = translate('viz.country.no_set');
+
     // Function to process data into hierarchical structure
     function processData(items: Item[]): d3.HierarchyNode<HierarchyDatum> {
         // Filter out items without a country value first
@@ -44,7 +56,7 @@
                 children: Array.from(
                     d3.group(items, (d: Item) => d.item_set_title),
                     ([itemSet, items]) => ({
-                        name: itemSet || 'No Set',
+                        name: itemSet || $noSetText,
                         value: items.length // Count of items in this set
                     })
                 )
@@ -192,7 +204,7 @@
             .attr('text-anchor', 'middle')
             .attr('font-size', '16px')
             .attr('font-weight', 'bold')
-            .text(`Distribution of ${root.value} items by country and sub-collection`);
+            .text(t('viz.distribution_items', [root.value?.toString() || '0']));
 
         // Create scales for positioning (y-scale adjusted for header height)
         const x = d3.scaleLinear().rangeRound([0, width]).domain([0, width]);
@@ -393,12 +405,12 @@
                 ${d.data.name}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                <span>Items:</span><span style="text-align:right;font-weight:bold;">${value}</span>
-                <span>% of Parent:</span><span style="text-align:right;font-weight:bold;">${percentageOfParent}%</span>
-                <span>% of Total:</span><span style="text-align:right;font-weight:bold;">${percentageOfTotal}%</span>
+                <span>${$itemsText}:</span><span style="text-align:right;font-weight:bold;">${value}</span>
+                <span>${$percentParentText}:</span><span style="text-align:right;font-weight:bold;">${percentageOfParent}%</span>
+                <span>${$percentTotalText}:</span><span style="text-align:right;font-weight:bold;">${percentageOfTotal}%</span>
             </div>
-            ${d.children ? `<div style="font-style:italic;margin-top:4px;font-size:10px;">Click to zoom in</div>` : ''}
-            ${d === currentNode && d !== root ? `<div style="font-style:italic;margin-top:4px;font-size:10px;">Click to zoom out</div>` : ''}
+            ${d.children ? `<div style="font-style:italic;margin-top:4px;font-size:10px;">${$clickZoomInText}</div>` : ''}
+            ${d === currentNode && d !== root ? `<div style="font-style:italic;margin-top:4px;font-size:10px;">${$clickZoomOutText}</div>` : ''}
         `;
         
         // Position tooltip with smart placement
@@ -473,16 +485,20 @@
     });
 </script>
 
-<div class="treemap-container" bind:this={container}>
-    {#if $itemsStore.loading}
-        <div class="loading">Loading...</div>
-    {:else if $itemsStore.error}
-        <div class="error">{$itemsStore.error}</div>
-    {/if}
+<div class="country-visualization-container">
+    <div class="visualization" bind:this={container}>
+        {#if $itemsStore.loading}
+            <div class="loading">{t('ui.loading')}</div>
+        {:else if $itemsStore.error}
+            <div class="error">{$itemsStore.error}</div>
+        {:else if !$itemsStore.items || $itemsStore.items.length === 0}
+            <div class="no-data">{$noDataText}</div>
+        {/if}
+    </div>
 </div>
 
 <style>
-    .treemap-container {
+    .country-visualization-container {
         width: 100%;
         height: 600px;
         position: relative;
@@ -490,6 +506,12 @@
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         overflow: hidden;
+    }
+
+    .visualization {
+        width: 100%;
+        height: 100%;
+        position: relative;
     }
 
     .loading, .error {
@@ -501,6 +523,15 @@
 
     .error {
         color: red;
+    }
+
+    .no-data {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 18px;
+        font-weight: bold;
     }
 
     :global(.search-highlight rect) {

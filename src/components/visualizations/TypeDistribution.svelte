@@ -3,6 +3,8 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import type { OmekaItem } from '../../types/OmekaItem';
+    import { log } from '../../utils/logger';
+    import { t, translate } from '../../stores/translationStore';
 
     // Data interfaces
     interface TypeYearData {
@@ -37,6 +39,15 @@
     
     // Add state for type visibility
     let typeVisibility: TypeVisibility[] = [];
+
+    // Create reactive translations
+    const noDataText = translate('viz.no_data');
+    const filterByCountryText = translate('viz.filter_by_country');
+    const allCountriesText = translate('viz.all_countries');
+    const publicationYearText = translate('viz.publication_year');
+    const numberOfItemsText = translate('viz.number_of_items');
+    const toggleTypesText = translate('viz.toggle_types');
+    const toggledTypeText = translate('viz.toggled_type');
 
     // Extract year from different date formats
     function extractYear(dateString?: string): number | null {
@@ -289,7 +300,7 @@
                 .style('transform', 'translate(-50%, -50%)')
                 .style('text-align', 'center')
                 .style('color', 'var(--text-color-secondary)')
-                .text('No data available for the selected filters');
+                .text($noDataText);
             return;
         }
         
@@ -398,7 +409,7 @@
             .attr('y', chartHeight + margin.bottom - 10)
             .attr('fill', 'var(--text-color-secondary)')
             .style('font-size', 'var(--font-size-sm)')
-            .text('Publication Year');
+            .text($publicationYearText);
         
         chart.append('text')
             .attr('text-anchor', 'middle')
@@ -407,7 +418,7 @@
             .attr('y', -margin.left + 15)
             .attr('fill', 'var(--text-color-secondary)')
             .style('font-size', 'var(--font-size-sm)')
-            .text('Number of Items');
+            .text($numberOfItemsText);
         
         // Create stacked bars
         chart.selectAll('.type-bars')
@@ -462,7 +473,7 @@
             .attr('font-size', 'var(--font-size-sm)')
             .attr('font-weight', 'bold')
             .attr('fill', 'var(--text-color-primary)')
-            .text('Toggle Types');
+            .text($toggleTypesText);
         
         types.forEach((type, i) => {
             const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
@@ -673,7 +684,7 @@
     
     <div class="chart-container" bind:this={container}>
         {#if $itemsStore.loading}
-            <div class="loading">Loading...</div>
+            <div class="loading">{t('ui.loading')}</div>
         {:else if $itemsStore.error}
             <div class="error">{$itemsStore.error}</div>
         {/if}

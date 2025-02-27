@@ -26,8 +26,19 @@
   ];
 
   onMount(() => {
+    console.log('[App] Component mounted, initial language:', $language);
     itemsStore.loadItems();
   });
+
+  // Log language changes
+  $: {
+    console.log('[App] Language changed to:', $language);
+    console.log('[App] Current translations:', {
+      title: t('app.title'),
+      loading: t('ui.loading'),
+      activeTab: t(tabs.find(tab => tab.id === activeTab)?.label || '')
+    });
+  }
 </script>
 
 <TranslationContext>
