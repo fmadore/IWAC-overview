@@ -494,8 +494,10 @@
         chart1.append('g')
             .attr('class', 'x-axis')
             .attr('transform', `translate(0, ${chartHeight})`)
+            // @ts-ignore: D3 typing issues with axisBottom
             .call(d3.axisBottom(xScale)
                 .ticks(d3.timeMonth.every(1))
+                // @ts-ignore: D3 typing issues with tickFormat
                 .tickFormat(d3.timeFormat('%Y-%m')))
             .selectAll('text')
             .style('font-size', 'var(--font-size-xs)')
@@ -596,8 +598,10 @@
         chart2.append('g')
             .attr('class', 'x-axis')
             .attr('transform', `translate(0, ${chartHeight})`)
+            // @ts-ignore: D3 typing issues with axisBottom
             .call(d3.axisBottom(xScale)
                 .ticks(d3.timeMonth.every(1))
+                // @ts-ignore: D3 typing issues with tickFormat
                 .tickFormat(d3.timeFormat('%Y-%m')))
             .selectAll('text')
             .style('font-size', 'var(--font-size-xs)')
