@@ -108,6 +108,7 @@ export const translations: Translations = {
         'lang.Espagnol': 'Spanish',
         
         // Country translations
+        'country.all': 'All Countries',
         'country.Bénin': 'Benin',
         'country.Nigéria': 'Nigeria',
         'country.Côte d\'Ivoire': 'Côte d\'Ivoire',
@@ -115,6 +116,20 @@ export const translations: Translations = {
         'country.Togo': 'Togo',
         'country.Niger': 'Niger',
         'country.Unknown': 'Unknown',
+        
+        // Item type translations
+        'type.Article de presse': 'Press Article',
+        'type.Notice d\'autorité': 'Authority Record',
+        'type.Périodique islamique': 'Islamic Periodical',
+        'type.Unknown': 'Unknown',
+        'type.Article de revue': 'Journal Article',
+        'type.Document': 'Document',
+        'type.Article de blog': 'Blog Post',
+        'type.Chapitre de livre': 'Book Chapter',
+        'type.Livre': 'Book',
+        'type.Thèse de doctorat': 'Doctoral Thesis',
+        'type.Communication scientifique': 'Scientific Communication',
+        'type.all': 'All Types',
     },
     fr: {
         // App navigation
@@ -211,6 +226,7 @@ export const translations: Translations = {
         'lang.Espagnol': 'Espagnol',
         
         // Country translations
+        'country.all': 'Tous les pays',
         'country.Bénin': 'Bénin',
         'country.Nigéria': 'Nigéria',
         'country.Côte d\'Ivoire': 'Côte d\'Ivoire',
@@ -218,6 +234,20 @@ export const translations: Translations = {
         'country.Togo': 'Togo',
         'country.Niger': 'Niger',
         'country.Unknown': 'Inconnu',
+        
+        // Item type translations
+        'type.Article de presse': 'Article de presse',
+        'type.Notice d\'autorité': 'Notice d\'autorité',
+        'type.Périodique islamique': 'Périodique islamique',
+        'type.Unknown': 'Inconnu',
+        'type.Article de revue': 'Article de revue',
+        'type.Document': 'Document',
+        'type.Article de blog': 'Article de blog',
+        'type.Chapitre de livre': 'Chapitre de livre',
+        'type.Livre': 'Livre',
+        'type.Thèse de doctorat': 'Thèse de doctorat',
+        'type.Communication scientifique': 'Communication scientifique',
+        'type.all': 'Tous les types',
     }
 };
 

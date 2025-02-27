@@ -115,6 +115,9 @@
         console.log("[TimelineDistribution] Language changed to:", value);
         currentLang = value;
         
+        // Update facet options when language changes
+        generateFacetOptions();
+        
         // Refresh the chart to update all translated elements
         if (container) {
             createTimeline();
@@ -237,10 +240,11 @@
         );
         
         countryOptions = [
-            { value: 'all', label: 'All Countries', count: itemsWithDate.length },
+            { value: 'all', label: t('country.all'), count: itemsWithDate.length },
             ...Array.from(countries, ([country, count]) => ({
                 value: country,
-                label: country,
+                // Use translation for country name if available
+                label: t(`country.${country}`),
                 count
             })).filter(option => option.value !== "Unknown") // Remove Unknown option
             .sort((a, b) => b.count - a.count)
@@ -254,12 +258,14 @@
         );
         
         typeOptions = [
-            { value: 'all', label: 'All Types', count: itemsWithDate.length },
+            { value: 'all', label: t('type.all'), count: itemsWithDate.length },
             ...Array.from(types, ([type, count]) => ({
                 value: type,
-                label: type,
+                // Use translation for the type label if available
+                label: t(`type.${type}`),
                 count
-            })).sort((a, b) => b.count - a.count)
+            })).filter(option => option.value !== "Unknown") // Remove Unknown option
+            .sort((a, b) => b.count - a.count)
         ];
     }
 
