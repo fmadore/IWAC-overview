@@ -34,6 +34,16 @@
     const clickZoomOutText = translate('viz.click_zoom_out');
     const unknownText = translate('viz.unknown');
     const noSetText = translate('viz.no_set');
+    const backToAllText = translate('viz.back_to_all');
+    const currentlyViewingText = translate('viz.currently_viewing');
+    const clickBackText = translate('viz.click_back_to_return');
+    const totalItemsWithWordCountText = translate('viz.total_items_with_word_count');
+    const summaryText = translate('viz.summary');
+    const wordsText = translate('viz.words');
+    const itemsText = translate('viz.items');
+    const percentOfCountryText = translate('viz.percent_of_country');
+    const percentOfTotalText = translate('viz.percent_of_total');
+    const itemSetSummaryText = translate('viz.item_set_summary');
 
     // Process data
     function processData() {
@@ -108,6 +118,27 @@
     // Zoom to a node
     function zoomToNode(node: d3.HierarchyNode<WordHierarchyNode> | null) {
         zoomedNode = node;
+        
+        // When zooming to a node, ensure it has proper hierarchy data
+        if (zoomedNode) {
+            // Check if the node has children, if not, create a new hierarchy from its data
+            if (!zoomedNode.children || zoomedNode.children.length === 0) {
+                // Process only this node's data to ensure proper structure
+                const nodeData = {
+                    name: zoomedNode.data.name,
+                    children: zoomedNode.data.children || [],
+                    wordCount: zoomedNode.data.wordCount,
+                    itemCount: zoomedNode.data.itemCount
+                };
+                
+                // If there are no children in the original data, no need to zoom
+                if (!nodeData.children || nodeData.children.length === 0) {
+                    console.warn('Cannot zoom to node without children');
+                    return;
+                }
+            }
+        }
+        
         updateVisualization();
     }
 
@@ -159,8 +190,8 @@
         
         // Add title
         const titleText = zoomedNode 
-            ? `${zoomedNode.data.name}: ${zoomedNode.data.wordCount?.toLocaleString() || 0} words (${zoomedNode.data.itemCount} items)`
-            : `Word Distribution by Country and Item Set (${totalItems} items, ${totalWordCount.toLocaleString()} words)`;
+            ? `${zoomedNode.data.name}: ${zoomedNode.data.wordCount?.toLocaleString() || 0} ${$wordsText} (${zoomedNode.data.itemCount} ${$itemsText})`
+            : t('viz.word_distribution_subtitle', [totalItems.toString(), totalWordCount.toLocaleString()]);
             
         svg.append('text')
             .attr('x', width / 2)
@@ -196,7 +227,7 @@
                 .attr('text-anchor', 'middle')
                 .attr('fill', 'white')
                 .attr('font-size', 'var(--font-size-sm)')
-                .text('← Back to All');
+                .text($backToAllText);
         }
         
         // Create treemap layout
@@ -211,8 +242,47 @@
         let root: d3.HierarchyNode<WordHierarchyNode>;
         
         if (zoomedNode) {
-            // When zoomed in, use the zoomed node as root
-            root = zoomedNode;
+            // When zoomed in, we have two approaches:
+            // 1. If the zoomed node data has children, use it directly
+            if (zoomedNode.data.children && zoomedNode.data.children.length > 0) {
+                // Create a new hierarchy from the children data
+                const childrenData: WordHierarchyNode = {
+                    name: zoomedNode.data.name,
+                    children: zoomedNode.data.children
+                };
+                
+                root = d3.hierarchy<WordHierarchyNode>(childrenData)
+                    .sum(d => d.value || 0)
+                    .sort((a, b) => (b.value || 0) - (a.value || 0));
+            } 
+            // 2. If the zoomed node only has a flat representation (no children),
+            // create a flat hierarchy using its actual children nodes
+            else if (zoomedNode.children && zoomedNode.children.length > 0) {
+                // Create a temporary root with the zoomed node's children
+                const tempChildren = zoomedNode.children.map(child => ({
+                    name: child.data.name,
+                    value: child.data.value || child.value,
+                    wordCount: child.data.wordCount,
+                    itemCount: child.data.itemCount
+                }));
+                
+                const tempRoot: WordHierarchyNode = {
+                    name: zoomedNode.data.name,
+                    children: tempChildren
+                };
+                
+                root = d3.hierarchy<WordHierarchyNode>(tempRoot)
+                    .sum(d => d.value || 0)
+                    .sort((a, b) => (b.value || 0) - (a.value || 0));
+            } 
+            else {
+                // Fallback to the full hierarchy if something goes wrong
+                console.warn('Zoomed node has no valid children data, falling back to full hierarchy');
+                hierarchyData = processData();
+                root = d3.hierarchy<WordHierarchyNode>(hierarchyData)
+                    .sum(d => d.value || 0)
+                    .sort((a, b) => (b.value || 0) - (a.value || 0));
+            }
         } else {
             // When not zoomed, create hierarchy from full data
             root = d3.hierarchy<WordHierarchyNode>(hierarchyData)
@@ -220,8 +290,19 @@
                 .sort((a, b) => (b.value || 0) - (a.value || 0));
         }
         
-        // Apply treemap layout
-        treemap(root as d3.HierarchyRectangularNode<WordHierarchyNode>);
+        // Apply treemap layout - make sure to validate
+        try {
+            treemap(root as d3.HierarchyRectangularNode<WordHierarchyNode>);
+        } catch (e) {
+            console.error('Error applying treemap layout:', e);
+            // If treemap fails, revert to full data view
+            zoomedNode = null;
+            hierarchyData = processData();
+            root = d3.hierarchy<WordHierarchyNode>(hierarchyData)
+                .sum(d => d.value || 0)
+                .sort((a, b) => (b.value || 0) - (a.value || 0));
+            treemap(root as d3.HierarchyRectangularNode<WordHierarchyNode>);
+        }
         
         // Color scale
         const colorScale = d3.scaleOrdinal<string>()
@@ -234,12 +315,27 @@
             .enter()
             .append('g')
             .attr('class', 'country')
-            .attr('transform', d => `translate(${(d as any).x0},${(d as any).y0})`);
+            .attr('transform', d => {
+                // Ensure d.x0 and d.y0 are valid numbers
+                const x = (d as any).x0 || 0;
+                const y = (d as any).y0 || 0;
+                return `translate(${x},${y})`;
+            });
         
         // Add country background
         countries.append('rect')
-            .attr('width', d => (d as any).x1 - (d as any).x0)
-            .attr('height', d => (d as any).y1 - (d as any).y0)
+            .attr('width', d => {
+                // Ensure width is a valid number
+                const x0 = (d as any).x0 || 0;
+                const x1 = (d as any).x1 || 0;
+                return Math.max(0, x1 - x0);
+            })
+            .attr('height', d => {
+                // Ensure height is a valid number
+                const y0 = (d as any).y0 || 0;
+                const y1 = (d as any).y1 || 0;
+                return Math.max(0, y1 - y0);
+            })
             .attr('fill', d => colorScale(d.data.name))
             .attr('stroke', 'white')
             .attr('stroke-width', 2)
@@ -259,7 +355,7 @@
             .attr('font-size', 'var(--font-size-sm)')
             .attr('font-weight', 'bold')
             .attr('fill', 'white')
-            .text(d => `${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} words)`)
+            .text(d => `${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`)
             .style('pointer-events', 'none')
             .each(function(d) {
                 const self = d3.select(this);
@@ -269,7 +365,7 @@
                 if (textLength > availableWidth) {
                     self.text(d.data.name)
                         .append('title')
-                        .text(`${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} words)`);
+                        .text(`${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`);
                 }
             });
         
@@ -279,17 +375,32 @@
             .enter()
             .append('g')
             .attr('class', 'item-set')
-            .attr('transform', d => `translate(${(d as any).x0},${(d as any).y0})`);
+            .attr('transform', d => {
+                // Ensure d.x0 and d.y0 are valid numbers
+                const x = (d as any).x0 || 0;
+                const y = (d as any).y0 || 0;
+                return `translate(${x},${y})`;
+            });
         
         // Add item set rectangles
         itemSets.append('rect')
-            .attr('width', d => Math.max(0, (d as any).x1 - (d as any).x0))
-            .attr('height', d => Math.max(0, (d as any).y1 - (d as any).y0))
+            .attr('width', d => {
+                // Ensure width is a valid number
+                const x0 = (d as any).x0 || 0;
+                const x1 = (d as any).x1 || 0;
+                return Math.max(0, x1 - x0);
+            })
+            .attr('height', d => {
+                // Ensure height is a valid number
+                const y0 = (d as any).y0 || 0;
+                const y1 = (d as any).y1 || 0;
+                return Math.max(0, y1 - y0);
+            })
             .attr('fill', d => {
                 // Use a lighter shade of the country/parent color
                 const nodeColor = zoomedNode 
                     ? colorScale(zoomedNode.data.name) 
-                    : colorScale((d.parent as any).data.name);
+                    : colorScale((d.parent as any)?.data?.name || 'Unknown');
                 const baseColor = d3.rgb(nodeColor);
                 return d3.rgb(baseColor).brighter(0.7).toString();
             })
@@ -345,7 +456,7 @@
                 
                 self.text(text)
                     .append('title')
-                    .text(`${country} > ${d.data.name}: ${d.data.wordCount?.toLocaleString() || 0} words (${d.data.itemCount} items)`);
+                    .text(`${country} > ${d.data.name}: ${d.data.wordCount?.toLocaleString() || 0} ${$wordsText} (${d.data.itemCount} ${$itemsText})`);
                 
                 // Check if text fits and truncate if necessary
                 const node = this as SVGTextElement;
@@ -406,15 +517,15 @@
                 ${country} > ${itemSet}
             </div>
             <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
-                <span>Words:</span>
+                <span>${$wordsText}:</span>
                 <span style="text-align:right;font-weight:bold">${wordCount.toLocaleString()}</span>
-                <span>Items:</span>
+                <span>${$itemsText}:</span>
                 <span style="text-align:right">${itemCount}</span>
-                <span>Avg words/item:</span>
+                <span>${$avgWordsPerItemText}:</span>
                 <span style="text-align:right">${avgWordsPerItem}</span>
-                <span>% of country:</span>
+                <span>${$percentOfCountryText}:</span>
                 <span style="text-align:right">${percentOfCountry}</span>
-                <span>% of total:</span>
+                <span>${$percentOfTotalText}:</span>
                 <span style="text-align:right">${percentOfTotal}</span>
             </div>
         `;
@@ -500,17 +611,17 @@
     
     <div class="stats">
         <div class="stat-summary">
-            <h3>Summary</h3>
-            <p>Total items with word count: <strong>{totalItems}</strong></p>
-            <p>Total words: <strong>{totalWordCount.toLocaleString()}</strong></p>
+            <h3>{$summaryText}</h3>
+            <p>{$totalItemsWithWordCountText}: <strong>{totalItems}</strong></p>
+            <p>{$totalWordsText}: <strong>{totalWordCount.toLocaleString()}</strong></p>
             {#if totalItems > 0}
-                <p>Average words per item: <strong>{Math.round(totalWordCount / totalItems).toLocaleString()}</strong></p>
+                <p>{$avgWordsPerItemText}: <strong>{Math.round(totalWordCount / totalItems).toLocaleString()}</strong></p>
             {/if}
             {#if zoomedNode}
-                <p>Currently viewing: <strong>{zoomedNode.data.name}</strong></p>
-                <p>Click the "Back to All" button to return to the full view</p>
+                <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
+                <p>{$clickBackText}</p>
             {:else}
-                <p>Click on a country block to zoom in</p>
+                <p>{$clickZoomInText}</p>
             {/if}
         </div>
     </div>
