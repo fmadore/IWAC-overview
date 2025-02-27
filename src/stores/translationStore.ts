@@ -43,10 +43,14 @@ export const translations: Translations = {
         'viz.all_types': 'All Types',
         'viz.no_data': 'No data available with the current filters',
         'viz.distribution_items': 'Distribution of {0} items by country and sub-collection',
+        'viz.language_distribution_title': 'Language Distribution',
+        'viz.language_distribution_items': 'Distribution of {0} items by language',
+        'viz.language_distribution_description': 'This visualization shows the distribution of items by language. You can filter by country and item type to explore the language distribution across different segments of the collection.',
         'viz.publication_year': 'Publication Year',
         'viz.number_of_items': 'Number of Items',
         'viz.toggle_types': 'Toggle Types',
         'viz.toggled_type': 'Toggled type: {0}',
+        'viz.languages': 'Languages',
         
         // Country distribution specific
         'viz.country_distribution_title': 'Country Distribution',
@@ -111,10 +115,14 @@ export const translations: Translations = {
         'viz.all_types': 'Tous les types',
         'viz.no_data': 'Aucune donnée disponible avec les filtres actuels',
         'viz.distribution_items': 'Répartition de {0} éléments par pays et sous-collection',
+        'viz.language_distribution_title': 'Répartition par langue',
+        'viz.language_distribution_items': 'Répartition de {0} éléments par langue',
+        'viz.language_distribution_description': 'Cette visualisation montre la répartition des éléments par langue. Vous pouvez filtrer par pays et par type d\'élément pour explorer la répartition des langues dans différents segments de la collection.',
         'viz.publication_year': 'Année de publication',
         'viz.number_of_items': 'Nombre d\'éléments',
         'viz.toggle_types': 'Basculer les types',
         'viz.toggled_type': 'Type basculé : {0}',
+        'viz.languages': 'Langues',
         
         // Country distribution specific
         'viz.country_distribution_title': 'Répartition par pays',

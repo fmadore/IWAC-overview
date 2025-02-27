@@ -3,8 +3,9 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
-    import { t, translate } from '../../stores/translationStore';
+    import { t, translate, language } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
+    import BaseVisualization from './BaseVisualization.svelte';
 
     // Define interfaces for data structures
     interface LanguageCount {
@@ -28,6 +29,8 @@
     let countryOptions: FacetOption[] = [];
     let typeOptions: FacetOption[] = [];
     let totalItems: number = 0;
+    let currentLang: 'en' | 'fr' = 'en';
+    let titleHtml = '';
     
     // Visualization variables
     let width = 0;
@@ -46,6 +49,44 @@
     const filterByTypeText = translate('viz.filter_by_type');
     const noDataText = translate('viz.no_data');
     const showingItemsText = translate('viz.showing_items');
+
+    // Function to format numbers with spaces as thousands separator
+    function formatNumber(num: number): string {
+        // Use locale-specific formatting - in French/many European countries spaces are used
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+    
+    // Function to get the title with current count and proper formatting
+    function getTitle(count: number): string {
+        // Format the number with spaces as thousands separator
+        const formattedCount = formatNumber(count);
+        // Use the current language's translation with the formatted count
+        return t('viz.language_distribution_items', [formattedCount]);
+    }
+    
+    // Function to update the title HTML based on current data
+    function updateTitleHtml() {
+        if (totalItems > 0) {
+            titleHtml = getTitle(totalItems);
+        } else {
+            titleHtml = t('viz.language_distribution_title');
+        }
+        console.log("Language Distribution Title updated:", titleHtml);
+    }
+
+    // Call this function whenever totalItems or language changes
+    $: {
+        updateTitleHtml();
+    }
+    
+    // Subscribe to language changes
+    language.subscribe(value => {
+        console.log("Language changed to:", value);
+        currentLang = value;
+        
+        // Force refresh the title when language changes
+        updateTitleHtml();
+    });
 
     // Process data based on current filters
     function processData() {
@@ -66,6 +107,11 @@
         });
         
         totalItems = filteredItems.length;
+        
+        // Update the title after the total items count has been updated
+        updateTitleHtml();
+        
+        console.log(`Processed ${totalItems} items with language data`);
         
         // Count by language
         const languageCounts = d3.rollup(
@@ -228,43 +274,36 @@
     function createPieChart() {
         if (!container) return;
         
-        // Process data with current filters
+        // Process data
         const data = processData();
+        languageCounts = data || [];
+        
         if (!data || data.length === 0) {
             d3.select(container).select('svg').remove();
-            d3.select(container).append('div')
-                .attr('class', 'no-data')
-                .style('position', 'absolute')
-                .style('top', '50%')
-                .style('left', '50%')
-                .style('transform', 'translate(-50%, -50%)')
-                .style('text-align', 'center')
-                .style('color', 'var(--text-color-secondary)')
-                .text($noDataText);
             return;
         }
         
-        // Update languageCounts for reactive updates
-        languageCounts = data;
-        
-        // Remove previous content
+        // Clear previous chart
         d3.select(container).select('svg').remove();
-        d3.select(container).select('.no-data').remove();
         
         // Get container dimensions
         const rect = container.getBoundingClientRect();
         width = rect.width;
-        height = rect.height - 100; // Leave space for filters at top
+        height = rect.height;
         
-        // Calculate radius for the pie chart
-        const radius = Math.min(width, height) / 2 - 40;
+        // Set margins
+        const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
         
-        // Create SVG container
+        // Calculate radius
+        const radius = Math.min(chartWidth, chartHeight) / 2;
+        
+        // Create SVG
         const svg = d3.select(container)
             .append('svg')
             .attr('width', width)
             .attr('height', height)
-            .attr('viewBox', `0 0 ${width} ${height}`)
             .append('g')
             .attr('transform', `translate(${width / 2}, ${height / 2})`);
         
@@ -309,16 +348,6 @@
                     .attr('d', (d: any) => arc(d as d3.PieArcDatum<LanguageCount>)!);
                 hideTooltip();
             });
-        
-        // Add title
-        svg.append('text')
-            .attr('text-anchor', 'middle')
-            .attr('y', -height/2 + 30)
-            .attr('x', 0)
-            .attr('font-size', '20px')
-            .attr('font-weight', 'bold')
-            .attr('fill', 'var(--text-color-primary)')
-            .text(`Language Distribution (${totalItems} items)`);
         
         // Update the legend with current data
         createLegend();
@@ -392,39 +421,55 @@
 </script>
 
 <div class="language-visualization-container">
-    <div class="filters">
-        <div class="filter-group">
-            <label for="country-filter">{$filterByCountryText}:</label>
-            <select id="country-filter" on:change={handleCountryChange} value={selectedCountry}>
-                {#each countryOptions as option}
-                    <option value={option.value}>{option.label} ({option.count})</option>
-                {/each}
-            </select>
+    <BaseVisualization
+        title=""
+        translationKey=""
+        description=""
+        descriptionTranslationKey="viz.language_distribution_description"
+        titleHtml={titleHtml}
+    >
+        <div class="filters">
+            <div class="filter-group">
+                <label for="country-filter">{$filterByCountryText}:</label>
+                <select id="country-filter" on:change={handleCountryChange} value={selectedCountry}>
+                    {#each countryOptions as option}
+                        <option value={option.value}>{option.label} ({option.count})</option>
+                    {/each}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="type-filter">{$filterByTypeText}:</label>
+                <select id="type-filter" on:change={handleTypeChange} value={selectedType}>
+                    {#each typeOptions as option}
+                        <option value={option.value}>{option.label} ({option.count})</option>
+                    {/each}
+                </select>
+            </div>
+            
+            <div class="summary">
+                {#if languageCounts.length > 0}
+                    <span>{t('viz.showing_items', [totalItems.toString(), languageCounts.length.toString()])}</span>
+                {/if}
+            </div>
         </div>
         
-        <div class="filter-group">
-            <label for="type-filter">{$filterByTypeText}:</label>
-            <select id="type-filter" on:change={handleTypeChange} value={selectedType}>
-                {#each typeOptions as option}
-                    <option value={option.value}>{option.label} ({option.count})</option>
-                {/each}
-            </select>
-        </div>
-        
-        <div class="summary">
-            {#if languageCounts.length > 0}
-                <span>{t('viz.showing_items', [totalItems.toString(), languageCounts.length.toString()])}</span>
+        <div class="pie-container" bind:this={container}>
+            {#if $itemsStore.loading}
+                <div class="loading">{t('ui.loading')}</div>
+            {:else if $itemsStore.error}
+                <div class="error">{$itemsStore.error}</div>
             {/if}
         </div>
-    </div>
-    
-    <div class="pie-container" bind:this={container}>
-        {#if $itemsStore.loading}
-            <div class="loading">{t('ui.loading')}</div>
-        {:else if $itemsStore.error}
-            <div class="error">{$itemsStore.error}</div>
-        {/if}
-    </div>
+        
+        <div class="stats">
+            <div class="stat-summary">
+                <h3>{t('viz.summary')}</h3>
+                <p>{t('viz.total_items')}: <strong>{totalItems}</strong></p>
+                <p>{t('viz.languages')}: <strong>{languageCounts.length}</strong></p>
+            </div>
+        </div>
+    </BaseVisualization>
 </div>
 
 <style>
@@ -433,6 +478,7 @@
         height: 100%;
         display: flex;
         flex-direction: column;
+        gap: var(--spacing-md);
     }
     
     .filters {
@@ -482,6 +528,29 @@
         position: relative;
         background: var(--card-background);
         border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+        box-shadow: var(--card-shadow);
+    }
+    
+    .stats {
+        padding: var(--spacing-md);
+        background-color: var(--card-background);
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--card-shadow);
+    }
+    
+    .stat-summary p {
+        margin: var(--spacing-xs) 0;
+        font-size: var(--font-size-sm);
+        color: var(--text-color-secondary);
+    }
+    
+    h3 {
+        margin-top: 0;
+        margin-bottom: var(--spacing-sm);
+        color: var(--text-color-primary);
+        font-size: var(--font-size-md);
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: var(--spacing-xs);
     }
     
     .loading, .error {

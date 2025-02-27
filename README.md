@@ -438,6 +438,9 @@ Features:
 - Tooltips showing count and percentage information
 - Summary statistics showing total items and language count
 - Responsive design that adapts to container size
+- Dynamic title that updates with the total number of items
+- Properly formats numbers according to the current language
+- Robust translation support for all UI elements
 
 ### Index Distribution
 
