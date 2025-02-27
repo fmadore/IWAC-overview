@@ -62,6 +62,8 @@
     const showingItemsOverMonthsText = translate('viz.showing_items_over_months');
     const itemsText = translate('viz.items');
     const timelineItemsText = translate('viz.timeline_distribution_items');
+    const monthlyAdditionsText = translate('viz.monthly_additions');
+    const monthText = translate('viz.month');
 
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -433,7 +435,7 @@
             .attr('y', 4)
             .attr('fill', 'var(--text-color-primary)')
             .attr('font-size', 'var(--font-size-sm)')
-            .text('Monthly Additions');
+            .text(t('viz.monthly_additions'));
             
         // Total items legend item
         legendGroup.append('line')
@@ -450,7 +452,7 @@
             .attr('y', 24)
             .attr('fill', 'var(--text-color-primary)')
             .attr('font-size', 'var(--font-size-sm)')
-            .text('Total Items');
+            .text(t('viz.total_items'));
             
         // Create circle marker definition for line points
         svg.append('defs').append('marker')
@@ -520,7 +522,7 @@
             .attr('text-anchor', 'middle')
             .style('font-size', 'var(--font-size-sm)')
             .style('fill', 'var(--text-color-secondary)')
-            .text('Monthly Additions');
+            .text(t('viz.monthly_additions'));
             
         // Create line generator for monthly data
         const lineMonthly = d3.line<MonthlyData>()
@@ -622,7 +624,7 @@
             .attr('text-anchor', 'middle')
             .style('font-size', 'var(--font-size-sm)')
             .style('fill', 'var(--text-color-secondary)')
-            .text('Total Items');
+            .text(t('viz.total_items'));
             
         // Add x-axis label (only need it on the bottom chart)
         chart2.append('text')
@@ -632,7 +634,7 @@
             .attr('y', chartHeight + 40)
             .style('font-size', 'var(--font-size-sm)')
             .style('fill', 'var(--text-color-secondary)')
-            .text('Month');
+            .text(t('viz.month'));
             
         // Create line generator for total data
         const lineTotal = d3.line<MonthlyData>()

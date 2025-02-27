@@ -56,6 +56,8 @@ export const translations: Translations = {
         'viz.peak_growth_months': 'Peak Growth Months',
         'viz.showing_items_over_months': 'Showing {0} items over {1} months',
         'viz.months': 'months',
+        'viz.monthly_additions': 'Monthly Additions',
+        'viz.month': 'Month',
         
         'viz.publication_year': 'Publication Year',
         'viz.number_of_items': 'Number of Items',
@@ -174,6 +176,8 @@ export const translations: Translations = {
         'viz.peak_growth_months': 'Mois de croissance maximale',
         'viz.showing_items_over_months': 'Affichage de {0} éléments sur {1} mois',
         'viz.months': 'mois',
+        'viz.monthly_additions': 'Ajouts mensuels',
+        'viz.month': 'Mois',
         
         'viz.publication_year': 'Année de publication',
         'viz.number_of_items': 'Nombre d\'éléments',
