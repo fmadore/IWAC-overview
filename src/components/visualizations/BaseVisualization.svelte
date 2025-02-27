@@ -1,83 +1,77 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { t } from '../../stores/translationStore';
-    import type { OmekaItem } from '../../types/OmekaItem';
+    import VisualizationHeader from './VisualizationHeader.svelte';
 
     export let title: string;
     export let translationKey: string = '';
     export let description: string = '';
-
-    let container: HTMLDivElement;
-    let svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+    export let descriptionTranslationKey: string = '';
+    export let showDescription: boolean = false;
     
-    const margin = { top: 40, right: 20, bottom: 50, left: 60 };
-    let width = 0;
-    let height = 0;
+    // New prop for handling HTML content in titles
+    export let titleHtml: string = '';
 
-    onMount(() => {
-        const resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                width = entry.contentRect.width;
-                height = entry.contentRect.height;
-                updateVisualization();
-            }
-        });
-
-        resizeObserver.observe(container);
-        return () => resizeObserver.disconnect();
-    });
-
-    function updateVisualization() {
-        if (!container) return;
-        
-        // Clear previous SVG
-        d3.select(container).select('svg').remove();
-        
-        // Create new SVG
-        svg = d3.select(container)
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height);
-            
-        // Add title
-        svg.append('text')
-            .attr('x', width / 2)
-            .attr('y', margin.top / 2)
-            .attr('text-anchor', 'middle')
-            .style('font-size', 'var(--font-size-lg)')
-            .style('fill', 'var(--text-color-primary)')
-            .text(translationKey ? t(translationKey) : title);
-    }
+    // We no longer need container, SVG, width, height, or updateVisualization
+    // as these are handled by the child visualization components
 </script>
 
-<div class="visualization-container" bind:this={container}>
-    {#if $itemsStore.loading}
-        <div class="loading">{t('ui.loading')}</div>
-    {:else if $itemsStore.error}
-        <div class="error">{$itemsStore.error}</div>
-    {/if}
+<div class="visualization-wrapper">
+    <VisualizationHeader
+        {title}
+        {translationKey}
+        {description}
+        {descriptionTranslationKey}
+        bind:showDescription={showDescription}
+        {titleHtml}
+    />
+    
+    <div class="visualization-content">
+        <slot>
+            <!-- Default content if no slot is provided -->
+            <div class="empty-visualization">
+                {#if $itemsStore.loading}
+                    <div class="loading">{t('ui.loading')}</div>
+                {:else if $itemsStore.error}
+                    <div class="error">{$itemsStore.error}</div>
+                {:else}
+                    <div class="no-content">{t('ui.no_visualization_content')}</div>
+                {/if}
+            </div>
+        </slot>
+    </div>
 </div>
 
 <style>
-    .visualization-container {
+    .visualization-wrapper {
         width: 100%;
-        height: 100%;
-        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .visualization-content {
+        width: 100%;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .empty-visualization {
+        width: 100%;
+        height: 400px;
         position: relative;
         background: var(--card-background);
         border-radius: var(--border-radius-md);
         box-shadow: var(--card-shadow);
         padding: var(--spacing-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    .loading, .error {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+    .loading, .error, .no-content {
         color: var(--text-color-secondary);
+        text-align: center;
     }
 
     .error {

@@ -5,6 +5,19 @@
     import { log } from '../../utils/logger';
     import { t, translate } from '../../stores/translationStore';
 
+    // Move the description definition to the top of the script
+    // to make sure it's available when the component initializes
+    const countryDescriptionKey = 'viz.country_distribution_description';
+
+    // Create reactive translations with dynamic value for item count
+    // Use native Svelte reactivity with derived store
+    const distributionTitleStore = translate('viz.distribution_items');
+    
+    // Function to get the title with current count
+    function getTitle(count: number): string {
+        return t('viz.distribution_items', [count.toString()]);
+    }
+
     // Added interfaces for item and hierarchy datum
     interface Item {
         country: string;
@@ -35,7 +48,6 @@
 
     // Create reactive translations
     const noDataText = translate('viz.no_data');
-    const distributionText = translate('viz.distribution_items');
     const itemsText = translate('viz.items');
     const percentParentText = translate('viz.percent_of_country');
     const percentTotalText = translate('viz.percent_of_total');
@@ -158,29 +170,16 @@
             .attr('width', width)
             .attr('height', height);
         
-        // Add title
-        const titleText = zoomedNode 
-            ? `${zoomedNode.data.name}: ${zoomedNode.data.itemCount} ${$itemsText}`
-            : t('viz.distribution_items', [totalItems.toString()]);
-            
-        svg.append('text')
-            .attr('x', width / 2)
-            .attr('y', 20)
-            .attr('text-anchor', 'middle')
-            .attr('font-size', 'var(--font-size-lg)')
-            .attr('font-weight', 'bold')
-            .attr('fill', 'var(--text-color-primary)')
-            .text(titleText);
-        
-        // Create chart group
+        // DO NOT add any title text to the SVG - removed
+        // Instead create chart group directly
         const chart = svg.append('g')
             .attr('transform', `translate(${margin.left}, ${margin.top})`);
-        
-        // If zoomed in, add a button to zoom out
+            
+        // If zoomed in, add a button to zoom out but outside the title area
         if (zoomedNode) {
-            const button = svg.append('g')
+            const button = chart.append('g')
                 .attr('class', 'zoom-out-button')
-                .attr('transform', `translate(${margin.left}, ${margin.top - 30})`)
+                .attr('transform', `translate(0, -10)`)
                 .style('cursor', 'pointer')
                 .on('click', () => zoomToNode(null));
                 
@@ -553,17 +552,25 @@
             itemsStore.loadItems();
         }
         
-        // Add resize observer
+        // Add resize observer only after we confirmed container exists
         const resizeObserver = new ResizeObserver(() => {
             if (container) {
                 updateVisualization();
             }
         });
         
-        resizeObserver.observe(container);
+        // Make sure container exists before observing
+        if (container) {
+            resizeObserver.observe(container);
+        } else {
+            console.error('Container element still not available for ResizeObserver');
+        }
         
         return () => {
-            resizeObserver.disconnect();
+            // Safely disconnect observer
+            if (resizeObserver) {
+                resizeObserver.disconnect();
+            }
             
             // Clean up tooltip
             if (tooltip && document.body.contains(tooltip)) {
@@ -571,33 +578,48 @@
             }
         };
     });
+
+    // In the script section, update the title generation
+    // Let's put this function at the top where we need it
+    $: titleHtml = totalItems > 0 
+        ? getTitle(totalItems)
+        : t('viz.country_distribution_title');
 </script>
 
 <div class="country-distribution-container">
-    <div class="chart-container" bind:this={container}>
-        {#if $itemsStore.loading}
-            <div class="loading">{t('ui.loading')}</div>
-        {:else if $itemsStore.error}
-            <div class="error">{$itemsStore.error}</div>
-        {:else if !$itemsStore.items || $itemsStore.items.length === 0}
-            <div class="no-data">{$noDataText}</div>
-        {/if}
-    </div>
-    
-    <div class="stats">
-        <div class="stat-summary">
-            <h3>{$summaryText}</h3>
-            <p>{$totalItemsText}: <strong>{totalItems}</strong></p>
-            <p>{$countriesText}: <strong>{countryCount}</strong></p>
-            <p>{$subCollectionsText}: <strong>{subCollectionCount}</strong></p>
-            {#if zoomedNode}
-                <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
-                <p>{$clickBackText}</p>
-            {:else}
-                <p>{$clickZoomInText}</p>
+    <!-- Using BaseVisualization with our enhanced header -->
+    <BaseVisualization
+        title=""
+        translationKey="" 
+        description="This visualization shows the distribution of items by country and sub-collection. You can click on any country block to zoom in and see its sub-collections. The size of each block represents the number of items in that country or sub-collection."
+        descriptionTranslationKey={countryDescriptionKey}
+        titleHtml={titleHtml}
+    >
+        <div class="chart-container" bind:this={container}>
+            {#if $itemsStore.loading}
+                <div class="loading">{t('ui.loading')}</div>
+            {:else if $itemsStore.error}
+                <div class="error">{$itemsStore.error}</div>
+            {:else if !$itemsStore.items || $itemsStore.items.length === 0}
+                <div class="no-data">{$noDataText}</div>
             {/if}
         </div>
-    </div>
+        
+        <div class="stats">
+            <div class="stat-summary">
+                <h3>{$summaryText}</h3>
+                <p>{$totalItemsText}: <strong>{totalItems}</strong></p>
+                <p>{$countriesText}: <strong>{countryCount}</strong></p>
+                <p>{$subCollectionsText}: <strong>{subCollectionCount}</strong></p>
+                {#if zoomedNode}
+                    <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
+                    <p>{$clickBackText}</p>
+                {:else}
+                    <p>{$clickZoomInText}</p>
+                {/if}
+            </div>
+        </div>
+    </BaseVisualization>
 </div>
 
 <style>

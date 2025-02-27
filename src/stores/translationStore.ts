@@ -27,6 +27,9 @@ export const translations: Translations = {
         'ui.loading': 'Loading database...',
         'ui.select_visualization': 'Select a visualization from the tabs above',
         'ui.toggle_language': 'Changer en français',
+        'ui.show_description': 'Show description',
+        'ui.hide_description': 'Hide description',
+        'ui.no_visualization_content': 'No visualization content available',
         
         // Visualization components
         'viz.summary': 'Summary',
@@ -46,6 +49,8 @@ export const translations: Translations = {
         'viz.toggled_type': 'Toggled type: {0}',
         
         // Country distribution specific
+        'viz.country_distribution_title': 'Country Distribution',
+        'viz.country_distribution_description': 'This visualization shows the distribution of items by country and sub-collection. You can click on any country block to zoom in and see its sub-collections. The size of each block represents the number of items in that country or sub-collection.',
         'viz.country.items': 'Items',
         'viz.country.percent_parent': '% of Parent',
         'viz.country.percent_total': '% of Total',
@@ -90,6 +95,9 @@ export const translations: Translations = {
         'ui.loading': 'Chargement de la base de données...',
         'ui.select_visualization': 'Sélectionnez une visualisation dans les onglets ci-dessus',
         'ui.toggle_language': 'Switch to English',
+        'ui.show_description': 'Afficher la description',
+        'ui.hide_description': 'Masquer la description',
+        'ui.no_visualization_content': 'Aucun contenu de visualisation disponible',
         
         // Visualization components
         'viz.summary': 'Résumé',
@@ -109,6 +117,8 @@ export const translations: Translations = {
         'viz.toggled_type': 'Type basculé : {0}',
         
         // Country distribution specific
+        'viz.country_distribution_title': 'Répartition par pays',
+        'viz.country_distribution_description': 'Cette visualisation montre la répartition des éléments par pays et sous-collection. Vous pouvez cliquer sur n\'importe quel bloc pays pour zoomer et voir ses sous-collections. La taille de chaque bloc représente le nombre d\'éléments dans ce pays ou cette sous-collection.',
         'viz.country.items': 'Éléments',
         'viz.country.percent_parent': '% du parent',
         'viz.country.percent_total': '% du total',
