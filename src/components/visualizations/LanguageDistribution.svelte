@@ -296,17 +296,17 @@
                 d3.select(this)
                     .transition()
                     .duration(200)
-                    .attr('d', arcHover);
+                    .attr('d', (d: any) => arcHover(d as d3.PieArcDatum<LanguageCount>)!);
                 showTooltip(event, d);
             })
             .on('mousemove', function(event, d) {
                 showTooltip(event, d);
             })
-            .on('mouseleave', function() {
+            .on('mouseleave', function(event, d) {
                 d3.select(this)
                     .transition()
                     .duration(200)
-                    .attr('d', arc);
+                    .attr('d', (d: any) => arc(d as d3.PieArcDatum<LanguageCount>)!);
                 hideTooltip();
             });
         

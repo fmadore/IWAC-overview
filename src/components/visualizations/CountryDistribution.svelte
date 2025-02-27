@@ -197,15 +197,6 @@
         currentNode = root;
         selectedNode = null;
 
-        // Add title after root is defined
-        svg.append('text')
-            .attr('x', width / 2)
-            .attr('y', -40)
-            .attr('text-anchor', 'middle')
-            .attr('font-size', '16px')
-            .attr('font-weight', 'bold')
-            .text(t('viz.distribution_items', [root.value?.toString() || '0']));
-
         // Create scales for positioning (y-scale adjusted for header height)
         const x = d3.scaleLinear().rangeRound([0, width]).domain([0, width]);
         const y = d3.scaleLinear().rangeRound([0, height - 30]).domain([0, height - 30]);
@@ -486,6 +477,9 @@
 </script>
 
 <div class="country-visualization-container">
+    <div class="visualization-title">
+        {t('viz.distribution_items', [root?.value?.toString() || '0'])}
+    </div>
     <div class="visualization" bind:this={container}>
         {#if $itemsStore.loading}
             <div class="loading">{t('ui.loading')}</div>
@@ -506,11 +500,20 @@
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .visualization-title {
+        padding: 1rem;
+        text-align: center;
+        font-size: var(--font-size-lg);
+        font-weight: bold;
+        color: var(--text-color-primary);
     }
 
     .visualization {
-        width: 100%;
-        height: 100%;
+        flex: 1;
         position: relative;
     }
 
