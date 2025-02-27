@@ -9,6 +9,7 @@
   import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
   import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
   import TypeDistribution from './components/visualizations/TypeDistribution.svelte';
+  import WordDistribution from './components/visualizations/WordDistribution.svelte';
 
   // Import visualization components here
   // They will be created in the next steps
@@ -76,6 +77,8 @@
           <TimelineDistribution />
         {:else if activeTab === 'types'}
           <TypeDistribution />
+        {:else if activeTab === 'words'}
+          <WordDistribution />
         {:else}
           <div class="visualization-grid">
             <p>{t('ui.select_visualization')}</p>

@@ -16,6 +16,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
   - [Index Distribution](#index-distribution)
   - [Timeline Distribution](#timeline-distribution)
   - [Type Distribution](#type-distribution)
+  - [Word Distribution](#word-distribution)
 - [Creating New Visualizations](#creating-new-visualizations)
 - [Extending Functionality](#extending-functionality)
 - [Development Setup](#development-setup)
@@ -143,6 +144,20 @@ Features:
 - Color-coded stacks for different item types with legend
 - Detailed tooltips showing count and percentage breakdown by type for each year
 - Summary statistics showing total items and publication years range
+- Responsive design that adapts to different screen sizes
+
+### Word Distribution
+
+The Word Distribution visualization uses a treemap to show the distribution of word counts across items, organized by country and item set.
+
+Features:
+- Interactive treemap visualization with hover effects and detailed tooltips
+- Hierarchical organization of data by country and item_set_title
+- Rectangle sizes proportional to word counts
+- Zoom functionality to focus on specific countries with a "Back to All" option
+- Detailed tooltips showing word count, item count, average words per item, and percentage statistics
+- Color-coding by country with lighter shades for item sets
+- Summary statistics showing total items with word count, total words, and average words per item
 - Responsive design that adapts to different screen sizes
 
 ## Data Management
@@ -473,6 +488,20 @@ Features:
 - Summary statistics showing total items and publication years range
 - Responsive design that adapts to different screen sizes
 
+### Word Distribution
+
+The Word Distribution visualization uses a treemap to show the distribution of word counts across items, organized by country and item set.
+
+Features:
+- Interactive treemap visualization with hover effects and detailed tooltips
+- Hierarchical organization of data by country and item_set_title
+- Rectangle sizes proportional to word counts
+- Zoom functionality to focus on specific countries with a "Back to All" option
+- Detailed tooltips showing word count, item count, average words per item, and percentage statistics
+- Color-coding by country with lighter shades for item sets
+- Summary statistics showing total items with word count, total words, and average words per item
+- Responsive design that adapts to different screen sizes
+
 ## Creating New Visualizations
 
 To add a new visualization to the application:
@@ -653,19 +682,6 @@ To add a new visualization to the application:
      { id: 'your-new-tab', label: 'Your New Visualization' },
      // ... other tabs ...
    ];
-   ```
-
-4. **Use the theme system for consistent styling**
-
-   Make sure to use theme variables in your component styles for consistency:
-
-   ```css
-   .your-element {
-     color: var(--text-color-primary);
-     background-color: var(--card-background);
-     padding: var(--spacing-md);
-     border-radius: var(--border-radius-md);
-   }
    ```
 
 ## Extending Functionality

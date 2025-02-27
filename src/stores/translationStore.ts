@@ -53,6 +53,11 @@ export const translations: Translations = {
         'viz.country.click_zoom_out': 'Click to zoom out',
         'viz.country.unknown': 'Unknown',
         'viz.country.no_set': 'No Set',
+
+        // Word distribution specific
+        'viz.word_distribution': 'Word Distribution',
+        'viz.total_words': 'Total Words',
+        'viz.avg_words_per_item': 'Average Words per Item',
     },
     fr: {
         // App navigation
@@ -94,6 +99,11 @@ export const translations: Translations = {
         'viz.country.click_zoom_out': 'Cliquer pour dézoomer',
         'viz.country.unknown': 'Inconnu',
         'viz.country.no_set': 'Sans ensemble',
+
+        // Word distribution specific
+        'viz.word_distribution': 'Répartition des mots',
+        'viz.total_words': 'Nombre total de mots',
+        'viz.avg_words_per_item': 'Moyenne de mots par élément',
     }
 };
 
