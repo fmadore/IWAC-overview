@@ -84,6 +84,26 @@ export const translations: Translations = {
         'viz.percent_of_country': '% of country',
         'viz.percent_of_total': '% of total',
         'viz.item_set_summary': 'Item Set Summary',
+        
+        // Language translations
+        'lang.Français': 'French',
+        'lang.Anglais': 'English',
+        'lang.Haoussa': 'Hausa',
+        'lang.Allemand': 'German',
+        'lang.Arabe': 'Arabic',
+        'lang.Italien': 'Italian',
+        'lang.Dendi': 'Dendi',
+        'lang.Slovène': 'Slovenian',
+        'lang.Espagnol': 'Spanish',
+        
+        // Country translations
+        'country.Bénin': 'Benin',
+        'country.Nigéria': 'Nigeria',
+        'country.Côte d\'Ivoire': 'Côte d\'Ivoire',
+        'country.Burkina Faso': 'Burkina Faso',
+        'country.Togo': 'Togo',
+        'country.Niger': 'Niger',
+        'country.Unknown': 'Unknown',
     },
     fr: {
         // App navigation
@@ -156,6 +176,26 @@ export const translations: Translations = {
         'viz.percent_of_country': '% du pays',
         'viz.percent_of_total': '% du total',
         'viz.item_set_summary': 'Résumé de l\'ensemble d\'éléments',
+        
+        // Language translations
+        'lang.Français': 'Français',
+        'lang.Anglais': 'Anglais',
+        'lang.Haoussa': 'Haoussa',
+        'lang.Allemand': 'Allemand',
+        'lang.Arabe': 'Arabe',
+        'lang.Italien': 'Italien',
+        'lang.Dendi': 'Dendi',
+        'lang.Slovène': 'Slovène',
+        'lang.Espagnol': 'Espagnol',
+        
+        // Country translations
+        'country.Bénin': 'Bénin',
+        'country.Nigéria': 'Nigéria',
+        'country.Côte d\'Ivoire': 'Côte d\'Ivoire',
+        'country.Burkina Faso': 'Burkina Faso',
+        'country.Togo': 'Togo',
+        'country.Niger': 'Niger',
+        'country.Unknown': 'Inconnu',
     }
 };
 

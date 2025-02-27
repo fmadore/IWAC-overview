@@ -49,6 +49,8 @@
     const filterByTypeText = translate('viz.filter_by_type');
     const noDataText = translate('viz.no_data');
     const showingItemsText = translate('viz.showing_items');
+    const countText = translate('viz.items');
+    const percentageText = translate('viz.percent_of_total');
 
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -86,6 +88,19 @@
         
         // Force refresh the title when language changes
         updateTitleHtml();
+        
+        // Refresh facet options to update translated country names
+        generateFacetOptions();
+        
+        // Refresh the legend if it exists
+        if (legend && languageCounts.length > 0) {
+            updateLegend(languageCounts);
+        }
+        
+        // Refresh the chart to update all translated elements
+        if (container) {
+            createPieChart();
+        }
     });
 
     // Process data based on current filters
@@ -147,11 +162,20 @@
         
         countryOptions = [
             { value: 'all', label: $allCountriesText, count: itemsWithLanguage.length },
-            ...Array.from(countries, ([country, count]) => ({
-                value: country,
-                label: country,
-                count
-            })).sort((a, b) => b.count - a.count)
+            ...Array.from(countries, ([country, count]) => {
+                // Skip "Unknown" country
+                if (country === "Unknown") return null;
+                
+                // Translate country name if available
+                const translatedCountry = t(`country.${country}`) || country;
+                return {
+                    value: country,
+                    label: translatedCountry,
+                    count
+                };
+            })
+            .filter(item => item !== null) // Remove null items (Unknown)
+            .sort((a, b) => b.count - a.count)
         ];
         
         // Generate type options
@@ -195,14 +219,15 @@
         if (!tooltip) return;
         
         const data = d.data;
+        const languageName = t(`lang.${data.language}`) || data.language;
         
         tooltip.innerHTML = `
             <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                ${data.language}
+                ${languageName}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                <span>Count:</span><span style="text-align:right;font-weight:bold;">${data.count}</span>
-                <span>Percentage:</span><span style="text-align:right;font-weight:bold;">${data.percentage.toFixed(2)}%</span>
+                <span>${t('viz.items')}:</span><span style="text-align:right;font-weight:bold;">${formatNumber(data.count)}</span>
+                <span>${t('viz.percent_of_total')}:</span><span style="text-align:right;font-weight:bold;">${data.percentage.toFixed(2)}%</span>
             </div>
         `;
         
@@ -259,13 +284,16 @@
         if (!legend) return;
         
         legend.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:8px;font-size:14px;color:var(--text-color-primary);">Languages (${data.length})</div>
+            <div style="font-weight:bold;margin-bottom:8px;font-size:14px;color:var(--text-color-primary);">${t('viz.languages')} (${data.length})</div>
             <div style="display:grid;grid-template-columns:20px auto 40px;gap:4px;font-size:12px;">
-                ${data.map((d, i) => `
-                    <div style="width:12px;height:12px;background-color:${colorScale(d.language)};border-radius:2px;margin-top:2px;"></div>
-                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-color-primary);">${d.language}</div>
-                    <div style="text-align:right;color:var(--text-color-secondary);">${d.count}</div>
-                `).join('')}
+                ${data.map((d, i) => {
+                    const languageName = t(`lang.${d.language}`) || d.language;
+                    return `
+                        <div style="width:12px;height:12px;background-color:${colorScale(d.language)};border-radius:2px;margin-top:2px;"></div>
+                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-color-primary);">${languageName}</div>
+                        <div style="text-align:right;color:var(--text-color-secondary);">${formatNumber(d.count)}</div>
+                    `;
+                }).join('')}
             </div>
         `;
     }
