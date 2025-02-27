@@ -160,8 +160,12 @@
             d => d.country || "Unknown"
         );
         
+        // Get the current translations directly from the translation store
+        const currentAllCountriesText = t('viz.all_countries');
+        const currentAllTypesText = t('viz.all_types');
+        
         countryOptions = [
-            { value: 'all', label: $allCountriesText, count: itemsWithLanguage.length },
+            { value: 'all', label: currentAllCountriesText, count: itemsWithLanguage.length },
             ...Array.from(countries, ([country, count]) => {
                 // Skip "Unknown" country
                 if (country === "Unknown") return null;
@@ -186,7 +190,7 @@
         );
         
         typeOptions = [
-            { value: 'all', label: $allTypesText, count: itemsWithLanguage.length },
+            { value: 'all', label: currentAllTypesText, count: itemsWithLanguage.length },
             ...Array.from(types, ([type, count]) => ({
                 value: type,
                 label: type,
@@ -401,6 +405,13 @@
         generateFacetOptions();
         createPieChart();
     }
+    
+    // Make sure facet options update when language changes
+    $: if ($language) {
+        if ($itemsStore.items && $itemsStore.items.length > 0) {
+            generateFacetOptions();
+        }
+    }
 
     onMount(async () => {
         // Wait for component to mount
@@ -459,25 +470,25 @@
         <div class="filters">
             <div class="filter-group">
                 <label for="country-filter">{$filterByCountryText}:</label>
-                <select id="country-filter" on:change={handleCountryChange} value={selectedCountry}>
-                    {#each countryOptions as option}
-                        <option value={option.value}>{option.label} ({option.count})</option>
+                <select id="country-filter" on:change={handleCountryChange} bind:value={selectedCountry}>
+                    {#each countryOptions as option (option.value)}
+                        <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
                     {/each}
                 </select>
             </div>
             
             <div class="filter-group">
                 <label for="type-filter">{$filterByTypeText}:</label>
-                <select id="type-filter" on:change={handleTypeChange} value={selectedType}>
-                    {#each typeOptions as option}
-                        <option value={option.value}>{option.label} ({option.count})</option>
+                <select id="type-filter" on:change={handleTypeChange} bind:value={selectedType}>
+                    {#each typeOptions as option (option.value)}
+                        <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
                     {/each}
                 </select>
             </div>
             
             <div class="summary">
                 {#if languageCounts.length > 0}
-                    <span>{t('viz.showing_items', [totalItems.toString(), languageCounts.length.toString()])}</span>
+                    <span>{t('viz.showing_items', [formatNumber(totalItems), languageCounts.length.toString()])}</span>
                 {/if}
             </div>
         </div>
