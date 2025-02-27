@@ -3,22 +3,10 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
-    import { t, translate } from '../../stores/translationStore';
+    import { t, translate, language } from '../../stores/translationStore';
+    import BaseVisualization from './BaseVisualization.svelte';
 
-    // Move the description definition to the top of the script
-    // to make sure it's available when the component initializes
-    const countryDescriptionKey = 'viz.country_distribution_description';
-
-    // Create reactive translations with dynamic value for item count
-    // Use native Svelte reactivity with derived store
-    const distributionTitleStore = translate('viz.distribution_items');
-    
-    // Function to get the title with current count
-    function getTitle(count: number): string {
-        return t('viz.distribution_items', [count.toString()]);
-    }
-
-    // Added interfaces for item and hierarchy datum
+    // Move all the interface definitions to the top
     interface Item {
         country: string;
         item_set_title: string;
@@ -32,20 +20,27 @@
         itemCount?: number;
     }
 
-    // Extend the base visualization
-    import BaseVisualization from './BaseVisualization.svelte';
-
-    // Configuration options
-    let colorScheme = 'd3.schemeCategory10'; // Use Category10 like Word Distribution
-    let showLabels = true;
-    let searchQuery = '';
-    let searchResults: d3.HierarchyRectangularNode<HierarchyDatum>[] = [];
-    let selectedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
-    let zoomedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
+    // Initialize essential variables first
+    let width = 0;
+    let height = 0;
+    let container: HTMLDivElement;
+    let tooltip: HTMLDivElement;
+    let hierarchyData: HierarchyDatum = { name: 'root', children: [] };
+    let root: d3.HierarchyNode<HierarchyDatum> | null = null;
+    let currentLang: 'en' | 'fr' = 'en';
+    let titleHtml = '';
     let totalItems = 0;
     let countryCount = 0;
     let subCollectionCount = 0;
-
+    let searchResults: d3.HierarchyRectangularNode<HierarchyDatum>[] = [];
+    let selectedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
+    let zoomedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
+    let searchQuery = '';
+    let showLabels = true;
+    
+    // Define translation keys
+    const countryDescriptionKey = 'viz.country_distribution_description';
+    
     // Create reactive translations
     const noDataText = translate('viz.no_data');
     const itemsText = translate('viz.items');
@@ -61,6 +56,50 @@
     const subCollectionsText = translate('viz.sub_collections');
     const currentlyViewingText = translate('viz.currently_viewing');
     const clickBackText = translate('viz.click_back_to_return');
+    
+    // Function to format numbers with spaces as thousands separator
+    function formatNumber(num: number): string {
+        // Use locale-specific formatting - in French/many European countries spaces are used
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+    
+    // Function to get the title with current count and proper formatting
+    function getTitle(count: number): string {
+        // Format the number with spaces as thousands separator
+        const formattedCount = formatNumber(count);
+        // Use the current language's translation with the formatted count
+        return t('viz.distribution_items', [formattedCount]);
+    }
+    
+    // IMPORTANT - Replace the reactive declaration for titleHtml with a function call
+    // Instead, compute titleHtml directly inside a function
+    function updateTitleHtml() {
+        if (totalItems > 0) {
+            titleHtml = getTitle(totalItems);
+        } else {
+            titleHtml = t('viz.country_distribution_title');
+        }
+        console.log("Title HTML updated:", titleHtml);
+    }
+
+    // Call this function initially and whenever totalItems or language changes
+    $: {
+        updateTitleHtml();
+    }
+
+    // Direct subscription to log title changes for debugging
+    $: {
+        console.log("Title HTML updated:", titleHtml);
+    }
+    
+    // Subscribe to language changes - do this after initializing all variables
+    language.subscribe(value => {
+        console.log("Language changed to:", value);
+        currentLang = value;
+        
+        // Force refresh the title when language changes
+        updateTitleHtml();
+    });
 
     // Function to process data into hierarchical structure
     function processData(items: Item[]): HierarchyDatum {
@@ -97,16 +136,14 @@
         countryCount = countryGroups.size;
         subCollectionCount = root.children?.reduce((total, country) => 
             total + (country.children?.length || 0), 0) || 0;
+        
+        // Important: Update the title HTML whenever the data changes
+        updateTitleHtml();
+        
+        console.log("Data processed, total items:", totalItems);
 
         return root;
     }
-
-    let width = 0;
-    let height = 0;
-    let container: HTMLDivElement;
-    let tooltip: HTMLDivElement;
-    let hierarchyData: HierarchyDatum = { name: 'root', children: [] };
-    let root: d3.HierarchyNode<HierarchyDatum> | null = null;
 
     // Zoom to a node
     function zoomToNode(node: d3.HierarchyNode<HierarchyDatum> | null) {
@@ -420,105 +457,120 @@
             });
     }
 
-    // Create tooltip
+    // Create tooltip element - make it more resilient
     function createTooltip() {
-        tooltip = document.createElement('div');
-        tooltip.style.position = 'absolute';
-        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '8px 12px';
-        tooltip.style.borderRadius = '4px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.display = 'none';
-        tooltip.style.fontSize = '12px';
-        tooltip.style.zIndex = '1000';
-        tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-        tooltip.style.maxWidth = '250px';
-        tooltip.style.whiteSpace = 'nowrap';
+        // Remove any existing tooltip to prevent duplication
+        if (tooltip && document.body.contains(tooltip)) {
+            document.body.removeChild(tooltip);
+        }
         
-        if (document && document.body) {
-            document.body.appendChild(tooltip);
+        try {
+            tooltip = document.createElement('div');
+            tooltip.style.position = 'absolute';
+            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            tooltip.style.color = 'white';
+            tooltip.style.padding = '8px 12px';
+            tooltip.style.borderRadius = '4px';
+            tooltip.style.pointerEvents = 'none';
+            tooltip.style.display = 'none';
+            tooltip.style.fontSize = '12px';
+            tooltip.style.zIndex = '1000';
+            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            tooltip.style.maxWidth = '250px';
+            tooltip.style.whiteSpace = 'nowrap';
+            
+            if (document && document.body) {
+                document.body.appendChild(tooltip);
+            }
+        } catch (e) {
+            console.error('Error creating tooltip:', e);
         }
     }
 
-    // Show tooltip with data
+    // Show tooltip with data - add error handling
     function showTooltip(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
-        if (!tooltip) return;
+        if (!tooltip || !document.body.contains(tooltip)) {
+            createTooltip(); // Recreate tooltip if it doesn't exist
+        }
         
-        // Different tooltips for countries vs item sets
-        const isCountry = d.parent === root; // If parent is root, it's a country
-        const isItemSet = !isCountry;
-        
-        if (isCountry) {
-            // Country tooltip
-            const countryName = d.data.name;
-            const countryItems = d.data.itemCount || d.value || 0;
-            const subCollections = d.children?.length || 0;
-            const percentOfTotal = totalItems > 0 ? ((countryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
+        try {
+            // Different tooltips for countries vs item sets
+            const isCountry = d.parent === root; // If parent is root, it's a country
+            const isItemSet = !isCountry;
             
-            tooltip.innerHTML = `
-                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                    ${countryName}
-                </div>
-                <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
-                    <span>${$itemsText}:</span>
-                    <span style="text-align:right;font-weight:bold">${countryItems}</span>
-                    <span>${$subCollectionsText}:</span>
-                    <span style="text-align:right">${subCollections}</span>
-                    <span>${$percentTotalText}:</span>
-                    <span style="text-align:right">${percentOfTotal}</span>
-                </div>
-                <div style="margin-top:4px;font-style:italic;font-size:10px;">
-                    ${$clickZoomInText}
-                </div>
-            `;
-        } else {
-            // Item set tooltip
-            const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
-            const itemSet = d.data.name;
-            const itemCount = d.data.itemCount || d.value || 0;
-            
-            const totalItemCount = totalItems;
-            const countryItemCount = zoomedNode ? zoomedNode.data.itemCount : (d.parent ? d.parent.data.itemCount : 0);
-            
-            const percentOfCountry = countryItemCount && countryItemCount > 0 ? 
-                ((itemCount / countryItemCount) * 100).toFixed(1) + '%' : 'N/A';
+            if (isCountry) {
+                // Country tooltip
+                const countryName = d.data.name;
+                const countryItems = d.data.itemCount || d.value || 0;
+                const subCollections = d.children?.length || 0;
+                const percentOfTotal = totalItems > 0 ? ((countryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
                 
-            const percentOfTotal = totalItemCount > 0 ? 
-                ((itemCount / totalItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                tooltip.innerHTML = `
+                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                        ${countryName}
+                    </div>
+                    <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
+                        <span>${$itemsText}:</span>
+                        <span style="text-align:right;font-weight:bold">${countryItems}</span>
+                        <span>${$subCollectionsText}:</span>
+                        <span style="text-align:right">${subCollections}</span>
+                        <span>${$percentTotalText}:</span>
+                        <span style="text-align:right">${percentOfTotal}</span>
+                    </div>
+                    <div style="margin-top:4px;font-style:italic;font-size:10px;">
+                        ${$clickZoomInText}
+                    </div>
+                `;
+            } else {
+                // Item set tooltip
+                const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
+                const itemSet = d.data.name;
+                const itemCount = d.data.itemCount || d.value || 0;
+                
+                const totalItemCount = totalItems;
+                const countryItemCount = zoomedNode ? zoomedNode.data.itemCount : (d.parent ? d.parent.data.itemCount : 0);
+                
+                const percentOfCountry = countryItemCount && countryItemCount > 0 ? 
+                    ((itemCount / countryItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                    
+                const percentOfTotal = totalItemCount > 0 ? 
+                    ((itemCount / totalItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                
+                tooltip.innerHTML = `
+                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                        ${country} > ${itemSet}
+                    </div>
+                    <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
+                        <span>${$itemsText}:</span>
+                        <span style="text-align:right;font-weight:bold">${itemCount}</span>
+                        <span>${$percentParentText}:</span>
+                        <span style="text-align:right">${percentOfCountry}</span>
+                        <span>${$percentTotalText}:</span>
+                        <span style="text-align:right">${percentOfTotal}</span>
+                    </div>
+                `;
+            }
             
-            tooltip.innerHTML = `
-                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                    ${country} > ${itemSet}
-                </div>
-                <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
-                    <span>${$itemsText}:</span>
-                    <span style="text-align:right;font-weight:bold">${itemCount}</span>
-                    <span>${$percentParentText}:</span>
-                    <span style="text-align:right">${percentOfCountry}</span>
-                    <span>${$percentTotalText}:</span>
-                    <span style="text-align:right">${percentOfTotal}</span>
-                </div>
-            `;
+            const tooltipWidth = 250;
+            const tooltipHeight = 120;
+            
+            let left = event.pageX + 10;
+            let top = event.pageY + 10;
+            
+            if (left + tooltipWidth > window.innerWidth) {
+                left = event.pageX - tooltipWidth - 10;
+            }
+            
+            if (top + tooltipHeight > window.innerHeight) {
+                top = event.pageY - tooltipHeight - 10;
+            }
+            
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.display = 'block';
+        } catch (e) {
+            console.error('Error showing tooltip:', e);
         }
-        
-        const tooltipWidth = 250;
-        const tooltipHeight = 120;
-        
-        let left = event.pageX + 10;
-        let top = event.pageY + 10;
-        
-        if (left + tooltipWidth > window.innerWidth) {
-            left = event.pageX - tooltipWidth - 10;
-        }
-        
-        if (top + tooltipHeight > window.innerHeight) {
-            top = event.pageY - tooltipHeight - 10;
-        }
-        
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
-        tooltip.style.display = 'block';
     }
 
     // Hide tooltip
@@ -528,62 +580,69 @@
         }
     }
 
+    // React to changes in the itemsStore
+    $: if ($itemsStore.items && $itemsStore.items.length > 0 && !totalItems) {
+        // Force a reprocess of data when items change
+        hierarchyData = processData($itemsStore.items as Item[]);
+    }
+
     // Initialize visualization when data changes
     $: if ($itemsStore.items && container) {
         updateVisualization();
     }
 
     onMount(async () => {
-        await tick();
-        
-        if (!container) {
-            console.error('Container element not found in onMount');
-            return;
-        }
-        
-        // Create tooltip
-        createTooltip();
-        
-        // Create visualization if data is available
-        if ($itemsStore.items && $itemsStore.items.length > 0) {
-            updateVisualization();
-        } else {
-            // Load items if not already loaded
-            itemsStore.loadItems();
-        }
-        
-        // Add resize observer only after we confirmed container exists
-        const resizeObserver = new ResizeObserver(() => {
-            if (container) {
-                updateVisualization();
-            }
-        });
-        
-        // Make sure container exists before observing
-        if (container) {
-            resizeObserver.observe(container);
-        } else {
-            console.error('Container element still not available for ResizeObserver');
-        }
-        
-        return () => {
-            // Safely disconnect observer
-            if (resizeObserver) {
-                resizeObserver.disconnect();
+        try {
+            // Wait for component to render
+            await tick();
+            
+            if (!container) {
+                console.error('Container element not found in onMount');
+                return;
             }
             
-            // Clean up tooltip
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
+            // Create tooltip
+            createTooltip();
+            
+            // Initialize data
+            if ($itemsStore.items && $itemsStore.items.length > 0) {
+                // Process data and update visualization
+                hierarchyData = processData($itemsStore.items as Item[]);
+                updateVisualization();
+            } else {
+                // Load items if not already loaded
+                itemsStore.loadItems();
             }
-        };
+            
+            // Add resize observer only after container is available
+            const resizeObserver = new ResizeObserver(() => {
+                if (container) {
+                    updateVisualization();
+                }
+            });
+            
+            if (container) {
+                resizeObserver.observe(container);
+            } else {
+                console.error('Container element not available for ResizeObserver');
+            }
+            
+            // Return cleanup function
+            return () => {
+                // Safely disconnect observer
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
+                }
+                
+                // Clean up tooltip
+                if (tooltip && document.body.contains(tooltip)) {
+                    document.body.removeChild(tooltip);
+                }
+            };
+        } catch (error) {
+            console.error('Error in onMount:', error);
+        }
     });
-
-    // In the script section, update the title generation
-    // Let's put this function at the top where we need it
-    $: titleHtml = totalItems > 0 
-        ? getTitle(totalItems)
-        : t('viz.country_distribution_title');
 </script>
 
 <div class="country-distribution-container">
@@ -602,6 +661,8 @@
                 <div class="error">{$itemsStore.error}</div>
             {:else if !$itemsStore.items || $itemsStore.items.length === 0}
                 <div class="no-data">{$noDataText}</div>
+            {:else if !container}
+                <div class="loading">Initializing visualization...</div>
             {/if}
         </div>
         

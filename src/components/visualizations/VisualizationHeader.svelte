@@ -61,15 +61,18 @@
         {/if}
     </div>
     
-    {#if (description || descriptionTranslationKey) && showDescription}
-        <div 
-            id="description-panel"
-            class="description-panel"
-            transition:slide={{ duration: 300 }}
-        >
-            <p>{displayDescription}</p>
-        </div>
-    {/if}
+    <!-- Apply fixed height for description panel whether it's open or not -->
+    <div class="description-panel-container" class:has-content={showDescription}>
+        {#if (description || descriptionTranslationKey) && showDescription}
+            <div 
+                id="description-panel"
+                class="description-panel"
+                transition:slide={{ duration: 300 }}
+            >
+                <p>{displayDescription}</p>
+            </div>
+        {/if}
+    </div>
 </div>
 
 <style>
@@ -126,6 +129,18 @@
         transform: rotate(180deg);
     }
     
+    /* New approach for description panel that doesn't affect layout */
+    .description-panel-container {
+        position: absolute;
+        width: 100%;
+        z-index: 10;
+        visibility: hidden;
+    }
+    
+    .description-panel-container.has-content {
+        visibility: visible;
+    }
+    
     .description-panel {
         padding: var(--spacing-md);
         margin-top: var(--spacing-xs);
@@ -134,6 +149,8 @@
         color: var(--text-color-secondary);
         font-size: var(--font-size-sm);
         line-height: 1.5;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-color);
     }
     
     .description-panel p {
