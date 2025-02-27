@@ -3,7 +3,9 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
+    import { t, translate, language } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
+    import BaseVisualization from './BaseVisualization.svelte';
 
     // Define interfaces for data structures
     interface MonthlyData {
@@ -21,6 +23,9 @@
         count: number;
     }
 
+    // Define translation keys
+    const timelineDescriptionKey = 'viz.timeline_distribution_description';
+
     // Filter states
     let selectedCountry: string = 'all';
     let selectedType: string = 'all';
@@ -32,6 +37,8 @@
     let totalItems: number = 0;
     let maxMonthlyCount: number = 0;
     let maxTotalCount: number = 0;
+    let currentLang: 'en' | 'fr' = 'en';
+    let titleHtml = '';
     
     // Visualization variables
     let width = 0;
@@ -42,6 +49,77 @@
     // Format date strings
     const monthFormat = d3.timeFormat('%Y-%m');
     const displayFormat = d3.timeFormat('%b %Y');
+
+    // Create reactive translations
+    const filterByCountryText = translate('viz.filter_by_country');
+    const filterByTypeText = translate('viz.filter_by_type');
+    const noDataText = translate('viz.no_data');
+    const summaryText = translate('viz.summary');
+    const totalItemsText = translate('viz.total_items');
+    const timePeriodText = translate('viz.time_period');
+    const avgMonthlyAdditionsText = translate('viz.avg_monthly_additions');
+    const peakGrowthMonthsText = translate('viz.peak_growth_months');
+    const showingItemsOverMonthsText = translate('viz.showing_items_over_months');
+    const itemsText = translate('viz.items');
+    const timelineItemsText = translate('viz.timeline_distribution_items');
+
+    // Function to format numbers with spaces as thousands separator
+    function formatNumber(num: number): string {
+        // Use locale-specific formatting - in French/many European countries spaces are used
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+    
+    // Function to get the title with the current count
+    function getTitle() {
+        // Only show count if we have data
+        if (totalItems > 0) {
+            // Format the number with spaces as thousands separator
+            const formattedCount = formatNumber(totalItems);
+            // Use the current language's translation with the formatted count
+            return t('viz.timeline_distribution_items', [formattedCount]);
+        } else {
+            // Use the basic title without count when data isn't loaded yet
+            return t('viz.timeline_distribution_title');
+        }
+    }
+    
+    // Function to update the title HTML when language or count changes
+    function updateTitleHtml() {
+        console.log('[TimelineDistribution] Updating title with count:', totalItems);
+        titleHtml = getTitle();
+    }
+
+    // Update title immediately when items count changes
+    $: {
+        if ($itemsStore.items && $itemsStore.items.length > 0) {
+            console.log('[TimelineDistribution] Items loaded, updating title');
+            totalItems = $itemsStore.items.filter(item => {
+                // Apply country filter if not 'all'
+                if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
+                
+                // Apply type filter if not 'all'
+                if (selectedType !== 'all' && item.type !== selectedType) return false;
+                
+                return true;
+            }).length;
+            
+            updateTitleHtml();
+        }
+    }
+
+    // Update title when language changes
+    $: $language, updateTitleHtml();
+
+    // Subscribe to language changes to update the chart
+    language.subscribe(value => {
+        console.log("[TimelineDistribution] Language changed to:", value);
+        currentLang = value;
+        
+        // Refresh the chart to update all translated elements
+        if (container) {
+            createTimeline();
+        }
+    });
 
     // Process data based on current filters and generate timeline data
     function processData() {
@@ -267,7 +345,10 @@
 
     // Create timeline visualization
     function createTimeline() {
-        if (!container) return;
+        if (!container) {
+            console.error('[TimelineDistribution] Container element not found in createTimeline');
+            return;
+        }
         
         // Process data with current filters
         const data = processData();
@@ -314,18 +395,8 @@
         
         // Create x scale for both charts (shared)
         const xScale = d3.scaleTime()
-            .domain(d3.extent(data, d => d.date))
+            .domain(d3.extent(data, d => d.date) as [Date, Date])
             .range([0, chartWidth]);
-            
-        // Create title with total count
-        svg.append('text')
-            .attr('text-anchor', 'middle')
-            .attr('x', width / 2)
-            .attr('y', 20)
-            .attr('font-size', 'var(--font-size-lg)')
-            .attr('font-weight', 'bold')
-            .attr('fill', 'var(--text-color-primary)')
-            .text(`Database Growth Timeline (${totalItems} total items)`);
             
         // Add divider line between charts
         svg.append('line')
@@ -394,7 +465,7 @@
             
         // Create y scale for monthly chart
         const yScaleMonthly = d3.scaleLinear()
-            .domain([0, d3.max(data, d => d.count) * 1.1])
+            .domain([0, (d3.max(data, d => d.count) || 0) * 1.1])
             .range([chartHeight, 0]);
             
         // Create grid lines for monthly chart
@@ -496,7 +567,7 @@
             
         // Create y scale for total chart
         const yScaleTotal = d3.scaleLinear()
-            .domain([0, d3.max(data, d => d.total) * 1.1])
+            .domain([0, (d3.max(data, d => d.total) || 0) * 1.1])
             .range([chartHeight, 0]);
             
         // Create grid lines for total chart
@@ -624,25 +695,33 @@
     }
 
     onMount(async () => {
-        // Wait for component to mount
-        await tick();
+        console.log('[TimelineDistribution] Component mounted');
         
-        if (!container) {
-            console.error('Container element not found');
-            return;
-        }
+        // Wait for component to mount and DOM to update
+        await tick();
         
         // Create tooltip
         createTooltip();
         
-        // Generate facet options and create visualization
-        if ($itemsStore.items && $itemsStore.items.length > 0) {
-            generateFacetOptions();
-            createTimeline();
-        } else {
-            // Load items if not already loaded
-            itemsStore.loadItems();
+        // Wait for items to load if needed
+        if (!$itemsStore.items || $itemsStore.items.length === 0) {
+            console.log('[TimelineDistribution] No items loaded, waiting for data');
+            await itemsStore.loadItems();
         }
+        
+        // Wait for another tick to ensure container is bound
+        await tick();
+        
+        if (!container) {
+            console.error('[TimelineDistribution] Container element not found after waiting');
+            return;
+        }
+        
+        console.log('[TimelineDistribution] Container found, generating visualization');
+        
+        // Generate facet options and create visualization
+        generateFacetOptions();
+        createTimeline();
         
         // Add resize observer
         const resizeObserver = new ResizeObserver(() => {
@@ -665,61 +744,67 @@
 </script>
 
 <div class="timeline-visualization-container">
-    <div class="filters">
-        <div class="filter-group">
-            <label for="country-filter">Filter by Country:</label>
-            <select id="country-filter" on:change={handleCountryChange} value={selectedCountry}>
-                {#each countryOptions as option}
-                    <option value={option.value}>{option.label} ({option.count})</option>
-                {/each}
-            </select>
+    <BaseVisualization
+        title="Timeline Distribution"
+        titleHtml={titleHtml}
+        descriptionTranslationKey={timelineDescriptionKey}
+    >
+        <div class="filters">
+            <div class="filter-group">
+                <label for="country-filter">{$filterByCountryText}:</label>
+                <select id="country-filter" on:change={handleCountryChange} value={selectedCountry}>
+                    {#each countryOptions as option}
+                        <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
+                    {/each}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="type-filter">{$filterByTypeText}:</label>
+                <select id="type-filter" on:change={handleTypeChange} value={selectedType}>
+                    {#each typeOptions as option}
+                        <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
+                    {/each}
+                </select>
+            </div>
+            
+            <div class="summary">
+                {#if timelineData.length > 0}
+                    <span>{$showingItemsOverMonthsText.replace('{0}', formatNumber(totalItems)).replace('{1}', timelineData.length.toString())}</span>
+                {/if}
+            </div>
         </div>
         
-        <div class="filter-group">
-            <label for="type-filter">Filter by Type:</label>
-            <select id="type-filter" on:change={handleTypeChange} value={selectedType}>
-                {#each typeOptions as option}
-                    <option value={option.value}>{option.label} ({option.count})</option>
-                {/each}
-            </select>
-        </div>
-        
-        <div class="summary">
-            {#if timelineData.length > 0}
-                <span>Showing {totalItems} items over {timelineData.length} months</span>
+        <div class="chart-container" bind:this={container}>
+            {#if $itemsStore.loading}
+                <div class="loading">{t('ui.loading')}</div>
+            {:else if $itemsStore.error}
+                <div class="error">{$itemsStore.error}</div>
             {/if}
         </div>
-    </div>
-    
-    <div class="chart-container" bind:this={container}>
-        {#if $itemsStore.loading}
-            <div class="loading">Loading...</div>
-        {:else if $itemsStore.error}
-            <div class="error">{$itemsStore.error}</div>
-        {/if}
-    </div>
-    
-    <div class="stats">
-        {#if timelineData.length > 0}
-            <div class="stat-summary">
-                <h3>Growth Summary</h3>
-                <p>Total items: <strong>{totalItems}</strong></p>
-                <p>Time period: <strong>{timelineData[0].monthFormatted} to {timelineData[timelineData.length - 1].monthFormatted}</strong></p>
-                <p>Average monthly additions: <strong>{Math.round(totalItems / timelineData.length)}</strong></p>
-            </div>
-            <div class="peak-months">
-                <h3>Peak Growth Months</h3>
-                <ul>
-                    {#each [...timelineData].sort((a, b) => b.count - a.count).slice(0, 3) as month}
-                        <li>
-                            <span class="month-name">{month.monthFormatted}</span>
-                            <span class="month-count">{month.count} items ({((month.count / totalItems) * 100).toFixed(1)}%)</span>
-                        </li>
-                    {/each}
-                </ul>
-            </div>
-        {/if}
-    </div>
+        
+        <div class="stats">
+            {#if timelineData.length > 0}
+                <div class="stat-summary">
+                    <h3>{$summaryText}</h3>
+                    <p>{$totalItemsText}: <strong>{formatNumber(totalItems)}</strong></p>
+                    <p>{$timePeriodText}: <strong>{timelineData[0]?.monthFormatted || ''} to {timelineData[timelineData.length - 1]?.monthFormatted || ''}</strong></p>
+                    <p>{$avgMonthlyAdditionsText}: <strong>{formatNumber(Math.round(totalItems / (timelineData.length || 1)))}</strong></p>
+                </div>
+                <div class="peak-months">
+                    <h3>{$peakGrowthMonthsText}</h3>
+                    <ul>
+                        {#each [...timelineData].sort((a, b) => b.count - a.count).slice(0, 3) as month}
+                            <li>
+                                <span class="month-name">{month.monthFormatted}</span>
+                                <span class="month-count">{formatNumber(month.count)} {$itemsText} ({((month.count / (totalItems || 1)) * 100).toFixed(1)}%)</span>
+                            </li>
+                        {/each}
+                    </ul>
+                </div>
+            {/if}
+        </div>
+    </BaseVisualization>
 </div>
 
 <style>

@@ -7,6 +7,7 @@ export interface OmekaItem {
     language: string;
     keywords: string[];
     dateAdded: string;
+    created_date: string; // Date when the item was created in the database
     item_set_title: string;
     publication_date?: string; // Date when the item was published (YYYY, YYYY-MM, or YYYY-MM-DD format)
     word_count?: number; // Count of words in the item
