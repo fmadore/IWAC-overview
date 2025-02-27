@@ -21,7 +21,7 @@
     $: displayDescription = descriptionTranslationKey ? t(descriptionTranslationKey) : description;
 </script>
 
-<div class="visualization-header">
+<div class="visualization-header" class:has-description={showDescription}>
     <div class="title-container">
         <!-- If titleHtml is provided, use that, otherwise display the text title -->
         <h2 class="visualization-title">
@@ -61,24 +61,34 @@
         {/if}
     </div>
     
-    <!-- Apply fixed height for description panel whether it's open or not -->
-    <div class="description-panel-container" class:has-content={showDescription}>
-        {#if (description || descriptionTranslationKey) && showDescription}
-            <div 
-                id="description-panel"
-                class="description-panel"
-                transition:slide={{ duration: 300 }}
-            >
-                <p>{displayDescription}</p>
-            </div>
-        {/if}
-    </div>
+    <!-- Change to a regular non-absolute div that slides in/out -->
+    {#if description || descriptionTranslationKey}
+        <div class="description-panel-wrapper">
+            {#if showDescription}
+                <div 
+                    id="description-panel"
+                    class="description-panel"
+                    transition:slide={{ duration: 300 }}
+                >
+                    <p>{displayDescription}</p>
+                </div>
+            {/if}
+        </div>
+    {/if}
 </div>
 
 <style>
     .visualization-header {
         margin-bottom: var(--spacing-md);
         width: 100%;
+        position: relative;
+        /* Add min-height to prevent jumps */
+        min-height: 40px;
+    }
+    
+    /* Add extra margin-bottom when description is showing */
+    .visualization-header.has-description {
+        margin-bottom: calc(var(--spacing-md) + var(--spacing-xl));
     }
     
     .title-container {
@@ -129,16 +139,13 @@
         transform: rotate(180deg);
     }
     
-    /* New approach for description panel that doesn't affect layout */
-    .description-panel-container {
+    /* New approach for the description panel */
+    .description-panel-wrapper {
         position: absolute;
-        width: 100%;
+        left: 0;
+        right: 0;
+        top: 100%;
         z-index: 10;
-        visibility: hidden;
-    }
-    
-    .description-panel-container.has-content {
-        visibility: visible;
     }
     
     .description-panel {
