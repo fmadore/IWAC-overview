@@ -9,6 +9,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Core Components](#core-components)
 - [Data Management](#data-management)
 - [Theme System](#theme-system)
+- [Translation System](#translation-system)
 - [Visualizations](#visualizations)
   - [Country Distribution](#country-distribution)
   - [Language Distribution](#language-distribution)
@@ -26,6 +27,7 @@ The IWAC Database Overview is a Svelte-based application that offers a set of in
 
 Key features:
 - Interactive D3.js visualizations
+- Multilingual support with English and French translations
 - Country distribution treemap visualization
 - Language distribution pie chart with faceted filtering
 - Index distribution bar chart with category breakdown
@@ -44,6 +46,8 @@ IWAC-overview/
 │   └── items.json        # Database items in JSON format
 ├── src/
 │   ├── components/       # UI components
+│   │   ├── LanguageToggle.svelte    # Language switching component
+│   │   ├── TranslationContext.svelte # Translation context provider
 │   │   └── visualizations/  # Visualization components
 │   │       ├── BaseVisualization.svelte  # Base component for visualizations
 │   │       ├── CountryDistribution.svelte  # Country distribution treemap
@@ -52,7 +56,8 @@ IWAC-overview/
 │   │       ├── TimelineDistribution.svelte  # Timeline showing database growth
 │   │       └── TypeDistribution.svelte  # Type distribution stacked bar chart
 │   ├── stores/           # Svelte stores for state management
-│   │   └── itemsStore.ts  # Store for database items
+│   │   ├── itemsStore.ts  # Store for database items
+│   │   └── translationStore.ts # Store for translations and language state
 │   ├── types/            # TypeScript type definitions
 │   │   └── OmekaItem.ts   # Types for Omeka items and visualization data
 │   ├── utils/            # Utility functions
@@ -188,6 +193,211 @@ The theme system also includes utility classes for common styling needs:
 
 ```html
 <div class="text-primary bg-card">Themed content</div>
+```
+
+## Translation System
+
+The application includes a comprehensive translation system that supports multiple languages (currently English and French) with easy extensibility for additional languages.
+
+### Core Components
+
+#### TranslationContext.svelte
+A context provider component that wraps the application and provides translation functionality to all child components:
+
+```svelte
+<script lang="ts">
+    import { onMount } from 'svelte';
+    import { language } from '../stores/translationStore';
+
+    onMount(() => {
+        console.log('[TranslationContext] Component mounted, initial language:', $language);
+    });
+</script>
+
+<slot />
+```
+
+#### LanguageToggle.svelte
+A reusable component that provides language switching functionality:
+
+```svelte
+<script lang="ts">
+    import { language, translate } from '../stores/translationStore';
+    const toggleText = translate('ui.toggle_language');
+</script>
+
+<button class="language-toggle" on:click={() => language.toggleLanguage()}>
+    {$toggleText}
+</button>
+```
+
+### Translation Store
+
+The translation system is implemented in `translationStore.ts` using Svelte stores:
+
+```typescript
+// Language type definition
+export type Language = 'en' | 'fr';
+
+// Translation store creation
+function createTranslationStore() {
+    const { subscribe, set, update } = writable<Language>('en');
+    
+    return {
+        subscribe,
+        setLanguage: (language: Language) => set(language),
+        toggleLanguage: () => update(currentLang => 
+            currentLang === 'en' ? 'fr' : 'en'
+        )
+    };
+}
+
+export const language = createTranslationStore();
+
+// Translation helpers
+export function t(key: string, replacements: string[] = []): string {
+    const currentLang = get(language);
+    const translation = translations[currentLang]?.[key] || key;
+    return processTranslation(translation, replacements);
+}
+
+export function translate(key: string, replacements: string[] = []) {
+    return derived(language, ($language) => {
+        const translation = translations[$language]?.[key] || key;
+        return processTranslation(translation, replacements);
+    });
+}
+```
+
+### Translation Structure
+
+Translations are organized in a structured object with namespaced keys:
+
+```typescript
+export const translations: Translations = {
+    en: {
+        // App navigation
+        'app.title': 'IWAC Database Overview',
+        'tab.countries': 'Country Distribution',
+        
+        // Visualization components
+        'viz.distribution_items': 'Distribution of {0} items by country and sub-collection',
+        'viz.country.items': 'Items',
+        'viz.country.percent_parent': '% of Parent',
+        
+        // UI elements
+        'ui.loading': 'Loading database...',
+        'ui.toggle_language': 'Changer en français'
+    },
+    fr: {
+        // App navigation
+        'app.title': 'Aperçu de la base de données IWAC',
+        'tab.countries': 'Répartition par pays',
+        
+        // Visualization components
+        'viz.distribution_items': 'Répartition de {0} éléments par pays et sous-collection',
+        'viz.country.items': 'Éléments',
+        'viz.country.percent_parent': '% du parent',
+        
+        // UI elements
+        'ui.loading': 'Chargement de la base de données...',
+        'ui.toggle_language': 'Switch to English'
+    }
+};
+```
+
+### Using Translations in Components
+
+There are two ways to use translations in components:
+
+1. **Reactive Translations** (preferred for dynamic content):
+```svelte
+<script>
+    import { translate } from '../stores/translationStore';
+    
+    // Create reactive translations
+    const titleText = translate('viz.title');
+    const itemsText = translate('viz.items');
+    const distributionText = translate('viz.distribution_items');
+    
+    // With parameters
+    $: itemCount = items.length;
+    $: title = $distributionText([itemCount.toString()]);
+</script>
+
+<div class="visualization-title">{title}</div>
+<div class="items-count">{$itemsText}: {itemCount}</div>
+```
+
+2. **Direct Translations** (for static content or one-time use):
+```svelte
+<script>
+    import { t } from '../stores/translationStore';
+</script>
+
+<div class="error">{t('ui.error_message')}</div>
+```
+
+### Best Practices
+
+1. **Structured Keys**
+   - Use namespaced keys (e.g., 'viz.country.items')
+   - Group related translations together
+   - Use consistent naming conventions
+
+2. **Dynamic Content**
+   - Use parameters instead of string concatenation
+   - Always provide fallback values for parameters
+   - Use reactive translations for content that changes
+
+3. **Maintenance**
+   - Keep translations organized by feature/component
+   - Document all translation keys
+   - Ensure all strings are translated in all supported languages
+
+4. **Performance**
+   - Use `translate()` for reactive content that needs to update with language changes
+   - Use `t()` for static content that only needs translation once
+   - Avoid creating unnecessary reactive translations
+
+### Adding New Languages
+
+To add support for a new language:
+
+1. Update the Language type:
+```typescript
+export type Language = 'en' | 'fr' | 'your_new_language';
+```
+
+2. Add translations for the new language:
+```typescript
+export const translations: Translations = {
+    en: { /* existing English translations */ },
+    fr: { /* existing French translations */ },
+    your_new_language: {
+        'app.title': 'Title in your language',
+        // Add all required translations
+    }
+};
+```
+
+3. Update the language toggle logic in `translationStore.ts`:
+```typescript
+function createTranslationStore() {
+    // ... existing code ...
+    
+    return {
+        subscribe,
+        setLanguage: (language: Language) => set(language),
+        toggleLanguage: () => update(currentLang => {
+            // Add new language to the rotation
+            const languages: Language[] = ['en', 'fr', 'your_new_language'];
+            const currentIndex = languages.indexOf(currentLang);
+            const nextIndex = (currentIndex + 1) % languages.length;
+            return languages[nextIndex];
+        })
+    };
+}
 ```
 
 ## Visualizations
