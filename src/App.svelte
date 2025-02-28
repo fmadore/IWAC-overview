@@ -10,8 +10,10 @@
   import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
   import TypeDistribution from './components/visualizations/TypeDistribution.svelte';
   import WordDistribution from './components/visualizations/WordDistribution.svelte';
+  import { logDebug, trackMount, trackUnmount, DEBUG } from './utils/debug';
+  
+  // Only import DebugPanel when DEBUG is true
   import DebugPanel from './components/DebugPanel.svelte';
-  import { logDebug, trackMount, trackUnmount } from './utils/debug';
 
   const COMPONENT_ID = 'App';
   let isMounted = false;
@@ -174,8 +176,10 @@
     </div>
   </main>
   
-  <!-- Add the debug panel component -->
-  <DebugPanel />
+  <!-- Only render the debug panel when DEBUG is true -->
+  {#if DEBUG}
+    <DebugPanel />
+  {/if}
 </TranslationContext>
 
 <style>
