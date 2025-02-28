@@ -36,6 +36,7 @@
             <button 
                 class="accordion-toggle" 
                 on:click={toggleDescription}
+                on:keydown={(e) => e.key === 'Enter' && toggleDescription()}
                 aria-expanded={showDescription}
                 aria-controls="description-panel"
             >

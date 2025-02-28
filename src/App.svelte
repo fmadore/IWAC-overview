@@ -54,6 +54,7 @@
           <button 
             class:active={activeTab === tab.id}
             on:click={() => activeTab = tab.id}
+            on:keydown={(e) => e.key === 'Enter' && (activeTab = tab.id)}
           >
             {t(tab.label)}
           </button>

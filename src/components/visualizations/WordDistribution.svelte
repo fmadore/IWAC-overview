@@ -99,7 +99,11 @@
                 countryNode.children!.push(setNode);
                 
                 // Add to country's word count
-                countryNode.wordCount! += setWordCount;
+                if (countryNode.wordCount !== undefined) {
+                    countryNode.wordCount += setWordCount;
+                } else {
+                    countryNode.wordCount = setWordCount;
+                }
             });
             
             // Sort item sets by word count descending

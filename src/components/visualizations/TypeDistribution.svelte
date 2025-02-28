@@ -658,7 +658,15 @@
                 <h3>Countries</h3>
                 <div class="facet-options">
                     {#each countryOptions as option}
-                        <div class="facet-option" class:selected={option.selected} on:click={() => toggleCountry(option)}>
+                        <div 
+                            class="facet-option" 
+                            class:selected={option.selected} 
+                            on:click={() => toggleCountry(option)}
+                            on:keydown={(e) => e.key === 'Enter' && toggleCountry(option)}
+                            role="checkbox"
+                            aria-checked={option.selected}
+                            tabindex="0"
+                        >
                             <span class="facet-checkbox">
                                 {#if option.selected}
                                     <svg viewBox="0 0 24 24" width="14" height="14">
