@@ -424,11 +424,11 @@
                         .attr('stroke-width', 2);
                     
                     // Show tooltip
-                    showTooltip(event, d as any);
+                    showTooltip(d, event);
                 })
                 .on('mousemove', function(event, d) {
                     // Update tooltip position
-                    showTooltip(event, d as any);
+                    showTooltip(d, event);
                 })
                 .on('mouseout', function() {
                     // Remove highlight
@@ -518,16 +518,20 @@
     }
 
     // Show tooltip with data
-    function showTooltip(event: MouseEvent, d: d3.HierarchyRectangularNode<WordHierarchyNode>) {
+    function showTooltip(d, event) {
         try {
             if (!tooltip || !document.body.contains(tooltip)) {
-                createTooltip(); // Recreate tooltip if it doesn't exist
+                logDebug(COMPONENT_ID, 'Tooltip element not found, creating new one');
+                createTooltip();
             }
             
-            if (!tooltip) return;
+            if (!event) {
+                logDebug(COMPONENT_ID, 'Event object is undefined in showTooltip');
+                return;
+            }
             
-            const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
-            const itemSet = d.data.name;
+            const country = d.parent ? d.parent.data.name : d.data.name;
+            const itemSet = d.parent ? d.data.name : 'All';
             const wordCount = d.data.wordCount || 0;
             const itemCount = d.data.itemCount || 0;
             const avgWordsPerItem = itemCount > 0 ? Math.round(wordCount / itemCount) : 0;
@@ -560,22 +564,45 @@
             const tooltipWidth = 200;
             const tooltipHeight = 120;
             
-            let left = event.pageX + 10;
-            let top = event.pageY + 10;
+            // Get safe coordinates for the tooltip
+            let left = 0;
+            let top = 0;
             
-            if (left + tooltipWidth > window.innerWidth) {
-                left = event.pageX - tooltipWidth - 10;
-            }
-            
-            if (top + tooltipHeight > window.innerHeight) {
-                top = event.pageY - tooltipHeight - 10;
+            try {
+                left = event.pageX + 10;
+                top = event.pageY + 10;
+                
+                // Make sure tooltip stays within viewport
+                if (left + tooltipWidth > window.innerWidth) {
+                    left = event.pageX - tooltipWidth - 10;
+                }
+                
+                if (top + tooltipHeight > window.innerHeight) {
+                    top = event.pageY - tooltipHeight - 10;
+                }
+                
+                // Ensure we don't have negative positions
+                left = Math.max(0, left);
+                top = Math.max(0, top);
+            } catch (e) {
+                logDebug(COMPONENT_ID, 'Error calculating tooltip position', e);
+                // Fallback to center of screen
+                left = window.innerWidth / 2 - tooltipWidth / 2;
+                top = window.innerHeight / 2 - tooltipHeight / 2;
             }
             
             tooltip.style.left = `${left}px`;
             tooltip.style.top = `${top}px`;
             tooltip.style.display = 'block';
+            
+            logDebug(COMPONENT_ID, 'Tooltip shown', { 
+                country, 
+                itemSet, 
+                position: { left, top } 
+            });
         } catch (e) {
             console.error('Error showing tooltip:', e);
+            logDebug(COMPONENT_ID, 'Error showing tooltip', e);
         }
     }
 

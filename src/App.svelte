@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, afterUpdate } from 'svelte';
+  import { onMount, onDestroy, afterUpdate, beforeUpdate } from 'svelte';
   import { itemsStore } from './stores/itemsStore';
   import { t, language } from './stores/translationStore';
   import LanguageToggle from './components/LanguageToggle.svelte';
@@ -10,11 +10,14 @@
   import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
   import TypeDistribution from './components/visualizations/TypeDistribution.svelte';
   import WordDistribution from './components/visualizations/WordDistribution.svelte';
+  import DebugPanel from './components/DebugPanel.svelte';
   import { logDebug, trackMount, trackUnmount } from './utils/debug';
 
   const COMPONENT_ID = 'App';
   let isMounted = false;
   let unsubscribe: () => void;
+  let updateCount = 0;
+  let renderCount = 0;
 
   // Import visualization components here
   // They will be created in the next steps
@@ -33,12 +36,23 @@
 
   // Manually track the language to avoid reactive statements
   let currentLanguage = '';
+  let previousLanguage = '';
   
   function handleLanguageChange(newLang: string) {
-    if (!isMounted) return;
+    if (!isMounted) {
+      logDebug(COMPONENT_ID, `Language change ignored (not mounted): ${newLang}`);
+      return;
+    }
     
+    previousLanguage = currentLanguage;
     currentLanguage = newLang;
-    logDebug(COMPONENT_ID, `Language changed to: ${newLang}`);
+    
+    logDebug(COMPONENT_ID, `Language changed from ${previousLanguage} to ${newLang}`, {
+      isMounted,
+      updateCount,
+      subscriptionActive: !!unsubscribe
+    });
+    
     logDebug(COMPONENT_ID, 'Current translations:', {
       title: t('app.title'),
       loading: t('ui.loading'),
@@ -46,36 +60,69 @@
     });
   }
 
+  beforeUpdate(() => {
+    renderCount++;
+    logDebug(COMPONENT_ID, `Before update (render #${renderCount})`, {
+      isMounted,
+      currentLanguage,
+      activeTab
+    });
+  });
+
   onMount(() => {
     isMounted = true;
     trackMount(COMPONENT_ID);
-    logDebug(COMPONENT_ID, `Component mounted, initial language: ${$language}`);
+    logDebug(COMPONENT_ID, `Component mounted, initial language: ${$language}`, {
+      storeValue: $language,
+      activeTab
+    });
     
     // Set initial language
     currentLanguage = $language;
     
     // Manually subscribe to the language store
-    unsubscribe = language.subscribe(value => {
-      handleLanguageChange(value);
-    });
+    try {
+      unsubscribe = language.subscribe(value => {
+        handleLanguageChange(value);
+      });
+      logDebug(COMPONENT_ID, 'Subscribed to language store');
+    } catch (error) {
+      logDebug(COMPONENT_ID, 'Error subscribing to language store', error);
+    }
     
     // Load items
     itemsStore.loadItems();
   });
   
   onDestroy(() => {
+    logDebug(COMPONENT_ID, 'Component being destroyed', {
+      isMounted,
+      currentLanguage,
+      hasUnsubscribe: !!unsubscribe
+    });
+    
     isMounted = false;
     trackUnmount(COMPONENT_ID);
-    logDebug(COMPONENT_ID, 'Component destroyed');
     
     if (unsubscribe) {
-      unsubscribe();
-      logDebug(COMPONENT_ID, 'Unsubscribed from language store');
+      try {
+        unsubscribe();
+        logDebug(COMPONENT_ID, 'Unsubscribed from language store');
+        unsubscribe = undefined;
+      } catch (error) {
+        logDebug(COMPONENT_ID, 'Error unsubscribing from language store', error);
+      }
     }
   });
   
   afterUpdate(() => {
-    logDebug(COMPONENT_ID, 'Component updated');
+    updateCount++;
+    logDebug(COMPONENT_ID, `Component updated (${updateCount})`, {
+      isMounted,
+      currentLanguage,
+      storeValue: $language,
+      activeTab
+    });
   });
 </script>
 
@@ -87,15 +134,20 @@
         <LanguageToggle />
       </div>
       <nav>
-        {#each tabs as tab}
-          <button 
-            class:active={activeTab === tab.id}
-            on:click={() => activeTab = tab.id}
-            on:keydown={(e) => e.key === 'Enter' && (activeTab = tab.id)}
-          >
-            {t(tab.label)}
-          </button>
-        {/each}
+        <ul class="tabs">
+          {#each tabs as tab}
+            <li 
+              class:active={activeTab === tab.id}
+              on:click={() => activeTab = tab.id}
+              on:keydown={(e) => e.key === 'Enter' && (activeTab = tab.id)}
+              role="tab"
+              tabindex="0"
+              aria-selected={activeTab === tab.id}
+            >
+              {t(tab.label)}
+            </li>
+          {/each}
+        </ul>
       </nav>
     </header>
 
@@ -109,39 +161,55 @@
           <CountryDistribution />
         {:else if activeTab === 'languages'}
           <LanguageDistribution />
-        {:else if activeTab === 'categories'}
-          <IndexDistribution />
         {:else if activeTab === 'timeline'}
           <TimelineDistribution />
         {:else if activeTab === 'types'}
           <TypeDistribution />
+        {:else if activeTab === 'categories'}
+          <IndexDistribution />
         {:else if activeTab === 'words'}
           <WordDistribution />
-        {:else}
-          <div class="visualization-grid">
-            <p>{t('ui.select_visualization')}</p>
-          </div>
         {/if}
       {/if}
     </div>
   </main>
+  
+  <!-- Add the debug panel component -->
+  <DebugPanel />
 </TranslationContext>
 
 <style>
+  :global(:root) {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --text-color: #333;
+    --background-color: #f5f5f5;
+    --card-background: #fff;
+    --border-color: #ddd;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
   :global(body) {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
-    font-family: var(--font-family-primary);
+    padding: 0;
+    color: var(--text-color);
     background-color: var(--background-color);
   }
 
   main {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: var(--spacing-xl);
+    padding: var(--spacing-md);
   }
 
   header {
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
   }
 
   .header-top {
@@ -152,62 +220,52 @@
   }
 
   h1 {
-    color: var(--text-color-primary);
     margin: 0;
+    font-size: 24px;
+    color: var(--primary-color);
   }
 
-  nav {
+  .tabs {
     display: flex;
-    gap: var(--spacing-xs);
-    flex-wrap: wrap;
-    background: var(--card-background);
-    padding: var(--spacing-xs);
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--card-shadow);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-bottom: 1px solid var(--border-color);
   }
 
-  button {
-    padding: var(--spacing-xs) var(--spacing-md);
-    border: none;
-    background: transparent;
+  .tabs li {
+    padding: var(--spacing-sm) var(--spacing-md);
     cursor: pointer;
-    border-radius: var(--border-radius-sm);
-    color: var(--text-color-secondary);
-    transition: all var(--transition-fast);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
   }
 
-  button:hover {
-    background: var(--divider-color);
-    color: var(--text-color-primary);
+  .tabs li:hover {
+    background-color: rgba(0, 0, 0, 0.05);
   }
 
-  button.active {
-    background: var(--primary-color);
-    color: var(--text-color-light);
+  .tabs li.active {
+    border-bottom: 2px solid var(--primary-color);
+    font-weight: bold;
   }
 
   .content {
-    background: var(--card-background);
-    padding: var(--spacing-xl);
+    background-color: var(--card-background);
     border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
     box-shadow: var(--card-shadow);
     min-height: 500px;
   }
 
-  .visualization-grid {
-    display: grid;
-    gap: var(--spacing-xl);
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  }
-
   .loading, .error {
-    text-align: center;
-    padding: var(--spacing-xl);
-    font-size: var(--font-size-lg);
-    color: var(--text-color-secondary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 500px;
+    font-size: 18px;
   }
 
   .error {
-    color: var(--error-color);
+    color: red;
   }
 </style>

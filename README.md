@@ -20,6 +20,8 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Creating New Visualizations](#creating-new-visualizations)
 - [Extending Functionality](#extending-functionality)
 - [Development Setup](#development-setup)
+- [Local Testing](#local-testing)
+- [Debugging Tools](#debugging-tools)
 - [Deployment](#deployment)
 
 ## Overview
@@ -777,52 +779,128 @@ If you need additional state management:
 
 ## Development Setup
 
-1. **Install dependencies**
+To set up the project for development:
 
+1. Clone the repository
+2. Install dependencies:
    ```bash
    npm install
    ```
-
-2. **Start the development server**
-
+3. Start the development server:
    ```bash
    npm run dev
    ```
+4. Open your browser to the URL shown in the terminal (usually http://localhost:5173)
 
-3. **Build for production**
+## Local Testing
 
-   ```bash
-   npm run build
-   ```
+### Running a Local Server
 
-4. **Preview the production build**
+To test the built application locally, you need to use a local server to avoid CORS issues. We've included helper scripts to make this easy:
 
-   ```bash
-   npm run preview
-   ```
+#### Windows:
+```bash
+# Double-click on start-server.bat
+# Or run from command prompt:
+start-server.bat
+```
+
+#### macOS/Linux:
+```bash
+# Make the script executable first (one-time setup)
+chmod +x start-server.sh
+
+# Then run it
+./start-server.sh
+```
+
+#### Manual Node.js:
+```bash
+# Run the helper script directly
+node start-local-server.mjs
+```
+
+These scripts will:
+1. Check if you have a server package installed (serve or http-server)
+2. Install one if needed
+3. Let you choose which directory to serve
+4. Start the server with the correct configuration
+
+Alternatively, you can manually start a server:
+
+```bash
+# Using serve
+npx serve .
+
+# Or using http-server
+npx http-server .
+```
+
+### CORS Issues
+
+When testing locally, you may encounter CORS (Cross-Origin Resource Sharing) errors if you open HTML files directly from the file system. These errors occur because browsers block requests to load resources when using the `file://` protocol.
+
+Common error messages include:
+- `Failed to load resource: net::ERR_FILE_NOT_FOUND`
+- `Access to script has been blocked by CORS policy`
+
+**Solution:** Always use a local server as described above instead of opening files directly.
+
+### Test Deployment Page
+
+The repository includes a `test-deploy.html` file that provides a convenient way to test the built application. To use it:
+
+1. Run the local server helper script: `node start-local-server.js`
+2. Navigate to `http://localhost:3000/test-deploy.html` (or the URL provided by the server)
+
+The test page includes:
+- An iframe showing the application
+- Debugging tools information
+- Instructions for accessing the debug panel
+
+## Debugging Tools
+
+The application includes enhanced debugging tools to help identify and fix issues:
+
+### Debug Panel
+
+A visual debug panel is available in the application:
+
+- Click the 🐞 button in the bottom-right corner to open the debug panel
+- Or press `Ctrl+Shift+D` to toggle the panel
+- The panel shows detailed logs of component lifecycles and events
+- You can filter logs by text or component name
+- Use the download button to save logs for further analysis
+
+### Browser Console Commands
+
+You can also access debugging tools through the browser console:
+
+```javascript
+// View all logs in a readable format
+window.__IWAC_DEBUG.dumpLogs()
+
+// Get logs as a JSON string for saving
+window.__IWAC_DEBUG.exportLogs()
+
+// See currently mounted components
+window.__IWAC_DEBUG.mountedComponents()
+
+// Check component hierarchy
+window.__IWAC_DEBUG.hierarchy
+
+// Check current language in TranslationContext
+window.__TRANSLATION_DEBUG.currentLanguage()
+
+// Check if TranslationContext is mounted
+window.__TRANSLATION_DEBUG.isMounted()
+```
+
+For more detailed information about deployment and debugging, see the [DEPLOYMENT.md](DEPLOYMENT.md) file.
 
 ## Deployment
 
-The application is deployed to GitHub Pages using GitHub Actions. The deployment pipeline is defined in `.github/workflows/deploy.yml`. Here's how it works:
-
-1. When changes are pushed to the `main` branch, the GitHub Actions workflow automatically runs
-2. It builds the Svelte application using `npm run build`
-3. The build output is stored in the `docs` directory (as configured in `vite.config.ts`)
-4. The GitHub Pages deployment action publishes the `docs` directory to GitHub Pages
-5. The application is available at [https://fmadore.github.io/IWAC-overview/](https://fmadore.github.io/IWAC-overview/)
-
-### GitHub Pages Setup
-
-To enable GitHub Pages for this repository:
-
-1. Go to the repository settings on GitHub
-2. Navigate to the "Pages" section
-3. Under "Source", select "GitHub Actions" 
-4. The site will be automatically deployed when pushing to the main branch
-
-### Manual Deployment
-
-If you need to manually trigger a deployment, you can do so from the "Actions" tab in the GitHub repository. Find the "Deploy to GitHub Pages" workflow and click "Run workflow".
+For detailed deployment instructions, including GitHub Pages configuration and troubleshooting, see the [DEPLOYMENT.md](DEPLOYMENT.md) file.
 
 ## Contributing
 

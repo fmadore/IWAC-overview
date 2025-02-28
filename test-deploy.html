@@ -12,55 +12,140 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             background-color: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         h1 {
             color: #333;
         }
-        .iframe-container {
+        iframe {
             width: 100%;
             height: 600px;
             border: 1px solid #ddd;
+            border-radius: 4px;
             margin-top: 20px;
         }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-        .button {
-            display: inline-block;
+        button {
             background-color: #4CAF50;
             color: white;
             padding: 10px 15px;
-            text-decoration: none;
+            border: none;
             border-radius: 4px;
-            margin-top: 20px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .debug-info {
+            background-color: #f0f8ff;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            margin: 20px 0;
+        }
+        .debug-info h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .debug-info ul {
+            padding-left: 20px;
+        }
+        .debug-info li {
+            margin-bottom: 8px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-left: 4px solid #dc3545;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        code {
+            background-color: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .code-block {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>IWAC Overview - Test Deployment</h1>
-        <p>This page is used to test the deployment of the IWAC Overview application.</p>
         
-        <div class="iframe-container">
-            <iframe src="./docs/index.html" title="IWAC Overview Application"></iframe>
+        <div class="error">
+            <h2>⚠️ CORS ERROR ALERT ⚠️</h2>
+            <p>If you're seeing errors in the console or the application isn't loading properly, you're likely experiencing CORS issues.</p>
+            <p>You <strong>CANNOT</strong> open this file directly from your file system (using the <code>file://</code> protocol).</p>
+            <h3>Solution:</h3>
+            <p>Run one of these commands in your terminal from the project root directory:</p>
+            <div class="code-block">npx serve .</div>
+            <p>OR</p>
+            <div class="code-block">npx http-server .</div>
+            <p>Then open the URL provided by the server (usually <code>http://localhost:3000</code> or <code>http://localhost:8080</code>) and navigate to this file.</p>
+        </div>
+
+        <p>This page allows you to test the IWAC Overview application before deploying to GitHub Pages.</p>
+        <p>The iframe below should display the application. If it doesn't load correctly, check the browser console for errors.</p>
+        
+        <div class="debug-info">
+            <h3>🐞 Debugging Tools</h3>
+            <p>This application includes enhanced debugging tools to help identify issues:</p>
+            <ul>
+                <li><strong>Debug Panel:</strong> Click the 🐞 button in the bottom-right corner or press <code>Ctrl+Shift+D</code> to open the debug panel</li>
+                <li><strong>Filtering:</strong> Use the filter input to search for specific log entries</li>
+                <li><strong>Download Logs:</strong> Click the download button to save logs for analysis</li>
+                <li><strong>Browser Console Commands:</strong> The following commands are available in the browser console:
+                    <ul>
+                        <li><code>window.__IWAC_DEBUG.dumpLogs()</code> - View all logs</li>
+                        <li><code>window.__IWAC_DEBUG.exportLogs()</code> - Get logs as JSON</li>
+                        <li><code>window.__IWAC_DEBUG.mountedComponents()</code> - See mounted components</li>
+                        <li><code>window.__IWAC_DEBUG.hierarchy</code> - Check component hierarchy</li>
+                        <li><code>window.__TRANSLATION_DEBUG.currentLanguage()</code> - Check current language</li>
+                        <li><code>window.__TRANSLATION_DEBUG.isMounted()</code> - Check if TranslationContext is mounted</li>
+                    </ul>
+                </li>
+            </ul>
         </div>
         
-        <a href="./docs/index.html" class="button" target="_blank">Open in New Tab</a>
+        <iframe src="./docs/index.html" id="app-iframe"></iframe>
+        <button onclick="window.open('./docs/index.html', '_blank')">Open in New Tab</button>
+        
+        <script>
+            // Log any errors from the iframe
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'error') {
+                    console.error('Error from iframe:', event.data.message);
+                }
+            });
+            
+            // Check if opened with file:// protocol
+            if (window.location.protocol === 'file:') {
+                document.querySelector('.error').style.display = 'block';
+            } else {
+                document.querySelector('.error').style.display = 'none';
+            }
+        </script>
     </div>
-    
-    <script>
-        // Log any errors from the iframe
-        window.addEventListener('error', function(e) {
-            console.error('Error in iframe:', e);
-        });
-    </script>
 </body>
 </html> 
