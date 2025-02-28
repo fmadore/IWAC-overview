@@ -201,81 +201,102 @@
 
     // Create tooltip
     function createTooltip() {
-        tooltip = document.createElement('div');
-        tooltip.style.position = 'absolute';
-        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '8px 12px';
-        tooltip.style.borderRadius = '4px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.display = 'none';
-        tooltip.style.fontSize = '12px';
-        tooltip.style.zIndex = '1000';
-        tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-        
-        if (document && document.body) {
-            document.body.appendChild(tooltip);
+        try {
+            // Remove any existing tooltip first
+            if (tooltip && document.body.contains(tooltip)) {
+                document.body.removeChild(tooltip);
+            }
+            
+            tooltip = document.createElement('div');
+            tooltip.style.position = 'absolute';
+            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            tooltip.style.color = 'white';
+            tooltip.style.padding = '8px 12px';
+            tooltip.style.borderRadius = '4px';
+            tooltip.style.pointerEvents = 'none';
+            tooltip.style.display = 'none';
+            tooltip.style.fontSize = '12px';
+            tooltip.style.zIndex = '1000';
+            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            
+            if (document && document.body) {
+                document.body.appendChild(tooltip);
+            }
+        } catch (e) {
+            console.error('Error creating tooltip:', e);
         }
     }
 
     // Show tooltip with data
     function showTooltip(event: MouseEvent, d: any, stackedData: d3.Series<any, string>[]) {
-        if (!tooltip) return;
-        
-        const year = d.data.year;
-        const typeCounts = stackedData.map(series => {
-            const typeItem = series.find(item => item.data.year === year);
-            return {
-                type: series.key,
-                count: typeItem ? typeItem[1] - typeItem[0] : 0
-            };
-        }).filter(item => item.count > 0);
-        
-        // Calculate total for percentage
-        const total = typeCounts.reduce((sum, item) => sum + item.count, 0);
-        
-        tooltip.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                Year: ${year}
-            </div>
-            <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:4px;">
-                <span style="font-weight:bold">Type</span>
-                <span style="text-align:right;font-weight:bold">Count</span>
-                <span style="text-align:right;font-weight:bold">%</span>
-                ${typeCounts.map(item => `
-                    <span>${item.type}</span>
-                    <span style="text-align:right">${item.count}</span>
-                    <span style="text-align:right">${((item.count / total) * 100).toFixed(1)}%</span>
-                `).join('')}
-                <span style="border-top:1px solid rgba(255,255,255,0.3);font-weight:bold;margin-top:2px;padding-top:2px;">Total</span>
-                <span style="border-top:1px solid rgba(255,255,255,0.3);text-align:right;font-weight:bold;margin-top:2px;padding-top:2px;">${total}</span>
-                <span></span>
-            </div>
-        `;
-        
-        const tooltipWidth = 250;
-        const tooltipHeight = 150;
-        
-        let left = event.pageX + 10;
-        let top = event.pageY + 10;
-        
-        if (left + tooltipWidth > window.innerWidth) {
-            left = event.pageX - tooltipWidth - 10;
+        try {
+            if (!tooltip || !document.body.contains(tooltip)) {
+                createTooltip();
+            }
+            
+            if (!tooltip) return;
+            
+            const year = d.data.year;
+            const typeCounts = stackedData.map(series => {
+                const typeItem = series.find(item => item.data.year === year);
+                return {
+                    type: series.key,
+                    count: typeItem ? typeItem[1] - typeItem[0] : 0
+                };
+            }).filter(item => item.count > 0);
+            
+            // Calculate total for percentage
+            const total = typeCounts.reduce((sum, item) => sum + item.count, 0);
+            
+            tooltip.innerHTML = `
+                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                    Year: ${year}
+                </div>
+                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:4px;">
+                    <span style="font-weight:bold">Type</span>
+                    <span style="text-align:right;font-weight:bold">Count</span>
+                    <span style="text-align:right;font-weight:bold">%</span>
+                    ${typeCounts.map(item => `
+                        <span>${item.type}</span>
+                        <span style="text-align:right">${item.count}</span>
+                        <span style="text-align:right">${((item.count / total) * 100).toFixed(1)}%</span>
+                    `).join('')}
+                    <span style="border-top:1px solid rgba(255,255,255,0.3);font-weight:bold;margin-top:2px;padding-top:2px;">Total</span>
+                    <span style="border-top:1px solid rgba(255,255,255,0.3);text-align:right;font-weight:bold;margin-top:2px;padding-top:2px;">${total}</span>
+                    <span></span>
+                </div>
+            `;
+            
+            const tooltipWidth = 250;
+            const tooltipHeight = 150;
+            
+            let left = event.pageX + 10;
+            let top = event.pageY + 10;
+            
+            if (left + tooltipWidth > window.innerWidth) {
+                left = event.pageX - tooltipWidth - 10;
+            }
+            
+            if (top + tooltipHeight > window.innerHeight) {
+                top = event.pageY - tooltipHeight - 10;
+            }
+            
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.display = 'block';
+        } catch (e) {
+            console.error('Error showing tooltip:', e);
         }
-        
-        if (top + tooltipHeight > window.innerHeight) {
-            top = event.pageY - tooltipHeight - 10;
-        }
-        
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
-        tooltip.style.display = 'block';
     }
 
     // Hide tooltip
     function hideTooltip() {
-        if (tooltip) {
-            tooltip.style.display = 'none';
+        try {
+            if (tooltip && document.body.contains(tooltip)) {
+                tooltip.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('Error hiding tooltip:', e);
         }
     }
 

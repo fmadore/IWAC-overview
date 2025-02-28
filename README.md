@@ -803,27 +803,26 @@ If you need additional state management:
 
 ## Deployment
 
-The application is configured to be deployed to GitHub Pages with a base path of `/IWAC-overview/`. 
+The application is deployed to GitHub Pages using GitHub Actions. The deployment pipeline is defined in `.github/workflows/deploy.yml`. Here's how it works:
 
-To deploy:
+1. When changes are pushed to the `main` branch, the GitHub Actions workflow automatically runs
+2. It builds the Svelte application using `npm run build`
+3. The build output is stored in the `docs` directory (as configured in `vite.config.ts`)
+4. The GitHub Pages deployment action publishes the `docs` directory to GitHub Pages
+5. The application is available at [https://fmadore.github.io/IWAC-overview/](https://fmadore.github.io/IWAC-overview/)
 
-1. Build the application:
+### GitHub Pages Setup
 
-   ```bash
-   npm run build
-   ```
+To enable GitHub Pages for this repository:
 
-2. Deploy the `dist` directory to GitHub Pages or your hosting provider of choice.
+1. Go to the repository settings on GitHub
+2. Navigate to the "Pages" section
+3. Under "Source", select "GitHub Actions" 
+4. The site will be automatically deployed when pushing to the main branch
 
-3. If deploying to a different path, update the `basePath` in your build configuration:
+### Manual Deployment
 
-   ```javascript
-   // vite.config.js
-   export default defineConfig({
-     // ...other config
-     base: '/your-repo-name/',
-   });
-   ```
+If you need to manually trigger a deployment, you can do so from the "Actions" tab in the GitHub repository. Find the "Deploy to GitHub Pages" workflow and click "Run workflow".
 
 ## Contributing
 

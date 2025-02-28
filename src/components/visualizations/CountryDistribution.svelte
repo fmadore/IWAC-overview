@@ -163,298 +163,302 @@
 
     // Create or update the visualization
     function updateVisualization() {
-        if (!container) {
-            console.error('Container element not found');
-            return;
-        }
-        
-        // Get fresh data if not zoomed
-        if (!zoomedNode) {
-            hierarchyData = processData($itemsStore.items as Item[]);
-        }
-        
-        if (!hierarchyData.children || hierarchyData.children.length === 0) {
-            d3.select(container).select('svg').remove();
-            d3.select(container).append('div')
-                .attr('class', 'no-data')
-                .style('position', 'absolute')
-                .style('top', '50%')
-                .style('left', '50%')
-                .style('transform', 'translate(-50%, -50%)')
-                .style('text-align', 'center')
-                .style('color', 'var(--text-color-secondary)')
-                .text($noDataText);
-            return;
-        }
-        
-        // Remove previous visualization and messages
-        d3.select(container).select('svg').remove();
-        d3.select(container).select('.no-data').remove();
-        
-        // Get container dimensions
-        const rect = container.getBoundingClientRect();
-        width = rect.width;
-        height = rect.height;
-        
-        // Set margins
-        const margin = { top: 40, right: 10, bottom: 10, left: 10 };
-        const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
-        
-        // Create SVG
-        const svg = d3.select(container)
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height);
-        
-        // DO NOT add any title text to the SVG - removed
-        // Instead create chart group directly
-        const chart = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top})`);
-            
-        // If zoomed in, add a button to zoom out but outside the title area
-        if (zoomedNode) {
-            const button = chart.append('g')
-                .attr('class', 'zoom-out-button')
-                .attr('transform', `translate(0, -10)`)
-                .style('cursor', 'pointer')
-                .on('click', () => zoomToNode(null));
-                
-            button.append('rect')
-                .attr('width', 100)
-                .attr('height', 24)
-                .attr('rx', 4)
-                .attr('fill', 'var(--primary-color)')
-                .attr('opacity', 0.8);
-                
-            button.append('text')
-                .attr('x', 50)
-                .attr('y', 16)
-                .attr('text-anchor', 'middle')
-                .attr('fill', 'white')
-                .attr('font-size', 'var(--font-size-sm)')
-                .text($backToAllText);
-        }
-        
-        // Create treemap layout
-        const treemap = d3.treemap<HierarchyDatum>()
-            .size([chartWidth, chartHeight])
-            .paddingOuter(4)
-            .paddingTop(20)
-            .paddingInner(1)
-            .round(true);
-        
-        // Create hierarchy
-        let localRoot: d3.HierarchyNode<HierarchyDatum>;
-        
-        if (zoomedNode) {
-            // When zoomed in, create a new hierarchy from the zoomed node's children
-            const zoomedData: HierarchyDatum = {
-                name: zoomedNode.data.name,
-                children: zoomedNode.data.children
-            };
-            
-            localRoot = d3.hierarchy<HierarchyDatum>(zoomedData)
-                .sum(d => d.value || 0)
-                .sort((a, b) => (b.value || 0) - (a.value || 0));
-        } else {
-            localRoot = d3.hierarchy<HierarchyDatum>(hierarchyData)
-                .sum(d => d.value || 0)
-                .sort((a, b) => (b.value || 0) - (a.value || 0));
-        }
-        
-        // Update the global root variable
-        root = localRoot;
-        
-        // Apply treemap layout
         try {
-            treemap(localRoot as d3.HierarchyRectangularNode<HierarchyDatum>);
-        } catch (e) {
-            console.error('Error applying treemap layout:', e);
-            // If treemap fails, revert to full data view
-            zoomedNode = null;
-            hierarchyData = processData($itemsStore.items as Item[]);
-            localRoot = d3.hierarchy<HierarchyDatum>(hierarchyData)
-                .sum(d => d.value || 0)
-                .sort((a, b) => (b.value || 0) - (a.value || 0));
+            if (!container) {
+                console.error('Container element not found');
+                return;
+            }
+            
+            // Get fresh data if not zoomed
+            if (!zoomedNode) {
+                hierarchyData = processData($itemsStore.items as Item[]);
+            }
+            
+            if (!hierarchyData.children || hierarchyData.children.length === 0) {
+                d3.select(container).select('svg').remove();
+                d3.select(container).append('div')
+                    .attr('class', 'no-data')
+                    .style('position', 'absolute')
+                    .style('top', '50%')
+                    .style('left', '50%')
+                    .style('transform', 'translate(-50%, -50%)')
+                    .style('text-align', 'center')
+                    .style('color', 'var(--text-color-secondary)')
+                    .text($noDataText);
+                return;
+            }
+            
+            // Remove previous visualization and messages
+            d3.select(container).select('svg').remove();
+            d3.select(container).select('.no-data').remove();
+            
+            // Get container dimensions
+            const rect = container.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+            
+            // Set margins
+            const margin = { top: 40, right: 10, bottom: 10, left: 10 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            
+            // Create SVG
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // DO NOT add any title text to the SVG - removed
+            // Instead create chart group directly
+            const chart = svg.append('g')
+                .attr('transform', `translate(${margin.left}, ${margin.top})`);
+                
+            // If zoomed in, add a button to zoom out but outside the title area
+            if (zoomedNode) {
+                const button = chart.append('g')
+                    .attr('class', 'zoom-out-button')
+                    .attr('transform', `translate(0, -10)`)
+                    .style('cursor', 'pointer')
+                    .on('click', () => zoomToNode(null));
+                    
+                button.append('rect')
+                    .attr('width', 100)
+                    .attr('height', 24)
+                    .attr('rx', 4)
+                    .attr('fill', 'var(--primary-color)')
+                    .attr('opacity', 0.8);
+                    
+                button.append('text')
+                    .attr('x', 50)
+                    .attr('y', 16)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', 'white')
+                    .attr('font-size', 'var(--font-size-sm)')
+                    .text($backToAllText);
+            }
+            
+            // Create treemap layout
+            const treemap = d3.treemap<HierarchyDatum>()
+                .size([chartWidth, chartHeight])
+                .paddingOuter(4)
+                .paddingTop(20)
+                .paddingInner(1)
+                .round(true);
+            
+            // Create hierarchy
+            let localRoot: d3.HierarchyNode<HierarchyDatum>;
+            
+            if (zoomedNode) {
+                // When zoomed in, create a new hierarchy from the zoomed node's children
+                const zoomedData: HierarchyDatum = {
+                    name: zoomedNode.data.name,
+                    children: zoomedNode.data.children
+                };
+                
+                localRoot = d3.hierarchy<HierarchyDatum>(zoomedData)
+                    .sum(d => d.value || 0)
+                    .sort((a, b) => (b.value || 0) - (a.value || 0));
+            } else {
+                localRoot = d3.hierarchy<HierarchyDatum>(hierarchyData)
+                    .sum(d => d.value || 0)
+                    .sort((a, b) => (b.value || 0) - (a.value || 0));
+            }
+            
+            // Update the global root variable
             root = localRoot;
-            treemap(localRoot as d3.HierarchyRectangularNode<HierarchyDatum>);
-        }
-        
-        // Color scale - use d3.schemeCategory10 for similar colors to WordDistribution
-        const colorScale = d3.scaleOrdinal<string>()
-            .domain(localRoot.children ? localRoot.children.map(d => d.data.name) : [localRoot.data.name])
-            .range(d3.schemeCategory10);
-        
-        // Create cells for countries (first level)
-        const countries = chart.selectAll('.country')
-            .data(zoomedNode ? [] : (localRoot.children || []))
-            .enter()
-            .append('g')
-            .attr('class', 'country')
-            .attr('transform', d => {
-                const x = (d as any).x0 || 0;
-                const y = (d as any).y0 || 0;
-                return `translate(${x},${y})`;
-            });
-        
-        // Add country background
-        countries.append('rect')
-            .attr('width', d => {
-                const x0 = (d as any).x0 || 0;
-                const x1 = (d as any).x1 || 0;
-                return Math.max(0, x1 - x0);
-            })
-            .attr('height', d => {
-                const y0 = (d as any).y0 || 0;
-                const y1 = (d as any).y1 || 0;
-                return Math.max(0, y1 - y0);
-            })
-            .attr('fill', d => colorScale(d.data.name))
-            .attr('stroke', 'white')
-            .attr('stroke-width', 2)
-            .style('opacity', 0.7)
-            .style('cursor', 'pointer')
-            .on('click', (event, d) => {
-                zoomToNode(d);
-            })
-            .on('mouseover', function(event, d) {
-                // Show tooltip for countries too
-                showTooltip(event, d as any);
-            })
-            .on('mousemove', function(event, d) {
-                showTooltip(event, d as any);
-            })
-            .on('mouseout', function() {
-                hideTooltip();
-            })
-            .attr('title', $clickZoomInText)
-            .append('title')
-            .text(() => $clickZoomInText);
-        
-        // Add country labels
-        countries.append('text')
-            .attr('x', 5)
-            .attr('y', 15)
-            .attr('font-size', 'var(--font-size-sm)')
-            .attr('font-weight', 'bold')
-            .attr('fill', 'white')
-            .text(d => `${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`)
-            .style('pointer-events', 'none')
-            .each(function(d) {
-                const self = d3.select(this);
-                const textLength = (this as SVGTextElement).getComputedTextLength();
-                const availableWidth = (d as any).x1 - (d as any).x0 - 10;
-                
-                if (textLength > availableWidth) {
-                    self.text(d.data.name)
+            
+            // Apply treemap layout
+            try {
+                treemap(localRoot as d3.HierarchyRectangularNode<HierarchyDatum>);
+            } catch (e) {
+                console.error('Error applying treemap layout:', e);
+                // If treemap fails, revert to full data view
+                zoomedNode = null;
+                hierarchyData = processData($itemsStore.items as Item[]);
+                localRoot = d3.hierarchy<HierarchyDatum>(hierarchyData)
+                    .sum(d => d.value || 0)
+                    .sort((a, b) => (b.value || 0) - (a.value || 0));
+                root = localRoot;
+                treemap(localRoot as d3.HierarchyRectangularNode<HierarchyDatum>);
+            }
+            
+            // Color scale - use d3.schemeCategory10 for similar colors to WordDistribution
+            const colorScale = d3.scaleOrdinal<string>()
+                .domain(localRoot.children ? localRoot.children.map(d => d.data.name) : [localRoot.data.name])
+                .range(d3.schemeCategory10);
+            
+            // Create cells for countries (first level)
+            const countries = chart.selectAll('.country')
+                .data(zoomedNode ? [] : (localRoot.children || []))
+                .enter()
+                .append('g')
+                .attr('class', 'country')
+                .attr('transform', d => {
+                    const x = (d as any).x0 || 0;
+                    const y = (d as any).y0 || 0;
+                    return `translate(${x},${y})`;
+                });
+            
+            // Add country background
+            countries.append('rect')
+                .attr('width', d => {
+                    const x0 = (d as any).x0 || 0;
+                    const x1 = (d as any).x1 || 0;
+                    return Math.max(0, x1 - x0);
+                })
+                .attr('height', d => {
+                    const y0 = (d as any).y0 || 0;
+                    const y1 = (d as any).y1 || 0;
+                    return Math.max(0, y1 - y0);
+                })
+                .attr('fill', d => colorScale(d.data.name))
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2)
+                .style('opacity', 0.7)
+                .style('cursor', 'pointer')
+                .on('click', (event, d) => {
+                    zoomToNode(d);
+                })
+                .on('mouseover', function(event, d) {
+                    // Show tooltip for countries too
+                    showTooltip(event, d as any);
+                })
+                .on('mousemove', function(event, d) {
+                    showTooltip(event, d as any);
+                })
+                .on('mouseout', function() {
+                    hideTooltip();
+                })
+                .attr('title', $clickZoomInText)
+                .append('title')
+                .text(() => $clickZoomInText);
+            
+            // Add country labels
+            countries.append('text')
+                .attr('x', 5)
+                .attr('y', 15)
+                .attr('font-size', 'var(--font-size-sm)')
+                .attr('font-weight', 'bold')
+                .attr('fill', 'white')
+                .text(d => `${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`)
+                .style('pointer-events', 'none')
+                .each(function(d) {
+                    const self = d3.select(this);
+                    const textLength = (this as SVGTextElement).getComputedTextLength();
+                    const availableWidth = (d as any).x1 - (d as any).x0 - 10;
+                    
+                    if (textLength > availableWidth) {
+                        self.text(d.data.name)
+                            .append('title')
+                            .text(`${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`);
+                    }
+                });
+            
+            // Create cells for item sets (second level)
+            const itemSets = chart.selectAll('.item-set')
+                .data(zoomedNode ? (localRoot.children || []) : localRoot.leaves())
+                .enter()
+                .append('g')
+                .attr('class', 'item-set')
+                .attr('transform', d => {
+                    const x = (d as any).x0 || 0;
+                    const y = (d as any).y0 || 0;
+                    return `translate(${x},${y})`;
+                });
+            
+            // Add item set rectangles
+            itemSets.append('rect')
+                .attr('width', d => {
+                    const x0 = (d as any).x0 || 0;
+                    const x1 = (d as any).x1 || 0;
+                    return Math.max(0, x1 - x0);
+                })
+                .attr('height', d => {
+                    const y0 = (d as any).y0 || 0;
+                    const y1 = (d as any).y1 || 0;
+                    return Math.max(0, y1 - y0);
+                })
+                .attr('fill', d => {
+                    // Use a lighter shade of the country/parent color
+                    const nodeColor = zoomedNode 
+                        ? colorScale(zoomedNode.data.name) 
+                        : colorScale((d.parent as any)?.data?.name || 'Unknown');
+                    const baseColor = d3.rgb(nodeColor);
+                    return d3.rgb(baseColor).brighter(0.7).toString();
+                })
+                .attr('stroke', 'white')
+                .attr('stroke-width', 0.5)
+                .style('cursor', 'pointer')
+                .on('mouseover', function(event, d) {
+                    // Highlight on hover
+                    d3.select(this)
+                        .attr('stroke', 'var(--primary-color)')
+                        .attr('stroke-width', 2);
+                    
+                    // Show tooltip
+                    showTooltip(event, d as any);
+                })
+                .on('mousemove', function(event, d) {
+                    // Update tooltip position
+                    showTooltip(event, d as any);
+                })
+                .on('mouseout', function() {
+                    // Remove highlight
+                    d3.select(this)
+                        .attr('stroke', 'white')
+                        .attr('stroke-width', 0.5);
+                    
+                    // Hide tooltip
+                    hideTooltip();
+                });
+            
+            // Add item set labels
+            itemSets.append('text')
+                .attr('x', 3)
+                .attr('y', 13)
+                .attr('font-size', 'var(--font-size-xs)')
+                .attr('fill', 'var(--text-color-primary)')
+                .style('pointer-events', 'none')
+                .each(function(d) {
+                    const self = d3.select(this);
+                    const width = (d as any).x1 - (d as any).x0;
+                    const height = (d as any).y1 - (d as any).y0;
+                    
+                    // Only add text if rectangle is big enough
+                    if (width < 30 || height < 20) {
+                        return;
+                    }
+                    
+                    let text = d.data.name;
+                    // Truncate text if too long
+                    const availableWidth = width - 6;
+                    
+                    // Get the parent/country for the tooltip
+                    const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
+                    
+                    self.text(text)
                         .append('title')
-                        .text(`${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`);
-                }
-            });
-        
-        // Create cells for item sets (second level)
-        const itemSets = chart.selectAll('.item-set')
-            .data(zoomedNode ? (localRoot.children || []) : localRoot.leaves())
-            .enter()
-            .append('g')
-            .attr('class', 'item-set')
-            .attr('transform', d => {
-                const x = (d as any).x0 || 0;
-                const y = (d as any).y0 || 0;
-                return `translate(${x},${y})`;
-            });
-        
-        // Add item set rectangles
-        itemSets.append('rect')
-            .attr('width', d => {
-                const x0 = (d as any).x0 || 0;
-                const x1 = (d as any).x1 || 0;
-                return Math.max(0, x1 - x0);
-            })
-            .attr('height', d => {
-                const y0 = (d as any).y0 || 0;
-                const y1 = (d as any).y1 || 0;
-                return Math.max(0, y1 - y0);
-            })
-            .attr('fill', d => {
-                // Use a lighter shade of the country/parent color
-                const nodeColor = zoomedNode 
-                    ? colorScale(zoomedNode.data.name) 
-                    : colorScale((d.parent as any)?.data?.name || 'Unknown');
-                const baseColor = d3.rgb(nodeColor);
-                return d3.rgb(baseColor).brighter(0.7).toString();
-            })
-            .attr('stroke', 'white')
-            .attr('stroke-width', 0.5)
-            .style('cursor', 'pointer')
-            .on('mouseover', function(event, d) {
-                // Highlight on hover
-                d3.select(this)
-                    .attr('stroke', 'var(--primary-color)')
-                    .attr('stroke-width', 2);
-                
-                // Show tooltip
-                showTooltip(event, d as any);
-            })
-            .on('mousemove', function(event, d) {
-                // Update tooltip position
-                showTooltip(event, d as any);
-            })
-            .on('mouseout', function() {
-                // Remove highlight
-                d3.select(this)
-                    .attr('stroke', 'white')
-                    .attr('stroke-width', 0.5);
-                
-                // Hide tooltip
-                hideTooltip();
-            });
-        
-        // Add item set labels
-        itemSets.append('text')
-            .attr('x', 3)
-            .attr('y', 13)
-            .attr('font-size', 'var(--font-size-xs)')
-            .attr('fill', 'var(--text-color-primary)')
-            .style('pointer-events', 'none')
-            .each(function(d) {
-                const self = d3.select(this);
-                const width = (d as any).x1 - (d as any).x0;
-                const height = (d as any).y1 - (d as any).y0;
-                
-                // Only add text if rectangle is big enough
-                if (width < 30 || height < 20) {
-                    return;
-                }
-                
-                let text = d.data.name;
-                // Truncate text if too long
-                const availableWidth = width - 6;
-                
-                // Get the parent/country for the tooltip
-                const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
-                
-                self.text(text)
-                    .append('title')
-                    .text(`${country} > ${d.data.name}: ${d.data.itemCount || d.value || 0} ${$itemsText}`);
-                
-                // Check if text fits and truncate if necessary
-                const node = this as SVGTextElement;
-                let textLength = node.getComputedTextLength();
-                let ellipsis = false;
-                
-                while (textLength > availableWidth && text.length > 3) {
-                    text = text.slice(0, -1);
-                    self.text(text);
-                    textLength = node.getComputedTextLength();
-                    ellipsis = true;
-                }
-                
-                if (ellipsis) {
-                    self.text(text + '...');
-                }
-            });
+                        .text(`${country} > ${d.data.name}: ${d.data.itemCount || d.value || 0} ${$itemsText}`);
+                    
+                    // Check if text fits and truncate if necessary
+                    const node = this as SVGTextElement;
+                    let textLength = node.getComputedTextLength();
+                    let ellipsis = false;
+                    
+                    while (textLength > availableWidth && text.length > 3) {
+                        text = text.slice(0, -1);
+                        self.text(text);
+                        textLength = node.getComputedTextLength();
+                        ellipsis = true;
+                    }
+                    
+                    if (ellipsis) {
+                        self.text(text + '...');
+                    }
+                });
+        } catch (e) {
+            console.error('Error in updateVisualization:', e);
+        }
     }
 
     // Create tooltip element - make it more resilient
@@ -575,8 +579,12 @@
 
     // Hide tooltip
     function hideTooltip() {
-        if (tooltip) {
-            tooltip.style.display = 'none';
+        try {
+            if (tooltip && document.body.contains(tooltip)) {
+                tooltip.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('Error hiding tooltip:', e);
         }
     }
 
@@ -629,14 +637,23 @@
             
             // Return cleanup function
             return () => {
-                // Safely disconnect observer
-                if (resizeObserver) {
-                    resizeObserver.disconnect();
-                }
-                
-                // Clean up tooltip
-                if (tooltip && document.body.contains(tooltip)) {
-                    document.body.removeChild(tooltip);
+                try {
+                    // Safely disconnect observer
+                    if (resizeObserver) {
+                        resizeObserver.disconnect();
+                    }
+                    
+                    // Clean up D3 selections to prevent memory leaks
+                    if (container) {
+                        d3.select(container).selectAll('*').remove();
+                    }
+                    
+                    // Clean up tooltip
+                    if (tooltip && document.body.contains(tooltip)) {
+                        document.body.removeChild(tooltip);
+                    }
+                } catch (e) {
+                    console.error('Error during cleanup:', e);
                 }
             };
         } catch (error) {

@@ -273,81 +273,95 @@
 
     // Create tooltip element
     function createTooltip() {
-        // Remove existing tooltip if it exists to prevent duplicates
-        if (tooltip && document.body.contains(tooltip)) {
-            document.body.removeChild(tooltip);
-        }
-        
-        tooltip = document.createElement('div');
-        tooltip.style.position = 'absolute';
-        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '8px 12px';
-        tooltip.style.borderRadius = '4px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.display = 'none';
-        tooltip.style.fontSize = '12px';
-        tooltip.style.zIndex = '1000';
-        tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-        
-        if (document && document.body) {
-            document.body.appendChild(tooltip);
+        try {
+            // Remove existing tooltip if it exists to prevent duplicates
+            if (tooltip && document.body.contains(tooltip)) {
+                document.body.removeChild(tooltip);
+            }
+            
+            tooltip = document.createElement('div');
+            tooltip.style.position = 'absolute';
+            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            tooltip.style.color = 'white';
+            tooltip.style.padding = '8px 12px';
+            tooltip.style.borderRadius = '4px';
+            tooltip.style.pointerEvents = 'none';
+            tooltip.style.display = 'none';
+            tooltip.style.fontSize = '12px';
+            tooltip.style.zIndex = '1000';
+            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            
+            if (document && document.body) {
+                document.body.appendChild(tooltip);
+            }
+        } catch (e) {
+            console.error('Error creating tooltip:', e);
         }
     }
     
     // Show tooltip with data information
     function showTooltip(event: MouseEvent, d: MonthlyData, type: 'monthly' | 'total') {
-        if (!tooltip || !document.body.contains(tooltip)) {
-            createTooltip(); // Recreate tooltip if it doesn't exist
+        try {
+            if (!tooltip || !document.body.contains(tooltip)) {
+                createTooltip(); // Recreate tooltip if it doesn't exist
+            }
+            
+            if (!tooltip) return;
+            
+            const monthName = d.date.toLocaleString('default', { month: 'long' });
+            const year = d.date.getFullYear();
+            
+            if (type === 'monthly') {
+                tooltip.innerHTML = `
+                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                        ${monthName} ${year}
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                        <span>New Items:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
+                        <span>Percentage:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
+                    </div>
+                `;
+            } else {
+                tooltip.innerHTML = `
+                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                        ${monthName} ${year}
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                        <span>Total Items:</span><span style="text-align:right;font-weight:bold;">${d.total}</span>
+                    </div>
+                `;
+            }
+            
+            const tooltipWidth = 200;
+            const tooltipHeight = 100;
+            
+            let left = event.pageX + 10;
+            let top = event.pageY + 10;
+            
+            if (left + tooltipWidth > window.innerWidth) {
+                left = event.pageX - tooltipWidth - 10;
+            }
+            
+            if (top + tooltipHeight > window.innerHeight) {
+                top = event.pageY - tooltipHeight - 10;
+            }
+            
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.display = 'block';
+        } catch (e) {
+            console.error('Error showing tooltip:', e);
         }
-        
-        const monthName = d.date.toLocaleString('default', { month: 'long' });
-        const year = d.date.getFullYear();
-        
-        if (type === 'monthly') {
-            tooltip.innerHTML = `
-                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                    ${monthName} ${year}
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                    <span>New Items:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
-                    <span>Percentage:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
-                </div>
-            `;
-        } else {
-            tooltip.innerHTML = `
-                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                    ${monthName} ${year}
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                    <span>Total Items:</span><span style="text-align:right;font-weight:bold;">${d.total}</span>
-                </div>
-            `;
-        }
-        
-        const tooltipWidth = 200;
-        const tooltipHeight = 100;
-        
-        let left = event.pageX + 10;
-        let top = event.pageY + 10;
-        
-        if (left + tooltipWidth > window.innerWidth) {
-            left = event.pageX - tooltipWidth - 10;
-        }
-        
-        if (top + tooltipHeight > window.innerHeight) {
-            top = event.pageY - tooltipHeight - 10;
-        }
-        
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
-        tooltip.style.display = 'block';
     }
     
     // Hide tooltip
     function hideTooltip() {
-        if (tooltip && document.body.contains(tooltip)) {
-            tooltip.style.display = 'none';
+        try {
+            if (tooltip && document.body.contains(tooltip)) {
+                tooltip.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('Error hiding tooltip:', e);
         }
     }
 
