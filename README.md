@@ -22,6 +22,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Development Setup](#development-setup)
 - [Local Testing](#local-testing)
 - [Debugging Tools](#debugging-tools)
+- [TypeScript Configuration](#typescript-configuration)
 - [Deployment](#deployment)
 
 ## Overview
@@ -49,6 +50,7 @@ IWAC-overview/
 │   └── items.json        # Database items in JSON format
 ├── src/
 │   ├── components/       # UI components
+│   │   ├── DebugPanel.svelte    # Debug panel component (hidden in production)
 │   │   ├── LanguageToggle.svelte    # Language switching component
 │   │   ├── TranslationContext.svelte # Translation context provider
 │   │   └── visualizations/  # Visualization components
@@ -62,14 +64,19 @@ IWAC-overview/
 │   │   ├── itemsStore.ts  # Store for database items
 │   │   └── translationStore.ts # Store for translations and language state
 │   ├── types/            # TypeScript type definitions
-│   │   └── OmekaItem.ts   # Types for Omeka items and visualization data
+│   │   ├── OmekaItem.ts   # Types for Omeka items and visualization data
+│   │   ├── global.d.ts    # Global type declarations
+│   │   ├── svelte-components.d.ts # Component type definitions
+│   │   └── svelte-store.d.ts # Store type definitions
 │   ├── utils/            # Utility functions
+│   │   ├── debug.ts      # Debug utility with production/development toggle
 │   │   └── logger.ts      # Logging utility
 │   ├── App.svelte        # Main application component
 │   ├── app.css           # Global styles
 │   ├── theme.css         # Centralized theme system with CSS variables
 │   └── main.ts           # Application entry point
 ├── index.html            # HTML entry point
+├── tsconfig.json         # TypeScript configuration
 └── README.md             # This documentation file
 ```
 
@@ -847,7 +854,7 @@ The application includes enhanced debugging tools to help identify and fix issue
 
 ### Debug Panel
 
-A visual debug panel is available in the application:
+A visual debug panel is available in the application during development:
 
 - Click the 🐞 button in the bottom-right corner to open the debug panel
 - Or press `Ctrl+Shift+D` to toggle the panel
@@ -855,9 +862,31 @@ A visual debug panel is available in the application:
 - You can filter logs by text or component name
 - Use the download button to save logs for further analysis
 
+### Production vs Development Mode
+
+The debug panel and related features are automatically disabled in production builds:
+
+- In `src/utils/debug.ts`, the `DEBUG` constant controls whether debugging is enabled:
+  ```typescript
+  // Set to true for development, false for production
+  export const DEBUG = false;
+  ```
+
+- The `App.svelte` component conditionally renders the debug panel based on this constant:
+  ```svelte
+  <!-- Only render the debug panel when DEBUG is true -->
+  {#if DEBUG}
+    <DebugPanel />
+  {/if}
+  ```
+
+- To enable debugging during development:
+  1. Change `DEBUG = false` to `DEBUG = true` in `src/utils/debug.ts`
+  2. Rebuild the application or run in development mode
+
 ### Browser Console Commands
 
-You can also access debugging tools through the browser console:
+You can also access debugging tools through the browser console when debug mode is enabled:
 
 ```javascript
 // View all logs in a readable format
@@ -892,3 +921,78 @@ Contributions are welcome! Please add tests for new features and make sure exist
 ## License
 
 [License Information]
+
+## TypeScript Configuration
+
+The project uses TypeScript for type safety and better developer experience. The configuration is defined in `tsconfig.json` and includes several important features:
+
+### Basic Configuration
+
+```json
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "sourceMap": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+### Type Definitions
+
+The project includes several type definition files to improve type safety:
+
+1. **OmekaItem.ts**: Defines the structure of database items and visualization data
+   ```typescript
+   export interface OmekaItem {
+     id: number;
+     title: string;
+     description?: string;
+     type?: string;
+     country?: string;
+     language?: string;
+     // ...other properties
+   }
+   ```
+
+2. **svelte-components.d.ts**: Provides type definitions for Svelte components
+   ```typescript
+   declare module 'src/components/visualizations/BaseVisualization.svelte' {
+     export default class BaseVisualization extends SvelteComponentTyped<{
+       title?: string;
+       translationKey?: string;
+       // ...other props
+     }, {}, {}> {}
+   }
+   ```
+
+3. **svelte-store.d.ts**: Defines types for Svelte stores
+   ```typescript
+   declare module '../stores/itemsStore' {
+     export const itemsStore: {
+       subscribe: (callback: (value: VisualizationData) => void) => () => void;
+       loadItems: () => Promise<void>;
+     };
+   }
+   ```
+
+4. **global.d.ts**: Provides global type declarations
+   ```typescript
+   declare global {
+     var $itemsStore: VisualizationData;
+     var $language: string;
+     
+     interface Window {
+       __IWAC_DEBUG?: {
+         // Debug properties
+       }
+     }
+   }
+   ```
+
+These type definitions help catch errors during development and provide better code completion in IDEs.
