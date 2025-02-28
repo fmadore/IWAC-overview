@@ -1,10 +1,15 @@
 <script lang="ts">
-    import { onMount, tick } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { log } from '../../utils/logger';
     import { t, translate } from '../../stores/translationStore';
+    import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
+
+    const COMPONENT_ID = 'WordDistribution';
+    let isMounted = false;
+    let unsubscribeItems: () => void;
 
     // Data interfaces
     interface WordHierarchyNode {
@@ -585,9 +590,12 @@
         }
     }
 
-    // Initialize visualization when data changes
-    $: if ($itemsStore.items && container) {
-        // Only update if the component is still mounted (container exists)
+    function handleItemsChange(items: any) {
+        if (!isMounted || !container) return;
+        
+        logDebug(COMPONENT_ID, 'Items store changed', { itemCount: items?.length || 0 });
+        
+        // Only update if the component is still mounted
         if (document.body.contains(container)) {
             updateVisualization();
         }
@@ -595,6 +603,10 @@
 
     onMount(async () => {
         try {
+            isMounted = true;
+            trackMount(COMPONENT_ID);
+            logDebug(COMPONENT_ID, 'Component mounted');
+            
             await tick();
             
             if (!container) {
@@ -604,6 +616,11 @@
             
             // Create tooltip
             createTooltip();
+            
+            // Subscribe to the items store
+            unsubscribeItems = itemsStore.subscribe(store => {
+                handleItemsChange(store.items);
+            });
             
             // Create visualization if data is available
             if ($itemsStore.items && $itemsStore.items.length > 0) {
@@ -615,6 +632,8 @@
             
             // Add resize observer
             const resizeObserver = new ResizeObserver(() => {
+                if (!isMounted) return;
+                
                 if (container && document.body.contains(container)) {
                     updateVisualization();
                 }
@@ -624,26 +643,67 @@
             
             return () => {
                 try {
+                    // This cleanup function is called when the component is unmounted
+                    isMounted = false;
+                    trackUnmount(COMPONENT_ID);
+                    logDebug(COMPONENT_ID, 'Component cleanup started');
+                    
                     // Safely disconnect observer
                     if (resizeObserver) {
                         resizeObserver.disconnect();
+                        logDebug(COMPONENT_ID, 'Resize observer disconnected');
                     }
                     
                     // Clean up D3 selections to prevent memory leaks
                     if (container) {
                         d3.select(container).selectAll('*').remove();
+                        logDebug(COMPONENT_ID, 'D3 selections removed');
                     }
                     
                     // Clean up tooltip
                     if (tooltip && document.body.contains(tooltip)) {
                         document.body.removeChild(tooltip);
+                        logDebug(COMPONENT_ID, 'Tooltip removed');
                     }
+                    
+                    // Clean up store subscriptions
+                    if (unsubscribeItems) {
+                        unsubscribeItems();
+                        logDebug(COMPONENT_ID, 'Unsubscribed from items store');
+                    }
+                    
+                    logDebug(COMPONENT_ID, 'Component cleanup completed');
                 } catch (e) {
                     console.error('Error during cleanup:', e);
                 }
             };
         } catch (e) {
             console.error('Error in onMount:', e);
+        }
+    });
+    
+    onDestroy(() => {
+        // This is a backup in case the cleanup function in onMount doesn't run
+        if (isMounted) {
+            isMounted = false;
+            trackUnmount(COMPONENT_ID);
+            logDebug(COMPONENT_ID, 'Component destroyed (backup cleanup)');
+            
+            try {
+                // Clean up store subscriptions
+                if (unsubscribeItems) {
+                    unsubscribeItems();
+                    logDebug(COMPONENT_ID, 'Unsubscribed from items store (backup)');
+                }
+                
+                // Clean up tooltip as a backup
+                if (tooltip && document.body.contains(tooltip)) {
+                    document.body.removeChild(tooltip);
+                    logDebug(COMPONENT_ID, 'Tooltip removed (backup)');
+                }
+            } catch (e) {
+                console.error('Error during backup cleanup:', e);
+            }
         }
     });
 </script>

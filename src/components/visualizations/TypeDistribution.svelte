@@ -1,10 +1,15 @@
 <script lang="ts">
-    import { onMount, tick } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { log } from '../../utils/logger';
     import { t, translate } from '../../stores/translationStore';
+    import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
+
+    const COMPONENT_ID = 'TypeDistribution';
+    let isMounted = false;
+    let unsubscribeItems: () => void;
 
     // Data interfaces
     interface TypeYearData {
@@ -603,9 +608,12 @@
         });
     }
 
-    // Initialize visualization when data changes
-    $: if ($itemsStore.items && container) {
-        // Only update if the component is still mounted (container exists)
+    function handleItemsChange(items: any) {
+        if (!isMounted || !container) return;
+        
+        logDebug(COMPONENT_ID, 'Items store changed', { itemCount: items?.length || 0 });
+        
+        // Only update if the component is still mounted
         if (document.body.contains(container)) {
             generateCountryFacets();
             generateYearRange();
@@ -614,6 +622,10 @@
     }
 
     onMount(async () => {
+        isMounted = true;
+        trackMount(COMPONENT_ID);
+        logDebug(COMPONENT_ID, 'Component mounted');
+        
         await tick();
         
         if (!container) {
@@ -623,6 +635,11 @@
         
         // Create tooltip
         createTooltip();
+        
+        // Subscribe to the items store
+        unsubscribeItems = itemsStore.subscribe(store => {
+            handleItemsChange(store.items);
+        });
         
         // Generate facets and create visualization if data is available
         if ($itemsStore.items && $itemsStore.items.length > 0) {
@@ -636,6 +653,8 @@
         
         // Add resize observer
         const resizeObserver = new ResizeObserver(() => {
+            if (!isMounted) return;
+            
             if (container && document.body.contains(container)) {
                 updateVisualization();
             }
@@ -644,13 +663,52 @@
         resizeObserver.observe(container);
         
         return () => {
-            resizeObserver.disconnect();
+            // This cleanup function is called when the component is unmounted
+            isMounted = false;
+            trackUnmount(COMPONENT_ID);
+            logDebug(COMPONENT_ID, 'Component cleanup started');
+            
+            // Clean up resize observer
+            try {
+                resizeObserver.disconnect();
+                logDebug(COMPONENT_ID, 'Resize observer disconnected');
+            } catch (e) {
+                console.error('Error disconnecting resize observer:', e);
+            }
             
             // Clean up tooltip
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
+            try {
+                if (tooltip && document.body.contains(tooltip)) {
+                    document.body.removeChild(tooltip);
+                    logDebug(COMPONENT_ID, 'Tooltip removed');
+                }
+            } catch (e) {
+                console.error('Error removing tooltip:', e);
             }
+            
+            // Clean up store subscriptions
+            if (unsubscribeItems) {
+                unsubscribeItems();
+                logDebug(COMPONENT_ID, 'Unsubscribed from items store');
+            }
+            
+            logDebug(COMPONENT_ID, 'Component cleanup completed');
         };
+    });
+    
+    onDestroy(() => {
+        // This is a backup in case the cleanup function in onMount doesn't run
+        if (isMounted) {
+            isMounted = false;
+            trackUnmount(COMPONENT_ID);
+            logDebug(COMPONENT_ID, 'Component destroyed (backup cleanup)');
+            
+            // Clean up store subscriptions
+            if (unsubscribeItems) {
+                unsubscribeItems();
+                logDebug(COMPONENT_ID, 'Unsubscribed from items store (backup)');
+            }
+        }
     });
 </script>
 

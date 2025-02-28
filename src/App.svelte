@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy, afterUpdate } from 'svelte';
   import { itemsStore } from './stores/itemsStore';
   import { t, language } from './stores/translationStore';
   import LanguageToggle from './components/LanguageToggle.svelte';
@@ -10,6 +10,11 @@
   import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
   import TypeDistribution from './components/visualizations/TypeDistribution.svelte';
   import WordDistribution from './components/visualizations/WordDistribution.svelte';
+  import { logDebug, trackMount, trackUnmount } from './utils/debug';
+
+  const COMPONENT_ID = 'App';
+  let isMounted = false;
+  let unsubscribe: () => void;
 
   // Import visualization components here
   // They will be created in the next steps
@@ -26,23 +31,52 @@
     { id: 'words', label: 'tab.words' },
   ];
 
-  onMount(() => {
-    console.log('[App] Component mounted, initial language:', $language);
-    itemsStore.loadItems();
-  });
-
-  // Use a safer pattern for reactive statements
-  let currentLanguage = $language;
+  // Manually track the language to avoid reactive statements
+  let currentLanguage = '';
   
-  $: if ($language !== currentLanguage) {
-    currentLanguage = $language;
-    console.log('[App] Language changed to:', currentLanguage);
-    console.log('[App] Current translations:', {
+  function handleLanguageChange(newLang: string) {
+    if (!isMounted) return;
+    
+    currentLanguage = newLang;
+    logDebug(COMPONENT_ID, `Language changed to: ${newLang}`);
+    logDebug(COMPONENT_ID, 'Current translations:', {
       title: t('app.title'),
       loading: t('ui.loading'),
       activeTab: t(tabs.find(tab => tab.id === activeTab)?.label || '')
     });
   }
+
+  onMount(() => {
+    isMounted = true;
+    trackMount(COMPONENT_ID);
+    logDebug(COMPONENT_ID, `Component mounted, initial language: ${$language}`);
+    
+    // Set initial language
+    currentLanguage = $language;
+    
+    // Manually subscribe to the language store
+    unsubscribe = language.subscribe(value => {
+      handleLanguageChange(value);
+    });
+    
+    // Load items
+    itemsStore.loadItems();
+  });
+  
+  onDestroy(() => {
+    isMounted = false;
+    trackUnmount(COMPONENT_ID);
+    logDebug(COMPONENT_ID, 'Component destroyed');
+    
+    if (unsubscribe) {
+      unsubscribe();
+      logDebug(COMPONENT_ID, 'Unsubscribed from language store');
+    }
+  });
+  
+  afterUpdate(() => {
+    logDebug(COMPONENT_ID, 'Component updated');
+  });
 </script>
 
 <TranslationContext>
