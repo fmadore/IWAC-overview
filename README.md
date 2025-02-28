@@ -798,43 +798,25 @@ To set up the project for development:
 
 To test the built application locally, you need to use a local server to avoid CORS issues. We've included helper scripts to make this easy:
 
-#### Windows:
+#### Option 1: Using Vite Preview (Recommended)
 ```bash
-# Double-click on start-server.bat
-# Or run from command prompt:
-start-server.bat
+# Run the Vite preview server
+npm run preview
 ```
 
-#### macOS/Linux:
+#### Option 2: Using the Vite Server Script
 ```bash
-# Make the script executable first (one-time setup)
-chmod +x start-server.sh
+# Windows:
+start-vite-server.bat
 
-# Then run it
-./start-server.sh
-```
-
-#### Manual Node.js:
-```bash
-# Run the helper script directly
-node start-local-server.mjs
+# macOS/Linux or Windows with Node.js:
+node vite-server.mjs
 ```
 
 These scripts will:
-1. Check if you have a server package installed (serve or http-server)
-2. Install one if needed
-3. Let you choose which directory to serve
-4. Start the server with the correct configuration
-
-Alternatively, you can manually start a server:
-
-```bash
-# Using serve
-npx serve .
-
-# Or using http-server
-npx http-server .
-```
+1. Start a properly configured server that handles MIME types correctly
+2. Let you choose which directory to serve (root or docs/)
+3. Provide URLs for accessing the application
 
 ### CORS Issues
 
@@ -843,6 +825,7 @@ When testing locally, you may encounter CORS (Cross-Origin Resource Sharing) err
 Common error messages include:
 - `Failed to load resource: net::ERR_FILE_NOT_FOUND`
 - `Access to script has been blocked by CORS policy`
+- `Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of "video/mp2t"`
 
 **Solution:** Always use a local server as described above instead of opening files directly.
 
@@ -850,8 +833,8 @@ Common error messages include:
 
 The repository includes a `test-deploy.html` file that provides a convenient way to test the built application. To use it:
 
-1. Run the local server helper script: `node start-local-server.js`
-2. Navigate to `http://localhost:3000/test-deploy.html` (or the URL provided by the server)
+1. Run one of the local server options above
+2. Navigate to the URL provided by the server (e.g., `http://localhost:3000/test-deploy.html` or `http://localhost:4173/test-deploy.html`)
 
 The test page includes:
 - An iframe showing the application

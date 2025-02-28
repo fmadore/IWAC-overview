@@ -98,11 +98,17 @@
             <p>If you're seeing errors in the console or the application isn't loading properly, you're likely experiencing CORS issues.</p>
             <p>You <strong>CANNOT</strong> open this file directly from your file system (using the <code>file://</code> protocol).</p>
             <h3>Solution:</h3>
-            <p>Run one of these commands in your terminal from the project root directory:</p>
-            <div class="code-block">npx serve .</div>
-            <p>OR</p>
-            <div class="code-block">npx http-server .</div>
-            <p>Then open the URL provided by the server (usually <code>http://localhost:3000</code> or <code>http://localhost:8080</code>) and navigate to this file.</p>
+            <p>Use one of these methods to run a local server:</p>
+            
+            <h4>Option 1: Use the Vite server (recommended)</h4>
+            <div class="code-block">node vite-server.mjs</div>
+            <p>Or on Windows, run:</p>
+            <div class="code-block">start-vite-server.bat</div>
+            
+            <h4>Option 2: Use npm preview</h4>
+            <div class="code-block">npm run preview</div>
+            
+            <p>Then open the URL provided by the server (usually <code>http://localhost:3000</code> or <code>http://localhost:4173</code>).</p>
         </div>
 
         <p>This page allows you to test the IWAC Overview application before deploying to GitHub Pages.</p>
