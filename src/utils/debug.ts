@@ -1,5 +1,6 @@
 // Debug utility for tracking component lifecycles and reactive statements
-export const DEBUG = true;
+// Set to true for development, false for production
+export const DEBUG = false;
 
 // Store logs in memory for export
 const logHistory: Array<{timestamp: string, component: string, action: string, details?: any}> = [];
