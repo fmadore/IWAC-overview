@@ -605,9 +605,12 @@
 
     // Initialize visualization when data changes
     $: if ($itemsStore.items && container) {
-        generateCountryFacets();
-        generateYearRange();
-        updateVisualization();
+        // Only update if the component is still mounted (container exists)
+        if (document.body.contains(container)) {
+            generateCountryFacets();
+            generateYearRange();
+            updateVisualization();
+        }
     }
 
     onMount(async () => {
@@ -633,7 +636,7 @@
         
         // Add resize observer
         const resizeObserver = new ResizeObserver(() => {
-            if (container) {
+            if (container && document.body.contains(container)) {
                 updateVisualization();
             }
         });

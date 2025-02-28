@@ -31,9 +31,12 @@
     itemsStore.loadItems();
   });
 
-  // Log language changes
-  $: {
-    console.log('[App] Language changed to:', $language);
+  // Use a safer pattern for reactive statements
+  let currentLanguage = $language;
+  
+  $: if ($language !== currentLanguage) {
+    currentLanguage = $language;
+    console.log('[App] Language changed to:', currentLanguage);
     console.log('[App] Current translations:', {
       title: t('app.title'),
       loading: t('ui.loading'),

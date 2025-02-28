@@ -5,11 +5,20 @@
     // Log when the component mounts
     onMount(() => {
         console.log('[TranslationContext] Component mounted, initial language:', $language);
+        
+        // Return a cleanup function that will be called when the component is unmounted
+        return () => {
+            console.log('[TranslationContext] Component unmounted');
+        };
     });
 
-    // Log language changes
-    $: {
-        console.log('[TranslationContext] Language changed to:', $language);
+    // Use a safer pattern for reactive statements
+    // Track the language in a local variable that we can safely reference
+    let currentLanguage = $language;
+    
+    $: if ($language !== currentLanguage) {
+        currentLanguage = $language;
+        console.log('[TranslationContext] Language changed to:', currentLanguage);
     }
 
     // This component doesn't render anything visible
