@@ -40,6 +40,9 @@
     let showLabels = true;
     let resizeObserver: ResizeObserver | null = null;
     
+    // Store country colors to maintain consistency when zooming
+    let countryColors: Map<string, string> = new Map();
+    
     // Define translation keys
     const countryDescriptionKey = 'viz.country_distribution_description';
     
@@ -104,11 +107,29 @@
         
         // Reprocess data with translated country names when language changes
         if ($itemsStore.items && $itemsStore.items.length > 0) {
-            // Reset zoom state to avoid issues with translated names
+            // Store the current zoom state
+            const currentZoomedNode = zoomedNode;
+            const currentZoomedCountry = currentZoomedNode?.data.originalName;
+            
+            // Reset zoom state temporarily
             zoomedNode = null;
             
             // Reprocess data with new translations
             hierarchyData = processData($itemsStore.items as Item[]);
+            
+            // Restore zoom state if needed
+            if (currentZoomedNode && currentZoomedCountry) {
+                // Find the node with the same original country name
+                const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
+                const matchingNode = newRoot.children?.find(node => 
+                    node.data.originalName === currentZoomedCountry
+                );
+                
+                if (matchingNode) {
+                    zoomToNode(matchingNode);
+                    return; // updateVisualization is called in zoomToNode
+                }
+            }
             
             // Update visualization with new translations
             updateVisualization();
@@ -299,7 +320,8 @@
                 // When zoomed in, create a new hierarchy from the zoomed node's children
                 const zoomedData: HierarchyDatum = {
                     name: zoomedNode.data.name,
-                    children: zoomedNode.data.children
+                    children: zoomedNode.data.children,
+                    originalName: zoomedNode.data.originalName // Preserve original name
                 };
                 
                 localRoot = d3.hierarchy<HierarchyDatum>(zoomedData)
@@ -331,7 +353,7 @@
             
             // Color scale - use d3.schemeCategory10 for similar colors to WordDistribution
             const colorScale = d3.scaleOrdinal<string>()
-                .domain(localRoot.children ? localRoot.children.map(d => d.data.name) : [localRoot.data.name])
+                .domain(localRoot.children ? localRoot.children.map(d => d.data.originalName || d.data.name) : [localRoot.data.originalName || localRoot.data.name])
                 .range(d3.schemeCategory10);
             
             // Create cells for countries (first level)
@@ -358,7 +380,17 @@
                     const y1 = (d as any).y1 || 0;
                     return Math.max(0, y1 - y0);
                 })
-                .attr('fill', d => colorScale(d.data.name))
+                .attr('fill', d => {
+                    // Use the original country name for color consistency
+                    const originalName = d.data.originalName || d.data.name;
+                    if (countryColors.has(originalName)) {
+                        return countryColors.get(originalName) || colorScale(originalName);
+                    } else {
+                        const color = colorScale(originalName);
+                        countryColors.set(originalName, color);
+                        return color;
+                    }
+                })
                 .attr('stroke', 'white')
                 .attr('stroke-width', 2)
                 .style('opacity', 0.7)
@@ -427,9 +459,17 @@
                 })
                 .attr('fill', d => {
                     // Use a lighter shade of the country/parent color
-                    const nodeColor = zoomedNode 
-                        ? colorScale(zoomedNode.data.name) 
-                        : colorScale((d.parent as any)?.data?.name || 'Unknown');
+                    let originalName: string;
+                    
+                    if (zoomedNode) {
+                        // When zoomed in, use the original name of the zoomed node
+                        originalName = zoomedNode.data.originalName || zoomedNode.data.name;
+                    } else {
+                        // When not zoomed, use the original name of the parent country
+                        originalName = (d.parent as any)?.data?.originalName || (d.parent as any)?.data?.name || 'Unknown';
+                    }
+                    
+                    const nodeColor = countryColors.get(originalName) || colorScale(originalName);
                     const baseColor = d3.rgb(nodeColor);
                     return d3.rgb(baseColor).brighter(0.7).toString();
                 })
@@ -662,6 +702,22 @@
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
                     // Process data and update visualization
                     hierarchyData = processData($itemsStore.items as Item[]);
+                    
+                    // Initialize country colors map
+                    if (hierarchyData.children && hierarchyData.children.length > 0) {
+                        const colorScale = d3.scaleOrdinal<string>()
+                            .domain(hierarchyData.children.map(d => d.originalName || d.name))
+                            .range(d3.schemeCategory10);
+                            
+                        // Pre-populate the country colors map
+                        hierarchyData.children.forEach(country => {
+                            const originalName = country.originalName || country.name;
+                            if (!countryColors.has(originalName)) {
+                                countryColors.set(originalName, colorScale(originalName));
+                            }
+                        });
+                    }
+                    
                     updateVisualization();
                 } else {
                     // Load items if not already loaded
