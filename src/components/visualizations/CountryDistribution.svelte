@@ -244,8 +244,8 @@
             width = rect.width;
             height = rect.height;
             
-            // Set margins
-            const margin = { top: 40, right: 10, bottom: 10, left: 10 };
+            // Set margins - reduce top margin to decrease space
+            const margin = { top: 10, right: 10, bottom: 10, left: 10 };
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
             
@@ -264,20 +264,20 @@
             if (zoomedNode) {
                 const button = chart.append('g')
                     .attr('class', 'zoom-out-button')
-                    .attr('transform', `translate(0, -10)`)
+                    .attr('transform', `translate(0, 0)`)
                     .style('cursor', 'pointer')
                     .on('click', () => zoomToNode(null));
                     
                 button.append('rect')
                     .attr('width', 100)
-                    .attr('height', 24)
+                    .attr('height', 20)
                     .attr('rx', 4)
                     .attr('fill', 'var(--primary-color)')
                     .attr('opacity', 0.8);
                     
                 button.append('text')
                     .attr('x', 50)
-                    .attr('y', 16)
+                    .attr('y', 14)
                     .attr('text-anchor', 'middle')
                     .attr('fill', 'white')
                     .attr('font-size', 'var(--font-size-sm)')
@@ -756,16 +756,28 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-md);
+        gap: var(--spacing-sm);
+    }
+    
+    /* Override the visualization header margin to reduce space */
+    :global(.country-distribution-container .visualization-header) {
+        margin-bottom: var(--spacing-xs) !important;
+    }
+    
+    /* Override the title container padding to reduce space */
+    :global(.country-distribution-container .title-container) {
+        padding-bottom: 0 !important;
     }
     
     .chart-container {
         flex: 1;
-        min-height: 500px;
+        min-height: 450px;
         position: relative;
         background: var(--card-background);
         border-radius: var(--border-radius-md);
         box-shadow: var(--card-shadow);
+        margin-top: 0;
+        padding-top: 0;
     }
     
     .stats {
