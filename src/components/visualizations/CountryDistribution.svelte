@@ -18,6 +18,7 @@
         children?: HierarchyDatum[];
         value?: number;
         itemCount?: number;
+        originalName?: string; // Store original name for data lookups
     }
 
     // Initialize essential variables first
@@ -100,6 +101,18 @@
         
         // Force refresh the title when language changes
         updateTitleHtml();
+        
+        // Reprocess data with translated country names when language changes
+        if ($itemsStore.items && $itemsStore.items.length > 0) {
+            // Reset zoom state to avoid issues with translated names
+            zoomedNode = null;
+            
+            // Reprocess data with new translations
+            hierarchyData = processData($itemsStore.items as Item[]);
+            
+            // Update visualization with new translations
+            updateVisualization();
+        }
     });
 
     // Function to process data into hierarchical structure
@@ -114,20 +127,25 @@
         const root: HierarchyDatum = {
             name: "root",
             children: Array.from(countryGroups, ([country, items]) => {
+                // Translate country name
+                const translatedCountry = t(`country.${country}`) || country;
+                
                 // Group by item_set_title within each country
                 const itemSets = Array.from(
                     d3.group(items, (d: Item) => d.item_set_title || $noSetText),
                     ([itemSet, setItems]) => ({
                         name: itemSet,
                         value: setItems.length, // Count of items in this set
-                        itemCount: setItems.length
+                        itemCount: setItems.length,
+                        originalName: itemSet // Store original name for data lookups
                     })
                 );
                 
                 return {
-                    name: country,
+                    name: translatedCountry,
                     children: itemSets,
-                    itemCount: items.length
+                    itemCount: items.length,
+                    originalName: country // Store original country name for data lookups
                 };
             })
         };
@@ -157,6 +175,9 @@
                 console.warn('Cannot zoom to node without children');
                 return;
             }
+            
+            // Log the zoomed node for debugging
+            console.log('Zooming to node:', zoomedNode.data.name, 'Original name:', zoomedNode.data.originalName);
         }
         
         updateVisualization();
@@ -505,7 +526,7 @@
             
             if (isCountry) {
                 // Country tooltip
-                const countryName = d.data.name;
+                const countryName = d.data.name; // Already translated in processData
                 const countryItems = d.data.itemCount || d.value || 0;
                 const subCollections = d.children?.length || 0;
                 const percentOfTotal = totalItems > 0 ? ((countryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
