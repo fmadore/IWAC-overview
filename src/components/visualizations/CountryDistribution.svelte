@@ -37,6 +37,7 @@
     let zoomedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
     let searchQuery = '';
     let showLabels = true;
+    let resizeObserver: ResizeObserver | null = null;
     
     // Define translation keys
     const countryDescriptionKey = 'viz.country_distribution_description';
@@ -599,46 +600,46 @@
         updateVisualization();
     }
 
-    onMount(async () => {
+    onMount(() => {
         try {
             // Wait for component to render
-            await tick();
-            
-            if (!container) {
-                console.error('Container element not found in onMount');
-                return;
-            }
-            
-            // Create tooltip
-            createTooltip();
-            
-            // Initialize data
-            if ($itemsStore.items && $itemsStore.items.length > 0) {
-                // Process data and update visualization
-                hierarchyData = processData($itemsStore.items as Item[]);
-                updateVisualization();
-            } else {
-                // Load items if not already loaded
-                itemsStore.loadItems();
-            }
-            
-            // Add resize observer only after container is available
-            const resizeObserver = new ResizeObserver(() => {
-                if (container) {
+            tick().then(() => {
+                if (!container) {
+                    console.error('Container element not found in onMount');
+                    return;
+                }
+                
+                // Create tooltip
+                createTooltip();
+                
+                // Initialize data
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    // Process data and update visualization
+                    hierarchyData = processData($itemsStore.items as Item[]);
                     updateVisualization();
+                } else {
+                    // Load items if not already loaded
+                    itemsStore.loadItems();
+                }
+                
+                // Add resize observer only after container is available
+                resizeObserver = new ResizeObserver(() => {
+                    if (container) {
+                        updateVisualization();
+                    }
+                });
+                
+                if (container) {
+                    resizeObserver.observe(container);
+                } else {
+                    console.error('Container element not available for ResizeObserver');
                 }
             });
-            
-            if (container) {
-                resizeObserver.observe(container);
-            } else {
-                console.error('Container element not available for ResizeObserver');
-            }
             
             // Return cleanup function
             return () => {
                 try {
-                    // Safely disconnect observer
+                    // Safely disconnect observer if it exists
                     if (resizeObserver) {
                         resizeObserver.disconnect();
                     }
@@ -658,6 +659,7 @@
             };
         } catch (error) {
             console.error('Error in onMount:', error);
+            return () => {}; // Return empty cleanup function in case of error
         }
     });
 </script>
