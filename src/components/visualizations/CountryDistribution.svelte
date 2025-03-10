@@ -178,7 +178,32 @@
             
             // Log the zoomed node for debugging
             console.log('Zooming to node:', zoomedNode.data.name, 'Original name:', zoomedNode.data.originalName);
+            
+            // Update statistics for the zoomed node
+            totalItems = zoomedNode.data.itemCount || 0;
+            subCollectionCount = zoomedNode.children?.length || 0;
+        } else {
+            // Reset to global statistics when zooming out
+            if ($itemsStore.items && $itemsStore.items.length > 0) {
+                // Cast items to the correct type
+                const items = $itemsStore.items as unknown as Item[];
+                const validItems = items.filter(item => item.country && item.country.trim() !== '');
+                totalItems = validItems.length;
+                
+                // Recalculate country count and subcollection count
+                const countryGroups = d3.group(validItems, (d) => d.country);
+                countryCount = countryGroups.size;
+                
+                // Calculate subcollection count across all countries
+                subCollectionCount = Array.from(countryGroups).reduce((total, [country, countryItems]) => {
+                    const itemSets = d3.group(countryItems, (d) => d.item_set_title || '');
+                    return total + itemSets.size;
+                }, 0);
+            }
         }
+        
+        // Update the title to reflect the current view
+        updateTitleHtml();
         
         updateVisualization();
     }
@@ -709,9 +734,11 @@
         <div class="stats">
             <div class="stat-summary">
                 <h3>{$summaryText}</h3>
-                <p>{$totalItemsText}: <strong>{totalItems}</strong></p>
-                <p>{$countriesText}: <strong>{countryCount}</strong></p>
-                <p>{$subCollectionsText}: <strong>{subCollectionCount}</strong></p>
+                <p>{$totalItemsText}: <strong>{formatNumber(totalItems)}</strong></p>
+                {#if !zoomedNode}
+                    <p>{$countriesText}: <strong>{formatNumber(countryCount)}</strong></p>
+                {/if}
+                <p>{$subCollectionsText}: <strong>{formatNumber(subCollectionCount)}</strong></p>
                 {#if zoomedNode}
                     <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
                     <p>{$clickBackText}</p>
