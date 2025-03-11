@@ -113,13 +113,19 @@ A pie chart visualization that shows the distribution of items by language with 
 
 ### IndexDistribution.svelte
 
-A bar chart visualization that shows the distribution of index items (type "Notice d'autorité") by their categories:
+A bar chart visualization that shows the distribution of index items (type "Notice d'autorité") by their categories.
+
+Features:
 - Interactive bar chart with hover effects and animations
-- Category breakdown based on "item_set_title" field
-- Detailed tooltips showing count and percentage information
+- Filtering for items of type "Notice d'autorité"
+- Categories determined by the "item_set_title" field
+- Color-coded bars for easy distinction between categories
+- Tooltips showing detailed information on hover
+- Rotated x-axis labels for better readability of category names
 - Top 5 categories summary with percentage breakdown
-- Statistics panel showing total items and category count
+- Statistics panel showing total index items and number of categories
 - Responsive design that adapts to different screen sizes
+- Multilingual support with translations for common categories (Events, Locations, Organizations, Persons, Topics)
 
 ### TimelineDistribution.svelte
 
@@ -231,10 +237,10 @@ A context provider component that wraps the application and provides translation
 ```svelte
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { language } from '../stores/translationStore';
+    import { languageStore } from '../stores/translationStore';
 
     onMount(() => {
-        console.log('[TranslationContext] Component mounted, initial language:', $language);
+        console.log('[TranslationContext] Component mounted, initial language:', $languageStore);
     });
 </script>
 
@@ -246,11 +252,11 @@ A reusable component that provides language switching functionality:
 
 ```svelte
 <script lang="ts">
-    import { language, translate } from '../stores/translationStore';
+    import { languageStore, translate } from '../stores/translationStore';
     const toggleText = translate('ui.toggle_language');
 </script>
 
-<button class="language-toggle" on:click={() => language.toggleLanguage()}>
+<button class="language-toggle" on:click={() => languageStore.toggleLanguage()}>
     {$toggleText}
 </button>
 ```
@@ -270,23 +276,27 @@ function createTranslationStore() {
     return {
         subscribe,
         setLanguage: (language: Language) => set(language),
-        toggleLanguage: () => update(currentLang => 
-            currentLang === 'en' ? 'fr' : 'en'
-        )
+        toggleLanguage: () => update(currentLang => {
+            // Add new language to the rotation
+            const languages: Language[] = ['en', 'fr', 'your_new_language'];
+            const currentIndex = languages.indexOf(currentLang);
+            const nextIndex = (currentIndex + 1) % languages.length;
+            return languages[nextIndex];
+        })
     };
 }
 
-export const language = createTranslationStore();
+export const languageStore = createTranslationStore();
 
 // Translation helpers
 export function t(key: string, replacements: string[] = []): string {
-    const currentLang = get(language);
+    const currentLang = get(languageStore);
     const translation = translations[currentLang]?.[key] || key;
     return processTranslation(translation, replacements);
 }
 
 export function translate(key: string, replacements: string[] = []) {
-    return derived(language, ($language) => {
+    return derived(languageStore, ($language) => {
         const translation = translations[$language]?.[key] || key;
         return processTranslation(translation, replacements);
     });
@@ -311,7 +321,14 @@ export const translations: Translations = {
         
         // UI elements
         'ui.loading': 'Loading database...',
-        'ui.toggle_language': 'Changer en français'
+        'ui.toggle_language': 'Changer en français',
+        
+        // Category translations
+        'category.Events': 'Events',
+        'category.Locations': 'Locations',
+        'category.Organizations': 'Organizations',
+        'category.Persons': 'Persons',
+        'category.Topics': 'Topics',
     },
     fr: {
         // App navigation
@@ -325,7 +342,14 @@ export const translations: Translations = {
         
         // UI elements
         'ui.loading': 'Chargement de la base de données...',
-        'ui.toggle_language': 'Switch to English'
+        'ui.toggle_language': 'Switch to English',
+        
+        // Category translations
+        'category.Events': 'Événements',
+        'category.Locations': 'Lieux',
+        'category.Organizations': 'Organisations',
+        'category.Persons': 'Personnes',
+        'category.Topics': 'Sujets',
     }
 };
 ```
@@ -465,6 +489,7 @@ Features:
 - Top 5 categories summary with percentage breakdown
 - Statistics panel showing total index items and number of categories
 - Responsive design that adapts to different screen sizes
+- Multilingual support with translations for common categories (Events, Locations, Organizations, Persons, Topics)
 
 ### Timeline Distribution
 
