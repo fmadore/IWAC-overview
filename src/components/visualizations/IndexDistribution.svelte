@@ -4,12 +4,13 @@
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
     import type { OmekaItem } from '../../types/OmekaItem';
-    import { t, translate, languageStore } from '../../stores/translationStore';
+    import { t, translate, languageStore, translations } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
 
     // Define interfaces for data structures
     interface CategoryCount {
         category: string;
+        originalCategory: string;
         count: number;
         percentage: number;
     }
@@ -95,11 +96,21 @@
         );
         
         // Convert map to array and calculate percentages
-        const results: CategoryCount[] = Array.from(categoryGroups, ([category, count]) => ({
-            category, 
-            count,
-            percentage: (count / totalItems) * 100
-        }));
+        const results: CategoryCount[] = Array.from(categoryGroups, ([category, count]) => {
+            // Try to translate the category name if it's one of our known categories
+            // If no translation exists, it will return the key, which we'll replace with the original category
+            const translationKey = `category.${category}`;
+            const translated = t(translationKey);
+            // If the translation is the same as the key, it means no translation was found
+            const translatedCategory = (translated === translationKey) ? category : translated;
+            
+            return {
+                category: translatedCategory,
+                originalCategory: category, // Store original category name for data lookups
+                count,
+                percentage: (count / totalItems) * 100
+            };
+        });
         
         // Sort by count descending
         const sortedResults = results.sort((a, b) => b.count - a.count);
@@ -155,7 +166,7 @@
                     ${d.category}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                    <span>${t('viz.items')}:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
+                    <span>${t('viz.items')}:</span><span style="text-align:right;font-weight:bold;">${formatNumber(d.count)}</span>
                     <span>${t('viz.percent_of_total')}:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
                 </div>
             `;
