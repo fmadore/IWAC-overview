@@ -139,6 +139,13 @@ export const translations: Translations = {
         'viz.index_distribution_description': 'This visualization shows the distribution of index items by category. The size of each bar represents the number of items in that category. Index items are authority records that serve as reference points in the database.',
         'viz.categories': 'Categories',
         'viz.uncategorized': 'Uncategorized',
+        
+        // Category translations
+        'category.Events': 'Events',
+        'category.Locations': 'Locations',
+        'category.Organizations': 'Organizations',
+        'category.Persons': 'Persons',
+        'category.Topics': 'Topics',
     },
     fr: {
         // App navigation
@@ -266,6 +273,13 @@ export const translations: Translations = {
         'viz.index_distribution_description': 'Cette visualisation montre la répartition des éléments d\'index par catégorie. La taille de chaque barre représente le nombre d\'éléments dans cette catégorie. Les éléments d\'index sont des notices d\'autorité qui servent de points de référence dans la base de données.',
         'viz.categories': 'Catégories',
         'viz.uncategorized': 'Non catégorisé',
+        
+        // Category translations
+        'category.Events': 'Événements',
+        'category.Locations': 'Lieux',
+        'category.Organizations': 'Organisations',
+        'category.Persons': 'Personnes',
+        'category.Topics': 'Sujets',
     }
 };
 
@@ -289,7 +303,7 @@ function createTranslationStore() {
 }
 
 // Create and export the language store
-export const language = createTranslationStore();
+export const languageStore = createTranslationStore();
 
 // Process a translation string with replacements
 function processTranslation(text: string, replacements: string[] = []): string {
@@ -304,7 +318,7 @@ function processTranslation(text: string, replacements: string[] = []): string {
 
 // Helper function to translate a key (not reactive, use with caution)
 export function t(key: string, replacements: string[] = []): string {
-    const currentLang = get(language);
+    const currentLang = get(languageStore);
     console.log('[TranslationStore] t() translation lookup:', { key, currentLang, replacements });
     const translation = translations[currentLang]?.[key] || key;
     return processTranslation(translation, replacements);
@@ -313,7 +327,7 @@ export function t(key: string, replacements: string[] = []): string {
 // Create a derived store for reactive translations in components
 export function translate(key: string, replacements: string[] = []) {
     console.log('[TranslationStore] Creating reactive translation for key:', key);
-    return derived(language, ($language) => {
+    return derived(languageStore, ($language) => {
         console.log('[TranslationStore] Reactive translation update:', { key, language: $language });
         const translation = translations[$language]?.[key] || key;
         return processTranslation(translation, replacements);

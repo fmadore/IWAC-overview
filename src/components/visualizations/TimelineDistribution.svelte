@@ -3,7 +3,7 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
-    import { t, translate, language } from '../../stores/translationStore';
+    import { t, translate, languageStore } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import BaseVisualization from './BaseVisualization.svelte';
 
@@ -110,10 +110,10 @@
     }
 
     // Update title when language changes
-    $: $language, updateTitleHtml();
+    $: $languageStore, updateTitleHtml();
 
     // Subscribe to language changes to update the chart
-    language.subscribe(value => {
+    languageStore.subscribe(value => {
         console.log("[TimelineDistribution] Language changed to:", value);
         currentLang = value;
         
@@ -121,7 +121,7 @@
         generateFacetOptions();
         
         // Refresh the chart to update all translated elements
-        if (container) {
+        if (container && $itemsStore.items && $itemsStore.items.length > 0) {
             createTimeline();
         }
     });

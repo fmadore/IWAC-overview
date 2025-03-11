@@ -4,7 +4,7 @@
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
     import type { OmekaItem } from '../../types/OmekaItem';
-    import { t, translate, language as langStore } from '../../stores/translationStore';
+    import { t, translate, languageStore } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
 
     // Define interfaces for data structures
@@ -62,7 +62,7 @@
     }
     
     // Subscribe to language changes
-    langStore.subscribe(value => {
+    languageStore.subscribe(value => {
         currentLang = value;
         
         // Force refresh the title when language changes

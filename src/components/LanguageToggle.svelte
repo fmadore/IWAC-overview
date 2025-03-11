@@ -1,13 +1,13 @@
 <script lang="ts">
-    import { language, translate } from '../stores/translationStore';
+    import { languageStore, translate } from '../stores/translationStore';
 
     // Create a derived store for the toggle button text
     const toggleText = translate('ui.toggle_language');
 
     // Toggle language when the button is clicked
     function toggleLanguage() {
-        console.log('[LanguageToggle] Button clicked, current language:', $language);
-        language.toggleLanguage();
+        console.log('[LanguageToggle] Button clicked, current language:', $languageStore);
+        languageStore.toggleLanguage();
         console.log('[LanguageToggle] Toggle text is:', $toggleText);
     }
 </script>

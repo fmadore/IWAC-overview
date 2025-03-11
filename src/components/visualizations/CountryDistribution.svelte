@@ -3,7 +3,8 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
-    import { t, translate, language } from '../../stores/translationStore';
+    import type { OmekaItem } from '../../types/OmekaItem';
+    import { t, translate, languageStore } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
 
     // Move all the interface definitions to the top
@@ -98,7 +99,7 @@
     }
     
     // Subscribe to language changes - do this after initializing all variables
-    language.subscribe(value => {
+    languageStore.subscribe(value => {
         console.log("Language changed to:", value);
         currentLang = value;
         

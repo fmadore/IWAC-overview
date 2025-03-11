@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, afterUpdate, beforeUpdate } from 'svelte';
   import { itemsStore } from './stores/itemsStore';
-  import { t, language } from './stores/translationStore';
+  import { t, languageStore } from './stores/translationStore';
   import LanguageToggle from './components/LanguageToggle.svelte';
   import TranslationContext from './components/TranslationContext.svelte';
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
@@ -17,8 +17,8 @@
 
   const COMPONENT_ID = 'App';
   let isMounted = false;
-  let unsubscribe: () => void;
   let updateCount = 0;
+  let unsubscribe: () => void = () => {};
   let renderCount = 0;
 
   // Import visualization components here
@@ -72,48 +72,50 @@
   });
 
   onMount(() => {
-    isMounted = true;
-    trackMount(COMPONENT_ID);
-    logDebug(COMPONENT_ID, `Component mounted, initial language: ${$language}`, {
-      storeValue: $language,
-      activeTab
-    });
-    
-    // Set initial language
-    currentLanguage = $language;
-    
-    // Manually subscribe to the language store
     try {
-      unsubscribe = language.subscribe(value => {
-        handleLanguageChange(value);
+      isMounted = true;
+      trackMount(COMPONENT_ID);
+      logDebug(COMPONENT_ID, `Component mounted, initial language: ${$languageStore}`, {
+        storeValue: $languageStore,
+        activeTab
       });
-      logDebug(COMPONENT_ID, 'Subscribed to language store');
-    } catch (error) {
-      logDebug(COMPONENT_ID, 'Error subscribing to language store', error);
+      
+      // Set initial language
+      currentLanguage = $languageStore;
+      
+      // Manually subscribe to the language store
+      try {
+        const unsub = languageStore.subscribe(value => {
+          handleLanguageChange(value);
+        });
+        
+        // Assign the unsubscribe function
+        unsubscribe = unsub;
+        
+        logDebug(COMPONENT_ID, 'Successfully subscribed to language store');
+      } catch (error) {
+        logDebug(COMPONENT_ID, `Error subscribing to language store: ${error}`);
+      }
+      
+      // Load items if not already loaded
+      if (!$itemsStore.items || $itemsStore.items.length === 0) {
+        itemsStore.loadItems();
+      }
+    } catch (e) {
+      console.error('[App] Error in onMount:', e);
     }
-    
-    // Load items
-    itemsStore.loadItems();
   });
   
   onDestroy(() => {
-    logDebug(COMPONENT_ID, 'Component being destroyed', {
-      isMounted,
-      currentLanguage,
-      hasUnsubscribe: !!unsubscribe
-    });
-    
-    isMounted = false;
-    trackUnmount(COMPONENT_ID);
-    
-    if (unsubscribe) {
-      try {
+    try {
+      if (unsubscribe) {
         unsubscribe();
-        logDebug(COMPONENT_ID, 'Unsubscribed from language store');
-        unsubscribe = undefined;
-      } catch (error) {
-        logDebug(COMPONENT_ID, 'Error unsubscribing from language store', error);
       }
+      isMounted = false;
+      trackUnmount(COMPONENT_ID);
+      logDebug(COMPONENT_ID, 'Component unmounted');
+    } catch (e) {
+      console.error('[App] Error in onDestroy:', e);
     }
   });
   
@@ -122,7 +124,7 @@
     logDebug(COMPONENT_ID, `Component updated (${updateCount})`, {
       isMounted,
       currentLanguage,
-      storeValue: $language,
+      storeValue: $languageStore,
       activeTab
     });
   });

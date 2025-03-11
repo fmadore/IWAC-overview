@@ -3,7 +3,7 @@
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
-    import { t, translate, language } from '../../stores/translationStore';
+    import { t, translate, languageStore } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import BaseVisualization from './BaseVisualization.svelte';
 
@@ -82,7 +82,7 @@
     }
     
     // Subscribe to language changes
-    language.subscribe(value => {
+    languageStore.subscribe(value => {
         console.log("Language changed to:", value);
         currentLang = value;
         
@@ -407,7 +407,7 @@
     }
     
     // Make sure facet options update when language changes
-    $: if ($language) {
+    $: if ($languageStore) {
         if ($itemsStore.items && $itemsStore.items.length > 0) {
             generateFacetOptions();
         }
