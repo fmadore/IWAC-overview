@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, afterUpdate, beforeUpdate } from 'svelte';
   import { itemsStore } from './stores/itemsStore';
-  import { t, languageStore } from './stores/translationStore';
+  import { t, languageStore, translate } from './stores/translationStore';
   import LanguageToggle from './components/LanguageToggle.svelte';
   import TranslationContext from './components/TranslationContext.svelte';
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
@@ -21,6 +21,9 @@
   let updateCount = 0;
   let unsubscribe: () => void = () => {};
   let renderCount = 0;
+
+  // Create a reactive title
+  const appTitle = translate('app.title');
 
   // Import visualization components here
   // They will be created in the next steps
@@ -171,7 +174,7 @@
   <main>
     <header>
       <div class="header-top">
-        <h1>{@html t('app.title')}</h1>
+        <h1>{@html $appTitle}</h1>
         <LanguageToggle />
       </div>
       <nav>
