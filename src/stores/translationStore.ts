@@ -132,6 +132,13 @@ export const translations: Translations = {
         'type.Thèse de doctorat': 'Doctoral Thesis',
         'type.Communication scientifique': 'Scientific Communication',
         'type.all': 'All Types',
+
+        // Index distribution specific
+        'viz.index_distribution_title': 'Index Distribution',
+        'viz.index_distribution_items': 'Distribution of {0} index items by category',
+        'viz.index_distribution_description': 'This visualization shows the distribution of index items by category. The size of each bar represents the number of items in that category. Index items are authority records that serve as reference points in the database.',
+        'viz.categories': 'Categories',
+        'viz.uncategorized': 'Uncategorized',
     },
     fr: {
         // App navigation
@@ -252,6 +259,13 @@ export const translations: Translations = {
         'type.Thèse de doctorat': 'Thèse de doctorat',
         'type.Communication scientifique': 'Communication scientifique',
         'type.all': 'Tous les types',
+
+        // Index distribution specific
+        'viz.index_distribution_title': 'Répartition des index',
+        'viz.index_distribution_items': 'Répartition de {0} éléments d\'index par catégorie',
+        'viz.index_distribution_description': 'Cette visualisation montre la répartition des éléments d\'index par catégorie. La taille de chaque barre représente le nombre d\'éléments dans cette catégorie. Les éléments d\'index sont des notices d\'autorité qui servent de points de référence dans la base de données.',
+        'viz.categories': 'Catégories',
+        'viz.uncategorized': 'Non catégorisé',
     }
 };
 
@@ -274,6 +288,7 @@ function createTranslationStore() {
     };
 }
 
+// Create and export the language store
 export const language = createTranslationStore();
 
 // Process a translation string with replacements

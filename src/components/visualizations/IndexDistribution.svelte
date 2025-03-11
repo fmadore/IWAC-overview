@@ -4,6 +4,8 @@
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
     import type { OmekaItem } from '../../types/OmekaItem';
+    import { t, translate, language as langStore } from '../../stores/translationStore';
+    import BaseVisualization from './BaseVisualization.svelte';
 
     // Define interfaces for data structures
     interface CategoryCount {
@@ -22,9 +24,55 @@
     let height = 0;
     let container: HTMLDivElement;
     let tooltip: HTMLDivElement;
+    let currentLang: 'en' | 'fr' = 'en';
+    let titleHtml = '';
+
+    // Define translation keys
+    const indexDescriptionKey = 'viz.index_distribution_description';
 
     // Color scale for bars
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // Function to format numbers with spaces as thousands separator
+    function formatNumber(num: number): string {
+        // Use locale-specific formatting - in French/many European countries spaces are used
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+    
+    // Function to get the title with current count and proper formatting
+    function getTitle(count: number): string {
+        // Format the number with spaces as thousands separator
+        const formattedCount = formatNumber(count);
+        // Use the current language's translation with the formatted count
+        return t('viz.index_distribution_items', [formattedCount]);
+    }
+    
+    // Update title HTML when needed
+    function updateTitleHtml() {
+        if (totalItems > 0) {
+            titleHtml = getTitle(totalItems);
+        } else {
+            titleHtml = t('viz.index_distribution_title');
+        }
+    }
+
+    // Call this function initially and whenever totalItems or language changes
+    $: {
+        updateTitleHtml();
+    }
+    
+    // Subscribe to language changes
+    langStore.subscribe(value => {
+        currentLang = value;
+        
+        // Force refresh the title when language changes
+        updateTitleHtml();
+        
+        // Refresh visualization if data is available
+        if ($itemsStore.items && $itemsStore.items.length > 0 && container) {
+            createBarChart();
+        }
+    });
 
     // Process data to get index items by category
     function processData() {
@@ -43,7 +91,7 @@
         const categoryGroups = d3.rollup(
             indexItems,
             v => v.length,
-            d => d.item_set_title || "Uncategorized"
+            d => d.item_set_title || t('viz.uncategorized')
         );
         
         // Convert map to array and calculate percentages
@@ -58,6 +106,9 @@
         
         // Find max count for scaling
         maxCount = d3.max(sortedResults, d => d.count) || 0;
+        
+        // Update title HTML
+        updateTitleHtml();
         
         return sortedResults;
     }
@@ -104,8 +155,8 @@
                     ${d.category}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                    <span>Count:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
-                    <span>Percentage:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
+                    <span>${t('viz.items')}:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
+                    <span>${t('viz.percent_of_total')}:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
                 </div>
             `;
             
@@ -159,7 +210,7 @@
                     .style('transform', 'translate(-50%, -50%)')
                     .style('text-align', 'center')
                     .style('color', 'var(--text-color-secondary)')
-                    .text('No index items available');
+                    .text(t('viz.no_data'));
                 return;
             }
             
@@ -176,7 +227,7 @@
             height = rect.height - 40; // Leave space for title
             
             // Set margins
-            const margin = { top: 60, right: 30, bottom: 120, left: 60 };
+            const margin = { top: 20, right: 30, bottom: 120, left: 60 };
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
             
@@ -232,7 +283,7 @@
                 .attr('y', chartHeight + margin.bottom - 10)
                 .style('font-size', 'var(--font-size-sm)')
                 .style('fill', 'var(--text-color-secondary)')
-                .text('Categories');
+                .text(t('viz.categories'));
             
             chart.append('text')
                 .attr('class', 'y-axis-label')
@@ -242,7 +293,7 @@
                 .attr('y', -margin.left + 15)
                 .style('font-size', 'var(--font-size-sm)')
                 .style('fill', 'var(--text-color-secondary)')
-                .text('Number of Items');
+                .text(t('viz.number_of_items'));
             
             // Create and append bars
             chart.selectAll('.bar')
@@ -291,16 +342,6 @@
                 .style('font-size', 'var(--font-size-xs)')
                 .style('fill', 'var(--text-color-secondary)')
                 .text(d => d.count);
-            
-            // Add title
-            svg.append('text')
-                .attr('text-anchor', 'middle')
-                .attr('x', width / 2)
-                .attr('y', 30)
-                .attr('font-size', 'var(--font-size-lg)')
-                .attr('font-weight', 'bold')
-                .attr('fill', 'var(--text-color-primary)')
-                .text(`Index Distribution by Category (${totalItems} items)`);
         } catch (e) {
             console.error('Error creating bar chart:', e);
         }
@@ -378,34 +419,42 @@
 </script>
 
 <div class="index-visualization-container">
-    <div class="chart-container" bind:this={container}>
-        {#if $itemsStore.loading}
-            <div class="loading">Loading...</div>
-        {:else if $itemsStore.error}
-            <div class="error">{$itemsStore.error}</div>
-        {/if}
-    </div>
-    
-    <div class="stats">
-        {#if categoryCounts.length > 0}
-            <div class="stat-summary">
-                <h3>Summary</h3>
-                <p>Total index items: <strong>{totalItems}</strong></p>
-                <p>Number of categories: <strong>{categoryCounts.length}</strong></p>
-            </div>
-            <div class="top-categories">
-                <h3>Top Categories</h3>
-                <ul>
-                    {#each categoryCounts.slice(0, 5) as category}
-                        <li>
-                            <span class="category-name">{category.category}</span>
-                            <span class="category-count">{category.count} items ({category.percentage.toFixed(1)}%)</span>
-                        </li>
-                    {/each}
-                </ul>
-            </div>
-        {/if}
-    </div>
+    <BaseVisualization
+        title=""
+        translationKey=""
+        description="This visualization shows the distribution of index items by category. The size of each bar represents the number of items in that category."
+        descriptionTranslationKey={indexDescriptionKey}
+        titleHtml={titleHtml}
+    >
+        <div class="chart-container" bind:this={container}>
+            {#if $itemsStore.loading}
+                <div class="loading">{t('ui.loading')}</div>
+            {:else if $itemsStore.error}
+                <div class="error">{$itemsStore.error}</div>
+            {/if}
+        </div>
+        
+        <div class="stats">
+            {#if categoryCounts.length > 0}
+                <div class="stat-summary">
+                    <h3>{t('viz.summary')}</h3>
+                    <p>{t('viz.total_items')}: <strong>{formatNumber(totalItems)}</strong></p>
+                    <p>{t('viz.number_of_categories')}: <strong>{formatNumber(categoryCounts.length)}</strong></p>
+                </div>
+                <div class="top-categories">
+                    <h3>{t('viz.top_categories')}</h3>
+                    <ul>
+                        {#each categoryCounts.slice(0, 5) as category}
+                            <li>
+                                <span class="category-name">{category.category}</span>
+                                <span class="category-count">{formatNumber(category.count)} {t('viz.items')} ({category.percentage.toFixed(1)}%)</span>
+                            </li>
+                        {/each}
+                    </ul>
+                </div>
+            {/if}
+        </div>
+    </BaseVisualization>
 </div>
 
 <style>
@@ -414,6 +463,16 @@
         height: 100%;
         display: flex;
         flex-direction: column;
+    }
+    
+    /* Override the visualization header margin to reduce space */
+    :global(.index-visualization-container .visualization-header) {
+        margin-bottom: var(--spacing-xs) !important;
+    }
+    
+    /* Override the title container padding to reduce space */
+    :global(.index-visualization-container .title-container) {
+        padding-bottom: 0 !important;
     }
     
     .chart-container {
