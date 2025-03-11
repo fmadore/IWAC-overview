@@ -311,60 +311,69 @@
         createBarChart();
     }
 
-    onMount(async () => {
-        try {
-            // Wait for component to mount
-            await tick();
-            
-            if (!container) {
-                console.error('Container element not found');
-                return;
-            }
-            
-            // Create tooltip
-            createTooltip();
-            
-            // Create visualization
-            if ($itemsStore.items && $itemsStore.items.length > 0) {
-                createBarChart();
-            } else {
-                // Load items if not already loaded
-                itemsStore.loadItems();
-            }
-            
-            // Add resize observer
-            const resizeObserver = new ResizeObserver(() => {
-                if (container) {
+    onMount(() => {
+        let resizeObserver: ResizeObserver | undefined;
+        
+        // Initialize component
+        const initialize = async () => {
+            try {
+                // Wait for component to mount
+                await tick();
+                
+                if (!container) {
+                    console.error('Container element not found');
+                    return;
+                }
+                
+                // Create tooltip
+                createTooltip();
+                
+                // Create visualization
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
                     createBarChart();
+                } else {
+                    // Load items if not already loaded
+                    itemsStore.loadItems();
                 }
-            });
-            
-            resizeObserver.observe(container);
-            
-            return () => {
-                try {
-                    // Safely disconnect observer
-                    if (resizeObserver) {
-                        resizeObserver.disconnect();
-                    }
-                    
-                    // Clean up any D3 selections to prevent memory leaks
+                
+                // Add resize observer
+                resizeObserver = new ResizeObserver(() => {
                     if (container) {
-                        // Remove any SVG, divs or other elements D3 might have created
-                        d3.select(container).selectAll('*').remove();
+                        createBarChart();
                     }
-                    
-                    // Clean up tooltip
-                    if (tooltip && document.body.contains(tooltip)) {
-                        document.body.removeChild(tooltip);
-                    }
-                } catch (e) {
-                    console.error('Error during cleanup:', e);
+                });
+                
+                resizeObserver.observe(container);
+            } catch (e) {
+                console.error('Error in initialization:', e);
+            }
+        };
+        
+        // Start initialization
+        initialize();
+        
+        // Return cleanup function
+        return () => {
+            try {
+                // Safely disconnect observer
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
                 }
-            };
-        } catch (e) {
-            console.error('Error in onMount:', e);
-        }
+                
+                // Clean up any D3 selections to prevent memory leaks
+                if (container) {
+                    // Remove any SVG, divs or other elements D3 might have created
+                    d3.select(container).selectAll('*').remove();
+                }
+                
+                // Clean up tooltip
+                if (tooltip && document.body.contains(tooltip)) {
+                    document.body.removeChild(tooltip);
+                }
+            } catch (e) {
+                console.error('Error during cleanup:', e);
+            }
+        };
     });
 </script>
 
