@@ -11,6 +11,7 @@
   import TypeDistribution from './components/visualizations/TypeDistribution.svelte';
   import WordDistribution from './components/visualizations/WordDistribution.svelte';
   import { logDebug, trackMount, trackUnmount, DEBUG } from './utils/debug';
+  import { parseUrlParams, updateUrl } from './utils/urlUtils';
   
   // Only import DebugPanel when DEBUG is true
   import DebugPanel from './components/DebugPanel.svelte';
@@ -40,6 +41,35 @@
   let currentLanguage = '';
   let previousLanguage = '';
   
+  // Function to handle URL parameters
+  function handleUrlParams() {
+    if (typeof window === 'undefined') return;
+    
+    const { lang, tab } = parseUrlParams();
+    
+    logDebug(COMPONENT_ID, `URL parameters: lang=${lang}, tab=${tab}`);
+    
+    // Set language if valid
+    if (lang) {
+      languageStore.setLanguage(lang);
+      logDebug(COMPONENT_ID, `Setting language from URL: ${lang}`);
+    }
+    
+    // Set tab if valid
+    if (tab && tabs.some(t => t.id === tab)) {
+      activeTab = tab;
+      logDebug(COMPONENT_ID, `Setting tab from URL: ${tab}`);
+    }
+  }
+  
+  // Function to handle tab changes
+  function handleTabChange(tabId: string) {
+    activeTab = tabId;
+    if (currentLanguage) {
+      updateUrl(currentLanguage as any, tabId);
+    }
+  }
+  
   function handleLanguageChange(newLang: string) {
     if (!isMounted) {
       logDebug(COMPONENT_ID, `Language change ignored (not mounted): ${newLang}`);
@@ -48,6 +78,9 @@
     
     previousLanguage = currentLanguage;
     currentLanguage = newLang;
+    
+    // Update URL when language changes
+    updateUrl(newLang as any, activeTab);
     
     logDebug(COMPONENT_ID, `Language changed from ${previousLanguage} to ${newLang}`, {
       isMounted,
@@ -75,6 +108,10 @@
     try {
       isMounted = true;
       trackMount(COMPONENT_ID);
+      
+      // Parse URL parameters first
+      handleUrlParams();
+      
       logDebug(COMPONENT_ID, `Component mounted, initial language: ${$languageStore}`, {
         storeValue: $languageStore,
         activeTab
@@ -142,8 +179,8 @@
           {#each tabs as tab}
             <li 
               class:active={activeTab === tab.id}
-              on:click={() => activeTab = tab.id}
-              on:keydown={(e) => e.key === 'Enter' && (activeTab = tab.id)}
+              on:click={() => handleTabChange(tab.id)}
+              on:keydown={(e) => e.key === 'Enter' && handleTabChange(tab.id)}
               role="tab"
               tabindex="0"
               aria-selected={activeTab === tab.id}

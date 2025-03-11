@@ -10,6 +10,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Data Management](#data-management)
 - [Theme System](#theme-system)
 - [Translation System](#translation-system)
+- [URL Parameters](#url-parameters)
 - [Visualizations](#visualizations)
   - [Country Distribution](#country-distribution)
   - [Language Distribution](#language-distribution)
@@ -41,6 +42,7 @@ Key features:
 - Clean, modern UI
 - Type-safe development with TypeScript
 - Centralized theming system with CSS variables
+- URL parameter support for direct access to specific views
 
 ## Project Structure
 
@@ -447,6 +449,25 @@ function createTranslationStore() {
     };
 }
 ```
+
+## URL Parameters
+
+The application supports URL parameters for direct access to specific language versions and visualization tabs. This allows you to create links that open the application in a specific language and with a specific visualization tab active.
+
+### Available Parameters
+
+- `lang`: Language code (`en` for English, `fr` for French)
+- `tab`: Visualization tab ID (`countries`, `languages`, `timeline`, `types`, `categories`, `words`)
+
+### Example URLs
+
+- English with Country Distribution: `https://fmadore.github.io/IWAC-overview/index.html?lang=en&tab=countries`
+- French with Type Distribution: `https://fmadore.github.io/IWAC-overview/index.html?lang=fr&tab=types`
+- English with Timeline: `https://fmadore.github.io/IWAC-overview/index.html?lang=en&tab=timeline`
+
+### Examples Page
+
+An examples page is available at `https://fmadore.github.io/IWAC-overview/examples.html` that provides links to all available language and tab combinations.
 
 ## Visualizations
 
