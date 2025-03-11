@@ -15,7 +15,7 @@ export interface Translations {
 export const translations: Translations = {
     en: {
         // App navigation
-        'app.title': 'IWAC Database Overview',
+        'app.title': '<i>Islam West Africa Collection</i> Overview',
         'tab.countries': 'Country Distribution',
         'tab.languages': 'Languages',
         'tab.timeline': 'Timeline',
@@ -149,7 +149,7 @@ export const translations: Translations = {
     },
     fr: {
         // App navigation
-        'app.title': 'Aperçu de la base de données IWAC',
+        'app.title': 'Aperçu de la <i>Collection Islam Afrique de l\'Ouest</i>',
         'tab.countries': 'Répartition par pays',
         'tab.languages': 'Langues',
         'tab.timeline': 'Chronologie',

@@ -171,7 +171,7 @@
   <main>
     <header>
       <div class="header-top">
-        <h1>{t('app.title')}</h1>
+        <h1>{@html t('app.title')}</h1>
         <LanguageToggle />
       </div>
       <nav>
