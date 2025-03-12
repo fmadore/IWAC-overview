@@ -201,9 +201,25 @@
                 }
             }
             
+            // Update summary statistics for the zoomed node
+            totalItems = zoomedNode.data.itemCount || 0;
+            totalWordCount = zoomedNode.data.wordCount || 0;
+            
             // Update title for zoomed node
             updateZoomedNodeTitle();
         } else {
+            // Reset to global statistics when zooming out
+            if ($itemsStore.items && $itemsStore.items.length > 0) {
+                // Recalculate total counts from all items with word count > 0
+                const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
+                    if (item.word_count === undefined || item.word_count === 0) return false;
+                    return true;
+                });
+                
+                totalItems = filteredItems.length;
+                totalWordCount = filteredItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
+            }
+            
             // Update title for main view
             updateTitleHtml();
         }
