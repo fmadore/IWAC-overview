@@ -62,9 +62,25 @@
     // Function to update the title HTML
     function updateTitleHtml() {
         if (totalItems > 0) {
-            titleHtml = t('viz.word_distribution_subtitle', [formatNumber(totalItems), formatNumber(totalWordCount)]);
+            // Show "Distribution of X words by country and sub-collection"
+            if (currentLang === 'en') {
+                titleHtml = `Distribution of ${formatNumber(totalWordCount)} ${$wordsText} by country and sub-collection`;
+            } else {
+                titleHtml = `Répartition de ${formatNumber(totalWordCount)} ${$wordsText} par pays et sous-collection`;
+            }
         } else {
-            titleHtml = t('viz.word_distribution_title');
+            titleHtml = t('viz.word_distribution');
+        }
+    }
+
+    // Update zoomed node title
+    function updateZoomedNodeTitle() {
+        if (!zoomedNode) return;
+        
+        if (currentLang === 'en') {
+            titleHtml = `${zoomedNode.data.name}: ${formatNumber(zoomedNode.data.wordCount || 0)} ${$wordsText}`;
+        } else {
+            titleHtml = `${zoomedNode.data.name}: ${formatNumber(zoomedNode.data.wordCount || 0)} ${$wordsText}`;
         }
     }
 
@@ -73,7 +89,11 @@
         currentLang = value;
         
         // Update title when language changes
-        updateTitleHtml();
+        if (zoomedNode) {
+            updateZoomedNodeTitle();
+        } else {
+            updateTitleHtml();
+        }
         
         // Update visualization if needed
         if (container && document.body.contains(container)) {
@@ -180,6 +200,12 @@
                     return;
                 }
             }
+            
+            // Update title for zoomed node
+            updateZoomedNodeTitle();
+        } else {
+            // Update title for main view
+            updateTitleHtml();
         }
         
         updateVisualization();
@@ -259,8 +285,8 @@
                     .attr('font-size', 'var(--font-size-sm)')
                     .text($backToAllText);
                     
-                // Update title HTML for zoomed node
-                titleHtml = `${zoomedNode.data.name}: ${formatNumber(zoomedNode.data.wordCount || 0)} ${$wordsText} (${zoomedNode.data.itemCount} ${$itemsText})`;
+                // Update title HTML for zoomed node - remove item count
+                updateZoomedNodeTitle();
             }
             
             // Create treemap layout
@@ -651,58 +677,59 @@
         }
     }
 
-    onMount(async () => {
+    onMount(() => {
         try {
             isMounted = true;
             trackMount(COMPONENT_ID);
             logDebug(COMPONENT_ID, 'Component mounted');
             
-            await tick();
-            
-            if (!container) {
-                console.error('Container element not found in onMount');
-                return undefined;
-            }
-            
-            // Create tooltip
-            createTooltip();
-            
-            // Subscribe to the items store
-            unsubscribeItems = itemsStore.subscribe(store => {
-                handleItemsChange(store.items);
-            });
-            
-            // Create visualization if data is available
-            if ($itemsStore.items && $itemsStore.items.length > 0) {
-                updateVisualization();
-            } else {
-                // Load items if not already loaded
-                itemsStore.loadItems();
-            }
-            
-            // Add resize observer
-            const resizeObserver = new ResizeObserver(() => {
-                if (!isMounted) return;
+            // Use tick() in a separate function to avoid Promise return type issues
+            const initialize = async () => {
+                await tick();
                 
-                if (container && document.body.contains(container)) {
-                    updateVisualization();
+                if (!container) {
+                    console.error('Container element not found in onMount');
+                    return;
                 }
-            });
+                
+                // Create tooltip
+                createTooltip();
+                
+                // Subscribe to the items store
+                unsubscribeItems = itemsStore.subscribe(store => {
+                    handleItemsChange(store.items);
+                });
+                
+                // Create visualization if data is available
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    updateVisualization();
+                } else {
+                    // Load items if not already loaded
+                    itemsStore.loadItems();
+                }
+                
+                // Add resize observer
+                const resizeObserver = new ResizeObserver(() => {
+                    if (!isMounted) return;
+                    
+                    if (container && document.body.contains(container)) {
+                        updateVisualization();
+                    }
+                });
+                
+                resizeObserver.observe(container);
+            };
             
-            resizeObserver.observe(container);
+            // Start initialization
+            initialize();
             
+            // Return cleanup function
             return () => {
                 try {
                     // This cleanup function is called when the component is unmounted
                     isMounted = false;
                     trackUnmount(COMPONENT_ID);
                     logDebug(COMPONENT_ID, 'Component cleanup started');
-                    
-                    // Safely disconnect observer
-                    if (resizeObserver) {
-                        resizeObserver.disconnect();
-                        logDebug(COMPONENT_ID, 'Resize observer disconnected');
-                    }
                     
                     // Clean up D3 selections to prevent memory leaks
                     if (container) {
@@ -729,7 +756,7 @@
             };
         } catch (e) {
             console.error('Error in onMount:', e);
-            return undefined;
+            return () => {}; // Return empty cleanup function in case of error
         }
     });
     
