@@ -110,7 +110,7 @@
 
     // Process data based on current filters
     function processData() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) return [];
+        if (!isMounted || !$itemsStore.items || $itemsStore.items.length === 0) return [];
         
         // Get selected countries
         const selectedCountries = countryOptions
@@ -184,7 +184,7 @@
 
     // Generate country facet options
     function generateCountryFacets() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) return;
+        if (!isMounted || !$itemsStore.items || $itemsStore.items.length === 0) return;
         
         // Filter out "Notice d'autorité" items first
         const filteredItems = $itemsStore.items.filter(item => item.type !== "Notice d'autorité");
@@ -243,7 +243,7 @@
 
     // Generate year range for slider
     function generateYearRange() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) return;
+        if (!isMounted || !$itemsStore.items || $itemsStore.items.length === 0) return;
         
         // Extract years from items, excluding "Notice d'autorité" items
         const years = $itemsStore.items
@@ -271,6 +271,8 @@
 
     // Toggle country selection
     function toggleCountry(option: FacetOption) {
+        if (!isMounted) return;
+        
         // If "all" is selected, deselect all others
         if (option.value === 'all') {
             countryOptions.forEach(opt => {
@@ -426,335 +428,356 @@
             return;
         }
         
-        // Process data based on current filters
-        typeYearData = processData();
-        
-        if (typeYearData.length === 0) {
+        try {
+            // Process data based on current filters
+            typeYearData = processData();
+            
+            if (typeYearData.length === 0) {
+                d3.select(container).select('svg').remove();
+                d3.select(container).select('.no-data').remove();
+                d3.select(container).append('div')
+                    .attr('class', 'no-data')
+                    .style('position', 'absolute')
+                    .style('top', '50%')
+                    .style('left', '50%')
+                    .style('transform', 'translate(-50%, -50%)')
+                    .style('text-align', 'center')
+                    .style('color', 'var(--text-color-secondary)')
+                    .text($noDataText);
+                return;
+            }
+            
+            // Check again if component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Remove previous visualization and no-data message
             d3.select(container).select('svg').remove();
             d3.select(container).select('.no-data').remove();
-            d3.select(container).append('div')
-                .attr('class', 'no-data')
-                .style('position', 'absolute')
-                .style('top', '50%')
-                .style('left', '50%')
-                .style('transform', 'translate(-50%, -50%)')
-                .style('text-align', 'center')
-                .style('color', 'var(--text-color-secondary)')
-                .text($noDataText);
-            return;
-        }
-        
-        // Remove previous visualization and no-data message
-        d3.select(container).select('svg').remove();
-        d3.select(container).select('.no-data').remove();
-        
-        // Set up dimensions
-        const rect = container.getBoundingClientRect();
-        width = rect.width;
-        height = rect.height;
-        
-        // Set margins - make bottom margin just enough for the legend
-        let margin = { top: 20, right: 30, bottom: 100, left: 60 };
-        const chartWidth = width - margin.left - margin.right;
-        
-        // Get all unique types
-        const types = Array.from(new Set(typeYearData.map(d => d.type)));
-        
-        // Sort types alphabetically for consistent display
-        types.sort((a, b) => {
-            // Try to get translations for comparison
-            const aTranslated = t(`type.${a}`) !== `type.${a}` ? t(`type.${a}`) : a;
-            const bTranslated = t(`type.${b}`) !== `type.${b}` ? t(`type.${b}`) : b;
-            return aTranslated.localeCompare(bTranslated);
-        });
-        
-        // Initialize type visibility if not already set
-        if (typeVisibility.length === 0) {
-            typeVisibility = types.map(type => ({ type, visible: true }));
-        } else {
-            // Add any new types that weren't in the visibility list
-            const existingTypes = typeVisibility.map(t => t.type);
-            types.forEach(type => {
-                if (!existingTypes.includes(type)) {
-                    typeVisibility.push({ type, visible: true });
-                }
-            });
-        }
-        
-        // Calculate the number of legend rows needed - make it more compact
-        const legendItemWidth = 150; // Smaller width
-        const maxItemsPerRow = 6; // More items per row
-        const legendItemsPerRow = Math.min(Math.floor(chartWidth / legendItemWidth) || 1, maxItemsPerRow);
-        const legendRowHeight = 20; // Smaller row height
-        const numRows = Math.ceil(types.length / legendItemsPerRow);
-        
-        // Adjust bottom margin based on the number of rows
-        margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 50);
-        
-        // Recalculate chart height with the adjusted margin
-        const chartHeight = height - margin.top - margin.bottom;
-        
-        // Group the data by year, only including visible types
-        const yearData = Array.from(d3.group(
-            typeYearData.filter(d => typeVisibility.find(t => t.type === d.type)?.visible ?? true),
-            d => d.year
-        ), ([year, items]) => {
-            const result: any = { year };
             
-            // Add count for each type
-            items.forEach(item => {
-                result[item.type] = item.count;
+            // Set up dimensions
+            const rect = container.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+            
+            // Verify component is still mounted after accessing DOM properties
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Set margins - make bottom margin just enough for the legend
+            let margin = { top: 20, right: 30, bottom: 100, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            
+            // Get all unique types
+            const types = Array.from(new Set(typeYearData.map(d => d.type)));
+            
+            // Sort types alphabetically for consistent display
+            types.sort((a, b) => {
+                // Try to get translations for comparison
+                const aTranslated = t(`type.${a}`) !== `type.${a}` ? t(`type.${a}`) : a;
+                const bTranslated = t(`type.${b}`) !== `type.${b}` ? t(`type.${b}`) : b;
+                return aTranslated.localeCompare(bTranslated);
             });
             
-            return result;
-        }).sort((a, b) => a.year - b.year);
-        
-        // Get only visible types for the chart
-        const visibleTypes = types.filter(type => 
-            typeVisibility.find(t => t.type === type)?.visible ?? true
-        );
-        
-        // Create SVG
-        const svg = d3.select(container)
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height);
-        
-        // Create chart group
-        const chart = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top})`);
-        
-        // Create scales
-        const x = d3.scaleBand()
-            .domain(yearData.map(d => d.year.toString()))
-            .range([0, chartWidth])
-            .padding(0.1);
-        
-        // Get maximum stacked value for y scale
-        const stackedData = d3.stack<any>()
-            .keys(visibleTypes)
-            .value((d, key) => d[key] || 0)
-            (yearData);
-        
-        const y = d3.scaleLinear()
-            .domain([0, d3.max(stackedData.length > 0 ? stackedData[stackedData.length - 1] : [], d => d[1]) || 0])
-            .range([chartHeight, 0]);
-        
-        // Create color scale for types - use a fixed domain order to ensure consistent colors
-        // This ensures the same type always gets the same color regardless of which types are visible
-        const allPossibleTypes = [
-            "Press Article", "Journal Article", "Book Chapter", "Doctoral Thesis", 
-            "type.Article d'encyclopédie", "type.Mémoire de maitrise", "Book", 
-            "type.Compte rendu de livre", "type.Rapport", "type.Working paper", 
-            "type.Mémoire de licence", "Islamic Periodical", "Document", "type.Photographie", 
-            "Blog Post", "Scientific Communication", "type.Enregistrement vidéo",
-            "Article de presse", "Article de revue", "Chapitre de livre", "Thèse de doctorat", 
-            "Article d'encyclopédie", "Mémoire de maitrise", "Livre", 
-            "Compte rendu de livre", "Rapport", "Working paper", 
-            "Mémoire de licence", "Périodique islamique", "Document", "Photographie", 
-            "Article de blog", "Communication scientifique", "Enregistrement vidéo"
-        ];
-        
-        const color = d3.scaleOrdinal<string>()
-            .domain(allPossibleTypes)
-            .range(d3.schemeCategory10);
-        
-        // Add x axis with filtered ticks (every 5 years)
-        chart.append('g')
-            .attr('transform', `translate(0, ${chartHeight})`)
-            .call(d3.axisBottom(x)
-                .tickValues(yearData
-                    .filter(d => d.year % 5 === 0) // Show only years divisible by 5
-                    .map(d => d.year.toString()))
-                .tickSizeOuter(0))
-            .selectAll('text')
-            .style('text-anchor', 'end')
-            .attr('dx', '-.8em')
-            .attr('dy', '.15em')
-            .attr('transform', 'rotate(-45)') // Rotate labels for better readability
-            .style('font-size', 'var(--font-size-xs)')
-            .style('fill', 'var(--text-color-primary)');
-        
-        // Add y axis
-        chart.append('g')
-            .call(d3.axisLeft(y).ticks(5))
-            .selectAll('text')
-            .style('font-size', 'var(--font-size-xs)')
-            .style('fill', 'var(--text-color-primary)');
-        
-        // Add axis labels
-        chart.append('text')
-            .attr('text-anchor', 'middle')
-            .attr('x', chartWidth / 2)
-            .attr('y', chartHeight + 40)
-            .attr('fill', 'var(--text-color-secondary)')
-            .style('font-size', 'var(--font-size-sm)')
-            .text($yearText);
-        
-        chart.append('text')
-            .attr('text-anchor', 'middle')
-            .attr('transform', 'rotate(-90)')
-            .attr('x', -chartHeight / 2)
-            .attr('y', -margin.left + 15)
-            .attr('fill', 'var(--text-color-secondary)')
-            .style('font-size', 'var(--font-size-sm)')
-            .text($numberOfItemsText);
-        
-        // Create stacked bars
-        chart.selectAll('.type-bars')
-            .data(stackedData)
-            .enter()
-            .append('g')
-            .attr('class', 'type-bars')
-            .attr('fill', d => color(d.key))
-            .selectAll('rect')
-            .data(d => d)
-            .enter()
-            .append('rect')
-            .attr('x', d => x(d.data.year.toString()) || 0)
-            .attr('y', d => y(d[1]))
-            .attr('height', d => y(d[0]) - y(d[1]))
-            .attr('width', x.bandwidth())
-            .attr('stroke', 'white')
-            .attr('stroke-width', 1)
-            .on('mouseenter', (event, d) => {
-                showTooltip(event, d, stackedData);
-            })
-            .on('mousemove', (event, d) => {
-                showTooltip(event, d, stackedData);
-            })
-            .on('mouseleave', () => {
-                hideTooltip();
-            });
-        
-        // Add interactive legend below the chart (under x-axis)
-        const legend = svg.append('g')
-            .attr('class', 'legend')
-            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 40})`);
-        
-        // Add legend title with improved styling - make it smaller
-        legend.append('text')
-            .attr('x', 0)
-            .attr('y', -5)
-            .attr('font-size', 'var(--font-size-xs)')
-            .attr('font-weight', 'normal')
-            .attr('fill', 'var(--text-color-secondary)')
-            .text($toggleTypesText);
-        
-        // Create a container for the legend items
-        const legendItems = legend.append('g')
-            .attr('class', 'legend-items')
-            .attr('transform', 'translate(0, 10)');
-        
-        types.forEach((type, i) => {
-            const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
             
-            // Calculate position in grid layout
-            const row = Math.floor(i / legendItemsPerRow);
-            const col = i % legendItemsPerRow;
-            
-            // Create a group for each legend item
-            const legendItem = legendItems.append('g')
-                .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`)
-                .attr('class', 'legend-item')
-                .attr('role', 'button')
-                .style('cursor', 'pointer');
-            
-            // Add background for better click target
-            legendItem.append('rect')
-                .attr('x', -5)
-                .attr('y', -5)
-                .attr('width', legendItemWidth - 10)
-                .attr('height', 15)
-                .attr('fill', 'transparent')
-                .attr('class', 'legend-hitbox');
-            
-            // Add color box - make it smaller
-            legendItem.append('rect')
-                .attr('width', 10)
-                .attr('height', 10)
-                .attr('fill', color(type))
-                .attr('stroke', isVisible ? 'none' : '#999')
-                .attr('stroke-width', isVisible ? 0 : 1)
-                .attr('opacity', isVisible ? 1 : 0.5);
-            
-            // Add text with translated type name - make it smaller
-            const typeKey = `type.${type}`;
-            let displayText = type;
-            
-            try {
-                // First try to get the translation
-                const translatedType = t(typeKey);
-                // If translation doesn't return the key itself, use it
-                if (translatedType !== typeKey) {
-                    displayText = translatedType;
-                }
-                // Log for debugging
-                console.log(`Type: ${type}, Translation key: ${typeKey}, Result: ${displayText}`);
-            } catch (e) {
-                console.error(`Error translating type ${type}:`, e);
+            // Initialize type visibility if not already set
+            if (typeVisibility.length === 0) {
+                typeVisibility = types.map(type => ({ type, visible: true }));
+            } else {
+                // Add any new types that weren't in the visibility list
+                const existingTypes = typeVisibility.map(t => t.type);
+                types.forEach(type => {
+                    if (!existingTypes.includes(type)) {
+                        typeVisibility.push({ type, visible: true });
+                    }
+                });
             }
             
-            const text = legendItem.append('text')
-                .attr('x', 15) // Reduce spacing
-                .attr('y', 8) // Adjust vertical position
-                .attr('font-size', 'var(--font-size-xs)') // Make font smaller
-                .attr('fill', 'var(--text-color-secondary)') // Make text less prominent
-                .style('opacity', isVisible ? 1 : 0.5)
-                .text(displayText);
+            // Calculate the number of legend rows needed - make it more compact
+            const legendItemWidth = 150; // Smaller width
+            const maxItemsPerRow = 6; // More items per row
+            const legendItemsPerRow = Math.min(Math.floor(chartWidth / legendItemWidth) || 1, maxItemsPerRow);
+            const legendRowHeight = 20; // Smaller row height
+            const numRows = Math.ceil(types.length / legendItemsPerRow);
             
-            // Add strikethrough for hidden types
-            if (!isVisible) {
-                const textNode = text.node();
-                if (textNode) {
-                    const textWidth = textNode.getComputedTextLength();
-                    legendItem.append('line')
-                        .attr('x1', 15)
-                        .attr('y1', 8)
-                        .attr('x2', 15 + textWidth)
-                        .attr('y2', 8)
-                        .attr('stroke', 'var(--text-color-secondary)')
-                        .attr('stroke-width', 1)
-                        .attr('opacity', 0.7);
-                }
-            }
+            // Adjust bottom margin based on the number of rows
+            margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 50);
             
-            // Add click handler to the entire group
-            legendItem.on('click', () => {
-                console.log(`Clicked on type: ${type}`);
-                d3.select(container).append('div')
-                    .attr('class', 'debug-message')
-                    .style('position', 'fixed')
-                    .style('bottom', '10px')
-                    .style('left', '10px')
-                    .style('background', 'rgba(0,0,0,0.7)')
-                    .style('color', 'white')
-                    .style('padding', '5px 10px')
-                    .style('border-radius', '4px')
-                    .style('z-index', 9999)
-                    .text(`Toggled type: ${type}`)
-                    .transition()
-                    .duration(2000)
-                    .style('opacity', 0)
-                    .remove();
+            // Recalculate chart height with the adjusted margin
+            const chartHeight = height - margin.top - margin.bottom;
+            
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Group the data by year, only including visible types
+            const yearData = Array.from(d3.group(
+                typeYearData.filter(d => typeVisibility.find(t => t.type === d.type)?.visible ?? true),
+                d => d.year
+            ), ([year, items]) => {
+                const result: any = { year };
                 
-                const typeIndex = typeVisibility.findIndex(t => t.type === type);
-                if (typeIndex >= 0) {
-                    typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
-                    typeVisibility = [...typeVisibility]; // Trigger reactivity
-                    
-                    // Update country facets to reflect the new type visibility
-                    generateCountryFacets();
-                    
-                    updateVisualization();
+                // Add count for each type
+                items.forEach(item => {
+                    result[item.type] = item.count;
+                });
+                
+                return result;
+            }).sort((a, b) => a.year - b.year);
+            
+            // Get only visible types for the chart
+            const visibleTypes = types.filter(type => 
+                typeVisibility.find(t => t.type === type)?.visible ?? true
+            );
+            
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Create SVG
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create chart group
+            const chart = svg.append('g')
+                .attr('transform', `translate(${margin.left}, ${margin.top})`);
+            
+            // Create scales
+            const x = d3.scaleBand()
+                .domain(yearData.map(d => d.year.toString()))
+                .range([0, chartWidth])
+                .padding(0.1);
+            
+            // Get maximum stacked value for y scale
+            const stackedData = d3.stack<any>()
+                .keys(visibleTypes)
+                .value((d, key) => d[key] || 0)
+                (yearData);
+            
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(stackedData.length > 0 ? stackedData[stackedData.length - 1] : [], d => d[1]) || 0])
+                .range([chartHeight, 0]);
+            
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Create color scale for types - use a fixed domain order to ensure consistent colors
+            // This ensures the same type always gets the same color regardless of which types are visible
+            const allPossibleTypes = [
+                "Press Article", "Journal Article", "Book Chapter", "Doctoral Thesis", 
+                "type.Article d'encyclopédie", "type.Mémoire de maitrise", "Book", 
+                "type.Compte rendu de livre", "type.Rapport", "type.Working paper", 
+                "type.Mémoire de licence", "Islamic Periodical", "Document", "type.Photographie", 
+                "Blog Post", "Scientific Communication", "type.Enregistrement vidéo",
+                "Article de presse", "Article de revue", "Chapitre de livre", "Thèse de doctorat", 
+                "Article d'encyclopédie", "Mémoire de maitrise", "Livre", 
+                "Compte rendu de livre", "Rapport", "Working paper", 
+                "Mémoire de licence", "Périodique islamique", "Document", "Photographie", 
+                "Article de blog", "Communication scientifique", "Enregistrement vidéo"
+            ];
+            
+            const color = d3.scaleOrdinal<string>()
+                .domain(allPossibleTypes)
+                .range(d3.schemeCategory10);
+            
+            // Add x axis with filtered ticks (every 5 years)
+            chart.append('g')
+                .attr('transform', `translate(0, ${chartHeight})`)
+                .call(d3.axisBottom(x)
+                    .tickValues(yearData
+                        .filter(d => d.year % 5 === 0) // Show only years divisible by 5
+                        .map(d => d.year.toString()))
+                    .tickSizeOuter(0))
+                .selectAll('text')
+                .style('text-anchor', 'end')
+                .attr('dx', '-.8em')
+                .attr('dy', '.15em')
+                .attr('transform', 'rotate(-45)') // Rotate labels for better readability
+                .style('font-size', 'var(--font-size-xs)')
+                .style('fill', 'var(--text-color-primary)');
+            
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Add y axis
+            chart.append('g')
+                .call(d3.axisLeft(y).ticks(5))
+                .selectAll('text')
+                .style('font-size', 'var(--font-size-xs)')
+                .style('fill', 'var(--text-color-primary)');
+            
+            // Add axis labels
+            chart.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('x', chartWidth / 2)
+                .attr('y', chartHeight + 40)
+                .attr('fill', 'var(--text-color-secondary)')
+                .style('font-size', 'var(--font-size-sm)')
+                .text($yearText);
+            
+            chart.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -chartHeight / 2)
+                .attr('y', -margin.left + 15)
+                .attr('fill', 'var(--text-color-secondary)')
+                .style('font-size', 'var(--font-size-sm)')
+                .text($numberOfItemsText);
+            
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Create stacked bars
+            chart.selectAll('.type-bars')
+                .data(stackedData)
+                .enter()
+                .append('g')
+                .attr('class', 'type-bars')
+                .attr('fill', d => color(d.key))
+                .selectAll('rect')
+                .data(d => d)
+                .enter()
+                .append('rect')
+                .attr('x', d => x(d.data.year.toString()) || 0)
+                .attr('y', d => y(d[1]))
+                .attr('height', d => y(d[0]) - y(d[1]))
+                .attr('width', x.bandwidth())
+                .attr('stroke', 'white')
+                .attr('stroke-width', 1)
+                .on('mouseenter', (event, d) => {
+                    if (isMounted) showTooltip(event, d, stackedData);
+                })
+                .on('mousemove', (event, d) => {
+                    if (isMounted) showTooltip(event, d, stackedData);
+                })
+                .on('mouseleave', () => {
+                    if (isMounted) hideTooltip();
+                });
+            
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            // Add interactive legend below the chart (under x-axis)
+            const legend = svg.append('g')
+                .attr('class', 'legend')
+                .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 40})`);
+            
+            // Add legend title with improved styling - make it smaller
+            legend.append('text')
+                .attr('x', 0)
+                .attr('y', -5)
+                .attr('font-size', 'var(--font-size-xs)')
+                .attr('font-weight', 'normal')
+                .attr('fill', 'var(--text-color-secondary)')
+                .text($toggleTypesText);
+            
+            // Create a container for the legend items
+            const legendItems = legend.append('g')
+                .attr('class', 'legend-items')
+                .attr('transform', 'translate(0, 10)');
+            
+            // Check component is still mounted
+            if (!isMounted || !document.body.contains(container)) return;
+            
+            types.forEach((type, i) => {
+                // Check component is still mounted in each iteration
+                if (!isMounted || !document.body.contains(container)) return;
+                
+                const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
+                
+                // Calculate position in grid layout
+                const row = Math.floor(i / legendItemsPerRow);
+                const col = i % legendItemsPerRow;
+                
+                // Create a group for each legend item
+                const legendItem = legendItems.append('g')
+                    .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`)
+                    .attr('class', 'legend-item')
+                    .attr('role', 'button')
+                    .style('cursor', 'pointer');
+                
+                // Add background for better click target
+                legendItem.append('rect')
+                    .attr('x', -5)
+                    .attr('y', -5)
+                    .attr('width', legendItemWidth - 10)
+                    .attr('height', 15)
+                    .attr('fill', 'transparent')
+                    .attr('class', 'legend-hitbox');
+                
+                // Add color box - make it smaller
+                legendItem.append('rect')
+                    .attr('width', 10)
+                    .attr('height', 10)
+                    .attr('fill', color(type))
+                    .attr('stroke', isVisible ? 'none' : '#999')
+                    .attr('stroke-width', isVisible ? 0 : 1)
+                    .attr('opacity', isVisible ? 1 : 0.5);
+                
+                // Add text with translated type name - make it smaller
+                const typeKey = `type.${type}`;
+                let displayText = type;
+                
+                try {
+                    // First try to get the translation
+                    const translatedType = t(typeKey);
+                    // If translation doesn't return the key itself, use it
+                    if (translatedType !== typeKey) {
+                        displayText = translatedType;
+                    }
+                    // Log for debugging
+                    console.log(`Type: ${type}, Translation key: ${typeKey}, Result: ${displayText}`);
+                } catch (e) {
+                    console.error(`Error translating type ${type}:`, e);
                 }
-            })
-            .attr('tabindex', '0')
-            .on('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
+                
+                const text = legendItem.append('text')
+                    .attr('x', 15) // Reduce spacing
+                    .attr('y', 8) // Adjust vertical position
+                    .attr('font-size', 'var(--font-size-xs)') // Make font smaller
+                    .attr('fill', 'var(--text-color-secondary)') // Make text less prominent
+                    .style('opacity', isVisible ? 1 : 0.5)
+                    .text(displayText);
+                
+                // Add strikethrough for hidden types
+                if (!isVisible) {
+                    const textNode = text.node();
+                    if (textNode) {
+                        const textWidth = textNode.getComputedTextLength();
+                        legendItem.append('line')
+                            .attr('x1', 15)
+                            .attr('y1', 8)
+                            .attr('x2', 15 + textWidth)
+                            .attr('y2', 8)
+                            .attr('stroke', 'var(--text-color-secondary)')
+                            .attr('stroke-width', 1)
+                            .attr('opacity', 0.7);
+                    }
+                }
+                
+                // Add click handler to the entire group
+                legendItem.on('click', () => {
+                    if (!isMounted) return;
+                    
+                    console.log(`Clicked on type: ${type}`);
+                    d3.select(container).append('div')
+                        .attr('class', 'debug-message')
+                        .style('position', 'fixed')
+                        .style('bottom', '10px')
+                        .style('left', '10px')
+                        .style('background', 'rgba(0,0,0,0.7)')
+                        .style('color', 'white')
+                        .style('padding', '5px 10px')
+                        .style('border-radius', '4px')
+                        .style('z-index', 9999)
+                        .text(`Toggled type: ${type}`)
+                        .transition()
+                        .duration(2000)
+                        .style('opacity', 0)
+                        .remove();
+                    
                     const typeIndex = typeVisibility.findIndex(t => t.type === type);
-                    if (typeIndex >= 0) {
+                    if (typeIndex >= 0 && isMounted) {
                         typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
                         typeVisibility = [...typeVisibility]; // Trigger reactivity
                         
@@ -763,18 +786,41 @@
                         
                         updateVisualization();
                     }
-                }
+                })
+                .attr('tabindex', '0')
+                .on('keydown', (event) => {
+                    if (!isMounted) return;
+                    
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        const typeIndex = typeVisibility.findIndex(t => t.type === type);
+                        if (typeIndex >= 0 && isMounted) {
+                            typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
+                            typeVisibility = [...typeVisibility]; // Trigger reactivity
+                            
+                            // Update country facets to reflect the new type visibility
+                            generateCountryFacets();
+                            
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Add hover effects
+                legendItem.on('mouseenter', function() {
+                    if (!isMounted) return;
+                    d3.select(this).select('text').style('font-weight', 'bold');
+                    d3.select(this).select('.legend-hitbox').attr('fill', 'rgba(0,0,0,0.05)');
+                }).on('mouseleave', function() {
+                    if (!isMounted) return;
+                    d3.select(this).select('text').style('font-weight', 'normal');
+                    d3.select(this).select('.legend-hitbox').attr('fill', 'transparent');
+                });
             });
-            
-            // Add hover effects
-            legendItem.on('mouseenter', function() {
-                d3.select(this).select('text').style('font-weight', 'bold');
-                d3.select(this).select('.legend-hitbox').attr('fill', 'rgba(0,0,0,0.05)');
-            }).on('mouseleave', function() {
-                d3.select(this).select('text').style('font-weight', 'normal');
-                d3.select(this).select('.legend-hitbox').attr('fill', 'transparent');
-            });
-        });
+        } catch (error) {
+            console.error('Error updating visualization:', error);
+            // Don't try to update anything else if there was an error
+        }
     }
 
     function handleItemsChange(items: any) {
@@ -796,28 +842,30 @@
         trackMount(COMPONENT_ID);
         logDebug(COMPONENT_ID, 'Component mounted');
         
+        let mounted = true; // Local variable to track mounting status within async operations
+        
         tick().then(() => {
-            if (!isMounted || !container) {
-                console.error('Container element not found in onMount');
+            if (!mounted || !isMounted || !container) {
+                console.error('Container element not found in onMount or component unmounted');
                 return;
             }
             
             // Create tooltip
             createTooltip();
             
-            // Subscribe to the items store
+            // Subscribe to the items store - using the local mounted variable
             unsubscribeItems = itemsStore.subscribe(store => {
-                if (isMounted) {
+                if (mounted && isMounted) {
                     handleItemsChange(store.items);
                 }
             });
             
-            // Subscribe to the language store
+            // Subscribe to the language store - using the local mounted variable
             unsubscribeLanguage = languageStore.subscribe(value => {
-                if (!isMounted) return;
+                if (!mounted || !isMounted) return;
                 
                 currentLang = value;
-                if (isMounted && container && document.body.contains(container)) {
+                if (mounted && isMounted && container && document.body.contains(container)) {
                     // Update country facets to get translated labels
                     generateCountryFacets();
                     
@@ -830,20 +878,20 @@
             });
             
             // Generate facets and create visualization if data is available
-            if (isMounted && $itemsStore.items && $itemsStore.items.length > 0) {
+            if (mounted && isMounted && $itemsStore.items && $itemsStore.items.length > 0) {
                 generateCountryFacets();
                 generateYearRange();
                 updateVisualization();
-            } else if (isMounted) {
+            } else if (mounted && isMounted) {
                 // Load items if not already loaded
                 itemsStore.loadItems();
             }
             
             // Add resize observer
             resizeObserver = new ResizeObserver(() => {
-                if (!isMounted) return;
+                if (!mounted || !isMounted) return;
                 
-                if (isMounted && container && document.body.contains(container)) {
+                if (mounted && isMounted && container && document.body.contains(container)) {
                     updateVisualization();
                 }
             });
@@ -855,8 +903,10 @@
         
         // Return cleanup function
         return () => {
-            // This cleanup function is called when the component is unmounted
+            // Mark as unmounted immediately to prevent any new operations
+            mounted = false;
             isMounted = false;
+            
             trackUnmount(COMPONENT_ID);
             logDebug(COMPONENT_ID, 'Component cleanup started');
             
