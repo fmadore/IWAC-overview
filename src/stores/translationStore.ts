@@ -60,6 +60,7 @@ export const translations: Translations = {
         'viz.month': 'Month',
         
         'viz.publication_year': 'Publication Year',
+        'viz.year': 'Year',
         'viz.number_of_items': 'Number of Items',
         'viz.toggle_types': 'Toggle Types',
         'viz.toggled_type': 'Toggled type: {0}',
@@ -202,6 +203,7 @@ export const translations: Translations = {
         'viz.month': 'Mois',
         
         'viz.publication_year': 'Année de publication',
+        'viz.year': 'Année',
         'viz.number_of_items': 'Nombre d\'éléments',
         'viz.toggle_types': 'Basculer les types',
         'viz.toggled_type': 'Type basculé : {0}',

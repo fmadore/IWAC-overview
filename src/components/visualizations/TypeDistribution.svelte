@@ -4,7 +4,7 @@
     import { itemsStore } from '../../stores/itemsStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { log } from '../../utils/logger';
-    import { t, translate, languageStore } from '../../stores/translationStore';
+    import { t, translate, languageStore, translations } from '../../stores/translationStore';
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
     import BaseVisualization from './BaseVisualization.svelte';
 
@@ -54,6 +54,7 @@
     const filterByCountryText = translate('viz.filter_by_country');
     const allCountriesText = translate('viz.all_countries');
     const publicationYearText = translate('viz.publication_year');
+    const yearText = translate('viz.year');
     const numberOfItemsText = translate('viz.number_of_items');
     const toggleTypesText = translate('viz.toggle_types');
     const toggledTypeText = translate('viz.toggled_type');
@@ -452,7 +453,7 @@
         height = rect.height;
         
         // Set margins - reduce top margin since we removed the title
-        const margin = { top: 20, right: 30, bottom: 100, left: 60 };
+        const margin = { top: 20, right: 30, bottom: 120, left: 60 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
         
@@ -518,18 +519,38 @@
             .domain([0, d3.max(stackedData.length > 0 ? stackedData[stackedData.length - 1] : [], d => d[1]) || 0])
             .range([chartHeight, 0]);
         
-        // Create color scale for types
+        // Create color scale for types - use a fixed domain order to ensure consistent colors
+        // This ensures the same type always gets the same color regardless of which types are visible
+        const allPossibleTypes = [
+            "Press Article", "Journal Article", "Book Chapter", "Doctoral Thesis", 
+            "type.Article d'encyclopédie", "type.Mémoire de maitrise", "Book", 
+            "type.Compte rendu de livre", "type.Rapport", "type.Working paper", 
+            "type.Mémoire de licence", "Islamic Periodical", "Document", "type.Photographie", 
+            "Blog Post", "Scientific Communication", "type.Enregistrement vidéo",
+            "Article de presse", "Article de revue", "Chapitre de livre", "Thèse de doctorat", 
+            "Article d'encyclopédie", "Mémoire de maitrise", "Livre", 
+            "Compte rendu de livre", "Rapport", "Working paper", 
+            "Mémoire de licence", "Périodique islamique", "Document", "Photographie", 
+            "Article de blog", "Communication scientifique", "Enregistrement vidéo"
+        ];
+        
         const color = d3.scaleOrdinal<string>()
-            .domain(types)
+            .domain(allPossibleTypes)
             .range(d3.schemeCategory10);
         
-        // Add x axis
+        // Add x axis with filtered ticks (every 5 years)
         chart.append('g')
             .attr('transform', `translate(0, ${chartHeight})`)
-            .call(d3.axisBottom(x).tickSizeOuter(0))
+            .call(d3.axisBottom(x)
+                .tickValues(yearData
+                    .filter(d => d.year % 5 === 0) // Show only years divisible by 5
+                    .map(d => d.year.toString()))
+                .tickSizeOuter(0))
             .selectAll('text')
-            .style('text-anchor', 'middle')
-            .attr('dy', '0.8em')
+            .style('text-anchor', 'end')
+            .attr('dx', '-.8em')
+            .attr('dy', '.15em')
+            .attr('transform', 'rotate(-45)') // Rotate labels for better readability
             .style('font-size', 'var(--font-size-xs)')
             .style('fill', 'var(--text-color-primary)');
         
@@ -544,10 +565,10 @@
         chart.append('text')
             .attr('text-anchor', 'middle')
             .attr('x', chartWidth / 2)
-            .attr('y', chartHeight + margin.bottom - 10)
+            .attr('y', chartHeight + 50)
             .attr('fill', 'var(--text-color-secondary)')
             .style('font-size', 'var(--font-size-sm)')
-            .text($publicationYearText);
+            .text($yearText);
         
         chart.append('text')
             .attr('text-anchor', 'middle')
@@ -592,13 +613,25 @@
         
         const legend = svg.append('g')
             .attr('class', 'legend')
-            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 40})`);
+            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 80})`); // Increased y-offset from 70 to 80
         
-        // Add legend title
+        // Add a background for the legend section
+        legend.append('rect')
+            .attr('x', -10)
+            .attr('y', -30)
+            .attr('width', chartWidth + 20)
+            .attr('height', (Math.ceil(types.length / legendItemsPerRow) * legendRowHeight) + 40)
+            .attr('fill', 'var(--card-background)')
+            .attr('stroke', 'var(--border-color)')
+            .attr('stroke-width', 1)
+            .attr('rx', 4)
+            .attr('ry', 4);
+        
+        // Add legend title with improved styling
         legend.append('text')
-            .attr('x', 0)
+            .attr('x', 10) // Move slightly to the right for padding
             .attr('y', -10)
-            .attr('font-size', 'var(--font-size-sm)')
+            .attr('font-size', 'var(--font-size-md)')
             .attr('font-weight', 'bold')
             .attr('fill', 'var(--text-color-primary)')
             .text($toggleTypesText);
@@ -636,14 +669,29 @@
                 .attr('opacity', isVisible ? 1 : 0.5);
             
             // Add text with translated type name
-            const translatedType = t(`type.${type}`) || type;
+            const typeKey = `type.${type}`;
+            let displayText = type;
+            
+            try {
+                // First try to get the translation
+                const translatedType = t(typeKey);
+                // If translation doesn't return the key itself, use it
+                if (translatedType !== typeKey) {
+                    displayText = translatedType;
+                }
+                // Log for debugging
+                console.log(`Type: ${type}, Translation key: ${typeKey}, Result: ${displayText}`);
+            } catch (e) {
+                console.error(`Error translating type ${type}:`, e);
+            }
+            
             const text = legendItem.append('text')
                 .attr('x', 24)
                 .attr('y', 12)
                 .attr('font-size', 'var(--font-size-sm)')
                 .attr('fill', 'var(--text-color-primary)')
                 .style('opacity', isVisible ? 1 : 0.5)
-                .text(translatedType);
+                .text(displayText);
             
             // Add strikethrough for hidden types
             if (!isVisible) {
