@@ -141,6 +141,12 @@ export const translations: Translations = {
         'viz.categories': 'Categories',
         'viz.uncategorized': 'Uncategorized',
         
+        // Type distribution specific
+        'viz.type_distribution_title': 'Type Distribution',
+        'viz.type_distribution_items': 'Distribution of {0} items by type',
+        'viz.type_distribution_description': 'This visualization shows the distribution of items by type over time. You can filter by country and year range to explore how different types of items have been published over time.',
+        'viz.types': 'Types',
+        
         // Category translations
         'category.Events': 'Events',
         'category.Locations': 'Locations',
@@ -275,6 +281,12 @@ export const translations: Translations = {
         'viz.index_distribution_description': 'Cette visualisation montre la répartition des éléments d\'index par catégorie. La taille de chaque barre représente le nombre d\'éléments dans cette catégorie. Les éléments d\'index sont des notices d\'autorité qui servent de points de référence dans la base de données.',
         'viz.categories': 'Catégories',
         'viz.uncategorized': 'Non catégorisé',
+        
+        // Type distribution specific
+        'viz.type_distribution_title': 'Répartition par type',
+        'viz.type_distribution_items': 'Répartition de {0} éléments par type',
+        'viz.type_distribution_description': 'Cette visualisation montre la répartition des éléments par type au fil du temps. Vous pouvez filtrer par pays et par plage d\'années pour explorer comment différents types d\'éléments ont été publiés au fil du temps.',
+        'viz.types': 'Types',
         
         // Category translations
         'category.Events': 'Événements',

@@ -4,12 +4,16 @@
     import { itemsStore } from '../../stores/itemsStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { log } from '../../utils/logger';
-    import { t, translate } from '../../stores/translationStore';
+    import { t, translate, languageStore } from '../../stores/translationStore';
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
+    import BaseVisualization from './BaseVisualization.svelte';
 
     const COMPONENT_ID = 'TypeDistribution';
     let isMounted = false;
     let unsubscribeItems: () => void;
+    let unsubscribeLanguage: () => void;
+    let currentLang: 'en' | 'fr' = 'en';
+    let resizeObserver: ResizeObserver | null = null;
 
     // Data interfaces
     interface TypeYearData {
@@ -53,6 +57,32 @@
     const numberOfItemsText = translate('viz.number_of_items');
     const toggleTypesText = translate('viz.toggle_types');
     const toggledTypeText = translate('viz.toggled_type');
+    const countriesText = translate('viz.countries');
+    const yearRangeText = translate('viz.time_period');
+    const summaryText = translate('viz.summary');
+    const showingItemsText = translate('viz.showing_items_over_months');
+    const typesText = translate('viz.types');
+    
+    // Add title HTML for bilingual support
+    let titleHtml = '';
+    
+    // Function to update the title with the current count
+    function updateTitleHtml() {
+        if (totalItems > 0) {
+            // Format the number with spaces as thousands separator
+            const formattedCount = totalItems.toLocaleString();
+            // Use the current language's translation with the formatted count
+            titleHtml = t('viz.type_distribution_items', [formattedCount]);
+        } else {
+            titleHtml = t('viz.type_distribution_title');
+        }
+        console.log("Type Distribution Title updated:", titleHtml);
+    }
+    
+    // Update title when totalItems changes
+    $: {
+        updateTitleHtml();
+    }
 
     // Extract year from different date formats
     function extractYear(dateString?: string): number | null {
@@ -98,14 +128,18 @@
             if (year < selectedYearRange[0] || year > selectedYearRange[1]) return false;
             
             // Filter by selected countries (if any are selected)
-            if (selectedCountries.length > 0 && !selectedCountries.includes(item.country)) {
-                return false;
+            if (selectedCountries.length > 0 && !selectedCountries.includes('all')) {
+                return selectedCountries.includes(item.country || 'Unknown');
             }
             
             return true;
         });
         
+        // Update total items count
         totalItems = filteredItems.length;
+        
+        // Update title with new count
+        updateTitleHtml();
         
         // Group items by year and type
         const yearTypeMap = new Map();
@@ -618,50 +652,63 @@
             generateCountryFacets();
             generateYearRange();
             updateVisualization();
+            updateTitleHtml(); // Update title after visualization is updated
         }
     }
 
-    onMount(async () => {
+    onMount(() => {
         isMounted = true;
         trackMount(COMPONENT_ID);
         logDebug(COMPONENT_ID, 'Component mounted');
         
-        await tick();
-        
-        if (!container) {
-            console.error('Container element not found in onMount');
-            return;
-        }
-        
-        // Create tooltip
-        createTooltip();
-        
-        // Subscribe to the items store
-        unsubscribeItems = itemsStore.subscribe(store => {
-            handleItemsChange(store.items);
-        });
-        
-        // Generate facets and create visualization if data is available
-        if ($itemsStore.items && $itemsStore.items.length > 0) {
-            generateCountryFacets();
-            generateYearRange();
-            updateVisualization();
-        } else {
-            // Load items if not already loaded
-            itemsStore.loadItems();
-        }
-        
-        // Add resize observer
-        const resizeObserver = new ResizeObserver(() => {
-            if (!isMounted) return;
+        tick().then(() => {
+            if (!container) {
+                console.error('Container element not found in onMount');
+                return;
+            }
             
-            if (container && document.body.contains(container)) {
+            // Create tooltip
+            createTooltip();
+            
+            // Subscribe to the items store
+            unsubscribeItems = itemsStore.subscribe(store => {
+                handleItemsChange(store.items);
+            });
+            
+            // Subscribe to the language store
+            unsubscribeLanguage = languageStore.subscribe(value => {
+                currentLang = value;
+                if (isMounted && container) {
+                    updateTitleHtml();
+                    updateVisualization();
+                }
+            });
+            
+            // Generate facets and create visualization if data is available
+            if ($itemsStore.items && $itemsStore.items.length > 0) {
+                generateCountryFacets();
+                generateYearRange();
                 updateVisualization();
+            } else {
+                // Load items if not already loaded
+                itemsStore.loadItems();
+            }
+            
+            // Add resize observer
+            resizeObserver = new ResizeObserver(() => {
+                if (!isMounted) return;
+                
+                if (container && document.body.contains(container)) {
+                    updateVisualization();
+                }
+            });
+            
+            if (resizeObserver && container) {
+                resizeObserver.observe(container);
             }
         });
         
-        resizeObserver.observe(container);
-        
+        // Return cleanup function
         return () => {
             // This cleanup function is called when the component is unmounted
             isMounted = false;
@@ -669,11 +716,13 @@
             logDebug(COMPONENT_ID, 'Component cleanup started');
             
             // Clean up resize observer
-            try {
-                resizeObserver.disconnect();
-                logDebug(COMPONENT_ID, 'Resize observer disconnected');
-            } catch (e) {
-                console.error('Error disconnecting resize observer:', e);
+            if (resizeObserver) {
+                try {
+                    resizeObserver.disconnect();
+                    logDebug(COMPONENT_ID, 'Resize observer disconnected');
+                } catch (e) {
+                    console.error('Error disconnecting resize observer:', e);
+                }
             }
             
             // Clean up tooltip
@@ -692,107 +741,132 @@
                 logDebug(COMPONENT_ID, 'Unsubscribed from items store');
             }
             
+            // Clean up language subscription
+            if (unsubscribeLanguage) {
+                unsubscribeLanguage();
+                logDebug(COMPONENT_ID, 'Unsubscribed from language store');
+            }
+            
             logDebug(COMPONENT_ID, 'Component cleanup completed');
         };
     });
     
     onDestroy(() => {
         // This is a backup in case the cleanup function in onMount doesn't run
-        if (isMounted) {
-            isMounted = false;
-            trackUnmount(COMPONENT_ID);
-            logDebug(COMPONENT_ID, 'Component destroyed (backup cleanup)');
-            
-            // Clean up store subscriptions
-            if (unsubscribeItems) {
-                unsubscribeItems();
-                logDebug(COMPONENT_ID, 'Unsubscribed from items store (backup)');
+        isMounted = false;
+        
+        // Clean up store subscriptions
+        if (unsubscribeItems) {
+            unsubscribeItems();
+        }
+        
+        // Clean up language subscription
+        if (unsubscribeLanguage) {
+            unsubscribeLanguage();
+        }
+        
+        // Clean up resize observer
+        if (resizeObserver) {
+            try {
+                resizeObserver.disconnect();
+            } catch (e) {
+                console.error('Error disconnecting resize observer:', e);
             }
         }
+        
+        logDebug(COMPONENT_ID, 'Component destroyed');
     });
 </script>
 
-<div class="type-distribution-container">
-    <div class="controls">
-        <div class="facets">
-            <div class="facet-group">
-                <h3>Countries</h3>
-                <div class="facet-options">
-                    {#each countryOptions as option}
-                        <div 
-                            class="facet-option" 
-                            class:selected={option.selected} 
-                            on:click={() => toggleCountry(option)}
-                            on:keydown={(e) => e.key === 'Enter' && toggleCountry(option)}
-                            role="checkbox"
-                            aria-checked={option.selected}
-                            tabindex="0"
-                        >
-                            <span class="facet-checkbox">
-                                {#if option.selected}
-                                    <svg viewBox="0 0 24 24" width="14" height="14">
-                                        <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                                    </svg>
-                                {/if}
-                            </span>
-                            <span class="facet-label">{option.label}</span>
-                            <span class="facet-count">{option.count}</span>
-                        </div>
-                    {/each}
+<BaseVisualization
+    title=""
+    translationKey=""
+    description="This visualization shows the distribution of items by type over time. You can filter by country and year range to explore how different types of items have been published over time."
+    descriptionTranslationKey="viz.type_distribution_description"
+    titleHtml={titleHtml}
+>
+    <div class="type-distribution-container">
+        <div class="controls">
+            <div class="facets">
+                <div class="facet-group">
+                    <h3>{$countriesText}</h3>
+                    <div class="facet-options">
+                        {#each countryOptions as option}
+                            <div 
+                                class="facet-option" 
+                                class:selected={option.selected} 
+                                on:click={() => toggleCountry(option)}
+                                on:keydown={(e) => e.key === 'Enter' && toggleCountry(option)}
+                                role="checkbox"
+                                aria-checked={option.selected}
+                                tabindex="0"
+                            >
+                                <span class="facet-checkbox">
+                                    {#if option.selected}
+                                        <svg viewBox="0 0 24 24" width="14" height="14">
+                                            <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                                        </svg>
+                                    {/if}
+                                </span>
+                                <span class="facet-label">{option.label}</span>
+                                <span class="facet-count">{option.count}</span>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="year-range">
+                <h3>{$yearRangeText}</h3>
+                <div class="slider-container">
+                    <div class="slider-labels">
+                        <span>{selectedYearRange[0]}</span>
+                        <span>{selectedYearRange[1]}</span>
+                    </div>
+                    <div class="slider-inputs">
+                        <input 
+                            type="range" 
+                            min={allYears[0]} 
+                            max={allYears[allYears.length - 1]} 
+                            value={selectedYearRange[0]} 
+                            data-index="0"
+                            on:input={handleYearRangeChange}
+                        />
+                        <input 
+                            type="range" 
+                            min={allYears[0]} 
+                            max={allYears[allYears.length - 1]} 
+                            value={selectedYearRange[1]} 
+                            data-index="1"
+                            on:input={handleYearRangeChange}
+                        />
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="year-range">
-            <h3>Year Range</h3>
-            <div class="slider-container">
-                <div class="slider-labels">
-                    <span>{selectedYearRange[0]}</span>
-                    <span>{selectedYearRange[1]}</span>
-                </div>
-                <div class="slider-inputs">
-                    <input 
-                        type="range" 
-                        min={allYears[0]} 
-                        max={allYears[allYears.length - 1]} 
-                        value={selectedYearRange[0]} 
-                        data-index="0"
-                        on:input={handleYearRangeChange}
-                    />
-                    <input 
-                        type="range" 
-                        min={allYears[0]} 
-                        max={allYears[allYears.length - 1]} 
-                        value={selectedYearRange[1]} 
-                        data-index="1"
-                        on:input={handleYearRangeChange}
-                    />
-                </div>
+        <div class="chart-container" bind:this={container}>
+            {#if $itemsStore.loading}
+                <div class="loading">{t('ui.loading')}</div>
+            {:else if $itemsStore.error}
+                <div class="error">{$itemsStore.error}</div>
+            {/if}
+        </div>
+        
+        <div class="stats">
+            <div class="stat-summary">
+                <h3>{$summaryText}</h3>
+                <p>{t('viz.showing_items', [totalItems.toString()])} ({selectedYearRange[0]} - {selectedYearRange[1]})</p>
+                {#if typeYearData.length > 0}
+                    <p>
+                        {$typesText}: 
+                        {Array.from(new Set(typeYearData.map(d => d.type))).join(', ')}
+                    </p>
+                {/if}
             </div>
         </div>
     </div>
-    
-    <div class="chart-container" bind:this={container}>
-        {#if $itemsStore.loading}
-            <div class="loading">{t('ui.loading')}</div>
-        {:else if $itemsStore.error}
-            <div class="error">{$itemsStore.error}</div>
-        {/if}
-    </div>
-    
-    <div class="stats">
-        <div class="stat-summary">
-            <h3>Summary</h3>
-            <p>Showing {totalItems} items published between {selectedYearRange[0]} and {selectedYearRange[1]}</p>
-            {#if typeYearData.length > 0}
-                <p>
-                    Types: 
-                    {Array.from(new Set(typeYearData.map(d => d.type))).join(', ')}
-                </p>
-            {/if}
-        </div>
-    </div>
-</div>
+</BaseVisualization>
 
 <style>
     .type-distribution-container {
@@ -800,26 +874,39 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-md);
+        gap: var(--spacing-sm);
+    }
+    
+    /* Override the visualization header margin to reduce space */
+    :global(.type-distribution-container .visualization-header) {
+        margin-bottom: var(--spacing-xs) !important;
+    }
+    
+    /* Override the title container padding to reduce space */
+    :global(.type-distribution-container .title-container) {
+        padding-bottom: 0 !important;
     }
     
     .controls {
         display: flex;
-        flex-wrap: wrap;
         gap: var(--spacing-md);
-        padding: var(--spacing-md);
-        background-color: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
+        margin-bottom: var(--spacing-sm);
     }
     
     .facets {
         flex: 1;
+        background-color: var(--card-background);
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--card-shadow);
+        padding: var(--spacing-md);
     }
     
     .year-range {
         flex: 1;
-        min-width: 200px;
+        background-color: var(--card-background);
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--card-shadow);
+        padding: var(--spacing-md);
     }
     
     h3 {
@@ -831,72 +918,63 @@
         padding-bottom: var(--spacing-xs);
     }
     
+    .facet-group {
+        margin-bottom: var(--spacing-md);
+    }
+    
     .facet-options {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--spacing-xs);
-        max-height: 120px;
+        max-height: 200px;
         overflow-y: auto;
+        padding-right: var(--spacing-sm);
     }
     
     .facet-option {
         display: flex;
         align-items: center;
-        padding: var(--spacing-xs) var(--spacing-sm);
-        background: var(--background-color);
-        border-radius: var(--border-radius-sm);
+        padding: var(--spacing-xs) 0;
         cursor: pointer;
-        user-select: none;
+        border-radius: var(--border-radius-sm);
         transition: background-color var(--transition-fast);
     }
     
     .facet-option:hover {
-        background: var(--divider-color);
+        background-color: var(--hover-color);
     }
     
     .facet-option.selected {
-        background: var(--primary-color-light);
-        color: var(--text-color-light);
+        font-weight: bold;
+        color: var(--primary-color);
     }
     
     .facet-checkbox {
-        display: flex;
-        justify-content: center;
-        align-items: center;
         width: 16px;
         height: 16px;
         border: 1px solid var(--border-color);
-        border-radius: 3px;
-        margin-right: var(--spacing-xs);
-        background: white;
+        border-radius: var(--border-radius-sm);
+        margin-right: var(--spacing-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: var(--primary-color);
     }
     
     .facet-option.selected .facet-checkbox {
-        background: var(--primary-color);
+        background-color: var(--primary-color);
         border-color: var(--primary-color);
+        color: white;
     }
     
     .facet-label {
-        margin-right: var(--spacing-xs);
-        font-size: var(--font-size-sm);
+        flex: 1;
     }
     
     .facet-count {
-        font-size: var(--font-size-xs);
-        color: var(--text-color-tertiary);
-        background: rgba(0, 0, 0, 0.1);
-        padding: 2px 5px;
-        border-radius: 10px;
-    }
-    
-    .facet-option.selected .facet-count {
-        color: var(--text-color-light);
-        background: rgba(255, 255, 255, 0.2);
+        color: var(--text-color-secondary);
+        font-size: var(--font-size-sm);
     }
     
     .slider-container {
-        padding: var(--spacing-sm) 0;
+        margin-top: var(--spacing-md);
     }
     
     .slider-labels {
