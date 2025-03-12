@@ -54,10 +54,10 @@
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return { name: 'root', children: [] };
         
-        // Filter items - only include those with word_count
+        // Filter items - only include those with word_count greater than 0
         const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
-            // Must have word_count field
-            if (item.word_count === undefined) return false;
+            // Must have word_count field and it must be greater than 0
+            if (item.word_count === undefined || item.word_count === 0) return false;
             return true;
         });
         
