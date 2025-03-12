@@ -983,21 +983,6 @@
                 <div class="error">{$itemsStore.error}</div>
             {/if}
         </div>
-        
-        <div class="stats">
-            <div class="stat-summary">
-                <h3>{$summaryText}</h3>
-                <p>{t('viz.showing_items', [totalItems.toString()])} {t('viz.published_between', [selectedYearRange[0].toString(), selectedYearRange[1].toString()])}</p>
-                {#if typeYearData.length > 0}
-                    <p>
-                        {$typesText}: 
-                        {Array.from(new Set(typeYearData.map(d => d.type)))
-                            .map(type => t(`type.${type}`) || type)
-                            .join(', ')}
-                    </p>
-                {/if}
-            </div>
-        </div>
     </div>
 </BaseVisualization>
 
@@ -1166,19 +1151,6 @@
         background: var(--card-background);
         border-radius: var(--border-radius-md);
         box-shadow: var(--card-shadow);
-    }
-    
-    .stats {
-        padding: var(--spacing-md);
-        background-color: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-    }
-    
-    .stat-summary p {
-        margin: var(--spacing-xs) 0;
-        font-size: var(--font-size-sm);
-        color: var(--text-color-secondary);
     }
     
     .loading, .error {
