@@ -452,8 +452,8 @@
         width = rect.width;
         height = rect.height;
         
-        // Set margins - increase bottom margin to accommodate the legend
-        let margin = { top: 20, right: 30, bottom: 250, left: 60 };
+        // Set margins - reduce bottom margin and increase right margin for legend
+        let margin = { top: 20, right: 200, bottom: 50, left: 60 };
         const chartWidth = width - margin.left - margin.right;
         
         // Get all unique types
@@ -480,15 +480,9 @@
             });
         }
         
-        // Calculate the number of legend rows needed
-        const legendItemWidth = 220;
-        const maxItemsPerRow = 3;
-        const legendItemsPerRow = Math.min(Math.floor(chartWidth / legendItemWidth) || 1, maxItemsPerRow);
-        const legendRowHeight = 35;
-        const numRows = Math.ceil(types.length / legendItemsPerRow);
-        
-        // Adjust bottom margin dynamically based on the number of rows
-        margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 120);
+        // Calculate the number of legend rows needed - vertical layout
+        const legendItemWidth = 180;
+        const legendRowHeight = 18; // Make rows even more compact
         
         // Recalculate chart height with the adjusted margin
         const chartHeight = height - margin.top - margin.bottom;
@@ -626,18 +620,18 @@
                 hideTooltip();
             });
         
-        // Add interactive legend below the chart instead of on the right
+        // Add interactive legend to the right side of the chart
         const legend = svg.append('g')
             .attr('class', 'legend')
-            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 80})`);
+            .attr('transform', `translate(${margin.left + chartWidth + 20}, ${margin.top})`);
         
-        // Add legend title with improved styling
+        // Add legend title with improved styling - make it smaller and less prominent
         legend.append('text')
             .attr('x', 0)
-            .attr('y', -10)
-            .attr('font-size', 'var(--font-size-md)')
-            .attr('font-weight', 'bold')
-            .attr('fill', 'var(--text-color-primary)')
+            .attr('y', -5)
+            .attr('font-size', 'var(--font-size-xs)')
+            .attr('font-weight', 'normal')
+            .attr('fill', 'var(--text-color-secondary)')
             .text($toggleTypesText);
         
         // Create a container for the legend items with scrolling if needed
@@ -645,16 +639,23 @@
             .attr('class', 'legend-items')
             .attr('transform', 'translate(0, 10)');
         
+        // Create a clip path to limit the legend height
+        const clipId = `legend-clip-${Math.random().toString(36).substr(2, 9)}`;
+        svg.append('clipPath')
+            .attr('id', clipId)
+            .append('rect')
+            .attr('width', 180)
+            .attr('height', Math.min(chartHeight - 20, types.length * legendRowHeight + 10));
+        
+        // Apply clip path to legend items
+        legendItems.attr('clip-path', `url(#${clipId})`);
+        
         types.forEach((type, i) => {
             const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
             
-            // Calculate position in grid layout
-            const row = Math.floor(i / legendItemsPerRow);
-            const col = i % legendItemsPerRow;
-            
-            // Create a group for each legend item
+            // Create a group for each legend item - vertical layout
             const legendItem = legendItems.append('g')
-                .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`)
+                .attr('transform', `translate(0, ${i * legendRowHeight})`)
                 .attr('class', 'legend-item')
                 .attr('role', 'button')
                 .style('cursor', 'pointer');
@@ -664,20 +665,20 @@
                 .attr('x', -5)
                 .attr('y', -5)
                 .attr('width', legendItemWidth - 10)
-                .attr('height', 20)
+                .attr('height', 15)
                 .attr('fill', 'transparent')
                 .attr('class', 'legend-hitbox');
             
-            // Add color box
+            // Add color box - make it even smaller
             legendItem.append('rect')
-                .attr('width', 14)
-                .attr('height', 14)
+                .attr('width', 10)
+                .attr('height', 10)
                 .attr('fill', color(type))
                 .attr('stroke', isVisible ? 'none' : '#999')
                 .attr('stroke-width', isVisible ? 0 : 1)
                 .attr('opacity', isVisible ? 1 : 0.5);
             
-            // Add text with translated type name
+            // Add text with translated type name - make it smaller
             const typeKey = `type.${type}`;
             let displayText = type;
             
@@ -695,10 +696,10 @@
             }
             
             const text = legendItem.append('text')
-                .attr('x', 24)
-                .attr('y', 12)
-                .attr('font-size', 'var(--font-size-sm)')
-                .attr('fill', 'var(--text-color-primary)')
+                .attr('x', 15) // Reduce spacing further
+                .attr('y', 8) // Adjust vertical position
+                .attr('font-size', 'var(--font-size-xs)') // Keep font small
+                .attr('fill', 'var(--text-color-secondary)') // Make text less prominent
                 .style('opacity', isVisible ? 1 : 0.5)
                 .text(displayText);
             
@@ -708,11 +709,11 @@
                 if (textNode) {
                     const textWidth = textNode.getComputedTextLength();
                     legendItem.append('line')
-                        .attr('x1', 24)
-                        .attr('y1', 12)
-                        .attr('x2', 24 + textWidth)
-                        .attr('y2', 12)
-                        .attr('stroke', 'var(--text-color-primary)')
+                        .attr('x1', 15)
+                        .attr('y1', 8)
+                        .attr('x2', 15 + textWidth)
+                        .attr('y2', 8)
+                        .attr('stroke', 'var(--text-color-secondary)')
                         .attr('stroke-width', 1)
                         .attr('opacity', 0.7);
                 }
@@ -926,11 +927,13 @@
     titleHtml={titleHtml}
 >
     <div class="type-distribution-container">
-        <div class="controls">
+        <!-- Countries section at the top -->
+        <div class="controls-container">
+            <!-- Countries facet -->
             <div class="facets">
                 <div class="facet-group">
                     <h3>{$countriesText}</h3>
-                    <div class="facet-options">
+                    <div class="facet-options table-layout">
                         {#each countryOptions as option}
                             <div 
                                 class="facet-option" 
@@ -956,6 +959,7 @@
                 </div>
             </div>
             
+            <!-- Time period slider -->
             <div class="year-range">
                 <h3>{$yearRangeText}</h3>
                 <div class="slider-container">
@@ -985,6 +989,7 @@
             </div>
         </div>
         
+        <!-- Chart container below the controls -->
         <div class="chart-container" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="loading">{t('ui.loading')}</div>
@@ -1014,31 +1019,46 @@
         padding-bottom: 0 !important;
     }
     
-    .controls {
+    /* Controls container for facets and year range */
+    .controls-container {
         display: flex;
         gap: var(--spacing-md);
         margin-bottom: var(--spacing-sm);
     }
     
-    .facets {
+    /* Make the facets and year range side by side */
+    .facets, .year-range {
         flex: 1;
         background-color: var(--card-background);
         border-radius: var(--border-radius-md);
         box-shadow: var(--card-shadow);
-        padding: var(--spacing-md);
+        padding: var(--spacing-sm);
     }
     
-    .year-range {
+    /* Make the chart container take up remaining space */
+    .chart-container {
         flex: 1;
-        background-color: var(--card-background);
+        min-height: 550px;
+        position: relative;
+        background: var(--card-background);
         border-radius: var(--border-radius-md);
         box-shadow: var(--card-shadow);
-        padding: var(--spacing-md);
+    }
+    
+    /* Style for the legend */
+    :global(.legend-items) {
+        max-height: 100%;
+        overflow-y: auto;
+    }
+    
+    /* Reduce the height of the legend in the chart */
+    :global(.chart-container .legend) {
+        transform-origin: top left;
     }
     
     h3 {
         margin-top: 0;
-        margin-bottom: var(--spacing-sm);
+        margin-bottom: var(--spacing-xs);
         color: var(--text-color-primary);
         font-size: var(--font-size-md);
         border-bottom: 1px solid var(--border-color);
@@ -1046,13 +1066,20 @@
     }
     
     .facet-group {
-        margin-bottom: var(--spacing-md);
+        margin-bottom: var(--spacing-sm);
     }
     
     .facet-options {
-        max-height: 200px;
+        max-height: 120px;
         overflow-y: auto;
         padding-right: var(--spacing-sm);
+    }
+    
+    /* Add table-like layout for facet options to match screenshot */
+    .facet-options.table-layout {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-gap: var(--spacing-xs) var(--spacing-md);
     }
     
     .facet-option {
@@ -1062,6 +1089,7 @@
         cursor: pointer;
         border-radius: var(--border-radius-sm);
         transition: background-color var(--transition-fast);
+        font-size: var(--font-size-sm);
     }
     
     .facet-option:hover {
@@ -1074,8 +1102,8 @@
     }
     
     .facet-checkbox {
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         border: 1px solid var(--border-color);
         border-radius: var(--border-radius-sm);
         margin-right: var(--spacing-sm);
@@ -1083,6 +1111,7 @@
         align-items: center;
         justify-content: center;
         color: var(--primary-color);
+        flex-shrink: 0;
     }
     
     .facet-option.selected .facet-checkbox {
@@ -1093,11 +1122,15 @@
     
     .facet-label {
         flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
     .facet-count {
         color: var(--text-color-secondary);
         font-size: var(--font-size-sm);
+        margin-left: var(--spacing-xs);
     }
     
     .slider-container {
@@ -1151,15 +1184,6 @@
         background: var(--primary-color);
         cursor: pointer;
         border: none;
-    }
-    
-    .chart-container {
-        flex: 1;
-        min-height: 600px;
-        position: relative;
-        background: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
     }
     
     .loading, .error {
