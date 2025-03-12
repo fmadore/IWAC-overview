@@ -30,6 +30,11 @@
 
   let activeTab = 'countries';
 
+  // Tab definitions with translation keys
+  // Note: Tab labels have been updated in translationStore.ts:
+  // - "Word Distribution" → "Word Count" / "Nombre de mots"
+  // - "Index Categories" → "Index"
+  // - "Timeline" → "Database Growth" / "Croissance base de données"
   const tabs = [
     // { id: 'overview', label: 'Overview' },
     { id: 'countries', label: 'tab.countries' },

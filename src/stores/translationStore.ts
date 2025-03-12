@@ -16,12 +16,12 @@ export const translations: Translations = {
     en: {
         // App navigation
         'app.title': '<i>Islam West Africa Collection</i> Overview',
-        'tab.countries': 'Country Distribution',
+        'tab.countries': 'Country distribution',
         'tab.languages': 'Languages',
-        'tab.timeline': 'Timeline',
-        'tab.types': 'Type Distribution',
-        'tab.categories': 'Index Categories',
-        'tab.words': 'Word Distribution',
+        'tab.timeline': 'Database growth',
+        'tab.types': 'Type distribution',
+        'tab.categories': 'Index',
+        'tab.words': 'Word count',
         
         // UI elements and status messages
         'ui.loading': 'Loading database...',
@@ -88,7 +88,7 @@ export const translations: Translations = {
         // Word distribution specific
         'viz.word_distribution': 'Word Distribution',
         'viz.total_words': 'Total Words',
-        'viz.avg_words_per_item': 'Average Words per Item',
+        'viz.avg_words_per_item': 'Average words per Item',
         'viz.back_to_all': '← Back to All',
         'viz.total_items_with_word_count': 'Total items with word count',
         'viz.word_distribution_subtitle': 'Word Distribution by Country and Item Set ({0} items, {1} words)',
@@ -153,10 +153,10 @@ export const translations: Translations = {
         'app.title': 'Aperçu de la <i>Collection Islam Afrique de l\'Ouest</i>',
         'tab.countries': 'Répartition par pays',
         'tab.languages': 'Langues',
-        'tab.timeline': 'Chronologie',
+        'tab.timeline': 'Croissance base de données',
         'tab.types': 'Répartition par type',
-        'tab.categories': 'Catégories d\'index',
-        'tab.words': 'Répartition des mots',
+        'tab.categories': 'Index',
+        'tab.words': 'Nombre de mots',
         
         // UI elements and status messages
         'ui.loading': 'Chargement de la base de données...',
