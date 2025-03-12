@@ -62,6 +62,7 @@
     const summaryText = translate('viz.summary');
     const showingItemsText = translate('viz.showing_items_over_months');
     const typesText = translate('viz.types');
+    const publishedBetweenText = translate('viz.published_between');
     
     // Add title HTML for bilingual support
     let titleHtml = '';
@@ -115,6 +116,9 @@
             .filter(option => option.selected)
             .map(option => option.value);
         
+        // Check if "all" is selected
+        const allCountriesSelected = selectedCountries.includes('all');
+        
         // Filter items by selected countries, valid publication dates, and exclude "Notice d'autorité" type
         const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
             // Exclude items with type "Notice d'autorité"
@@ -127,9 +131,14 @@
             // Filter by selected years
             if (year < selectedYearRange[0] || year > selectedYearRange[1]) return false;
             
-            // Filter by selected countries (if any are selected)
-            if (selectedCountries.length > 0 && !selectedCountries.includes('all')) {
-                return selectedCountries.includes(item.country || 'Unknown');
+            // Always exclude items with unknown country
+            if (!item.country || item.country.trim() === '' || item.country === 'Unknown') {
+                return false;
+            }
+            
+            // Filter by selected countries (if not "all")
+            if (!allCountriesSelected && !selectedCountries.includes(item.country)) {
+                return false;
             }
             
             return true;
@@ -172,52 +181,117 @@
         return result;
     }
 
-    // Generate facet options for countries
+    // Generate country facet options
     function generateCountryFacets() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Get items with publication dates and exclude "Notice d'autorité" type
-        const itemsWithDates = $itemsStore.items.filter(item => 
-            extractYear(item.publication_date) !== null && 
-            item.type !== "Notice d'autorité"
+        // Filter out "Notice d'autorité" items first
+        const filteredItems = $itemsStore.items.filter(item => item.type !== "Notice d'autorité");
+        
+        // Filter by year range if it's set
+        let itemsInTimeRange = filteredItems;
+        if (selectedYearRange[0] > 0 && selectedYearRange[1] > 0) {
+            itemsInTimeRange = filteredItems.filter(item => {
+                const year = extractYear(item.publication_date);
+                return year !== null && 
+                       year >= selectedYearRange[0] && 
+                       year <= selectedYearRange[1];
+            });
+        }
+        
+        // Get all countries from filtered items, excluding "Unknown"
+        const countries = itemsInTimeRange
+            .map((item: OmekaItem) => item.country || 'Unknown')
+            .filter((country: string) => country.trim() !== '' && country !== 'Unknown');
+        
+        // Count items per country
+        const countryCounts = d3.rollup(
+            countries,
+            v => v.length,
+            d => d
         );
         
-        // Group by country
-        const countryGroups = d3.group(itemsWithDates, (d: OmekaItem) => d.country || 'Unknown');
+        // Count items with known countries (excluding Unknown)
+        const itemsWithKnownCountry = itemsInTimeRange.filter(item => 
+            item.country && item.country.trim() !== '' && item.country !== 'Unknown'
+        ).length;
         
-        // Convert to facet options format, excluding "Unknown" country
-        countryOptions = Array.from(countryGroups, ([country, items]) => ({
-            value: country,
-            label: country,
-            count: items.length,
-            selected: false // Initially not selected
-        }))
-        .filter(option => option.value !== 'Unknown') // Exclude "Unknown" country
-        .sort((a, b) => b.count - a.count);
+        // Create options with translated labels
+        countryOptions = [
+            {
+                value: 'all',
+                label: t('country.all'),
+                count: itemsWithKnownCountry,
+                selected: countryOptions.find(opt => opt.value === 'all')?.selected ?? true
+            },
+            ...Array.from(countryCounts, ([country, count]) => ({
+                value: country,
+                label: t(`country.${country}`) || country,
+                count,
+                selected: countryOptions.find(opt => opt.value === country)?.selected ?? false
+            }))
+        ];
+        
+        // Sort alphabetically by label (except "All Countries" which stays first)
+        countryOptions.sort((a, b) => {
+            if (a.value === 'all') return -1;
+            if (b.value === 'all') return 1;
+            return a.label.localeCompare(b.label);
+        });
     }
 
-    // Generate array of all years present in the data
+    // Generate year range for slider
     function generateYearRange() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
+        // Extract years from items, excluding "Notice d'autorité" items
         const years = $itemsStore.items
-            .filter(item => item.type !== "Notice d'autorité") // Exclude "Notice d'autorité" type
-            .map(item => extractYear(item.publication_date))
+            .filter(item => item.type !== "Notice d'autorité")
+            .map((item: OmekaItem) => extractYear(item.publication_date))
             .filter((year): year is number => year !== null);
         
         if (years.length === 0) return;
         
+        // Get min and max years
         const minYear = Math.min(...years);
         const maxYear = Math.max(...years);
         
-        allYears = Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i);
-        selectedYearRange = [minYear, maxYear];
+        // Create array of all years in range
+        allYears = Array.from(
+            { length: maxYear - minYear + 1 },
+            (_, i) => minYear + i
+        );
+        
+        // Initialize selected year range if not already set
+        if (selectedYearRange[0] === 0 || selectedYearRange[1] === 0) {
+            selectedYearRange = [minYear, maxYear];
+        }
     }
 
-    // Handle country selection change
+    // Toggle country selection
     function toggleCountry(option: FacetOption) {
-        option.selected = !option.selected;
-        countryOptions = [...countryOptions]; // Trigger reactivity
+        // If "all" is selected, deselect all others
+        if (option.value === 'all') {
+            countryOptions.forEach(opt => {
+                opt.selected = opt.value === 'all';
+            });
+        } else {
+            // If a specific country is selected, deselect "all"
+            countryOptions.find(opt => opt.value === 'all')!.selected = false;
+            
+            // Toggle the selected state of the clicked option
+            option.selected = !option.selected;
+            
+            // If no countries are selected, select "all" again
+            if (!countryOptions.some(opt => opt.selected)) {
+                countryOptions.find(opt => opt.value === 'all')!.selected = true;
+            }
+        }
+        
+        // Force update of countryOptions array
+        countryOptions = [...countryOptions];
+        
+        // Update visualization
         updateVisualization();
     }
 
@@ -235,6 +309,10 @@
             selectedYearRange = [Math.min(value, selectedYearRange[0]), value];
         }
         
+        // Update country facets with new time range
+        generateCountryFacets();
+        
+        // Update visualization
         updateVisualization();
     }
 
@@ -339,10 +417,10 @@
         }
     }
 
-    // Create or update the visualization
+    // Update visualization based on current data and filters
     function updateVisualization() {
         if (!container) {
-            console.error('Container element not found in updateVisualization');
+            console.error('Container element not found');
             return;
         }
         
@@ -368,13 +446,13 @@
         d3.select(container).select('svg').remove();
         d3.select(container).select('.no-data').remove();
         
-        // Get container dimensions
+        // Set up dimensions
         const rect = container.getBoundingClientRect();
         width = rect.width;
         height = rect.height;
         
-        // Set margins
-        const margin = { top: 40, right: 60, bottom: 120, left: 60 }; // Increased bottom margin for legend
+        // Set margins - reduce top margin since we removed the title
+        const margin = { top: 20, right: 30, bottom: 100, left: 60 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
         
@@ -507,16 +585,6 @@
                 hideTooltip();
             });
         
-        // Add title
-        svg.append('text')
-            .attr('x', width / 2)
-            .attr('y', 20)
-            .attr('text-anchor', 'middle')
-            .attr('font-size', 'var(--font-size-lg)')
-            .attr('font-weight', 'bold')
-            .attr('fill', 'var(--text-color-primary)')
-            .text(`Item Types by Publication Year (${totalItems} items)`);
-        
         // Add interactive legend below the chart instead of on the right
         const legendItemWidth = 150; // Width of each legend item
         const legendItemsPerRow = Math.floor(chartWidth / legendItemWidth); // Number of items per row
@@ -567,14 +635,15 @@
                 .attr('stroke-width', isVisible ? 0 : 1)
                 .attr('opacity', isVisible ? 1 : 0.5);
             
-            // Add text
+            // Add text with translated type name
+            const translatedType = t(`type.${type}`) || type;
             const text = legendItem.append('text')
                 .attr('x', 24)
                 .attr('y', 12)
                 .attr('font-size', 'var(--font-size-sm)')
                 .attr('fill', 'var(--text-color-primary)')
                 .style('opacity', isVisible ? 1 : 0.5)
-                .text(type);
+                .text(translatedType);
             
             // Add strikethrough for hidden types
             if (!isVisible) {
@@ -615,6 +684,10 @@
                 if (typeIndex >= 0) {
                     typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
                     typeVisibility = [...typeVisibility]; // Trigger reactivity
+                    
+                    // Update country facets to reflect the new type visibility
+                    generateCountryFacets();
+                    
                     updateVisualization();
                 }
             })
@@ -626,6 +699,10 @@
                     if (typeIndex >= 0) {
                         typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
                         typeVisibility = [...typeVisibility]; // Trigger reactivity
+                        
+                        // Update country facets to reflect the new type visibility
+                        generateCountryFacets();
+                        
                         updateVisualization();
                     }
                 }
@@ -679,7 +756,13 @@
             unsubscribeLanguage = languageStore.subscribe(value => {
                 currentLang = value;
                 if (isMounted && container) {
+                    // Update country facets to get translated labels
+                    generateCountryFacets();
+                    
+                    // Update title with new language
                     updateTitleHtml();
+                    
+                    // Update visualization
                     updateVisualization();
                 }
             });
@@ -856,11 +939,13 @@
         <div class="stats">
             <div class="stat-summary">
                 <h3>{$summaryText}</h3>
-                <p>{t('viz.showing_items', [totalItems.toString()])} ({selectedYearRange[0]} - {selectedYearRange[1]})</p>
+                <p>{t('viz.showing_items', [totalItems.toString()])} {t('viz.published_between', [selectedYearRange[0].toString(), selectedYearRange[1].toString()])}</p>
                 {#if typeYearData.length > 0}
                     <p>
                         {$typesText}: 
-                        {Array.from(new Set(typeYearData.map(d => d.type))).join(', ')}
+                        {Array.from(new Set(typeYearData.map(d => d.type)))
+                            .map(type => t(`type.${type}`) || type)
+                            .join(', ')}
                     </p>
                 {/if}
             </div>
