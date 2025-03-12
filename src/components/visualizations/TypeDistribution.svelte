@@ -452,8 +452,8 @@
         width = rect.width;
         height = rect.height;
         
-        // Set margins - reduce bottom margin and increase right margin for legend
-        let margin = { top: 20, right: 200, bottom: 50, left: 60 };
+        // Set margins - make bottom margin just enough for the legend
+        let margin = { top: 20, right: 30, bottom: 100, left: 60 };
         const chartWidth = width - margin.left - margin.right;
         
         // Get all unique types
@@ -480,9 +480,15 @@
             });
         }
         
-        // Calculate the number of legend rows needed - vertical layout
-        const legendItemWidth = 180;
-        const legendRowHeight = 18; // Make rows even more compact
+        // Calculate the number of legend rows needed - make it more compact
+        const legendItemWidth = 150; // Smaller width
+        const maxItemsPerRow = 6; // More items per row
+        const legendItemsPerRow = Math.min(Math.floor(chartWidth / legendItemWidth) || 1, maxItemsPerRow);
+        const legendRowHeight = 20; // Smaller row height
+        const numRows = Math.ceil(types.length / legendItemsPerRow);
+        
+        // Adjust bottom margin based on the number of rows
+        margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 50);
         
         // Recalculate chart height with the adjusted margin
         const chartHeight = height - margin.top - margin.bottom;
@@ -620,12 +626,12 @@
                 hideTooltip();
             });
         
-        // Add interactive legend to the right side of the chart
+        // Add interactive legend below the chart (under x-axis)
         const legend = svg.append('g')
             .attr('class', 'legend')
-            .attr('transform', `translate(${margin.left + chartWidth + 20}, ${margin.top})`);
+            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 40})`);
         
-        // Add legend title with improved styling - make it smaller and less prominent
+        // Add legend title with improved styling - make it smaller
         legend.append('text')
             .attr('x', 0)
             .attr('y', -5)
@@ -634,28 +640,21 @@
             .attr('fill', 'var(--text-color-secondary)')
             .text($toggleTypesText);
         
-        // Create a container for the legend items with scrolling if needed
+        // Create a container for the legend items
         const legendItems = legend.append('g')
             .attr('class', 'legend-items')
             .attr('transform', 'translate(0, 10)');
         
-        // Create a clip path to limit the legend height
-        const clipId = `legend-clip-${Math.random().toString(36).substr(2, 9)}`;
-        svg.append('clipPath')
-            .attr('id', clipId)
-            .append('rect')
-            .attr('width', 180)
-            .attr('height', Math.min(chartHeight - 20, types.length * legendRowHeight + 10));
-        
-        // Apply clip path to legend items
-        legendItems.attr('clip-path', `url(#${clipId})`);
-        
         types.forEach((type, i) => {
             const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
             
-            // Create a group for each legend item - vertical layout
+            // Calculate position in grid layout
+            const row = Math.floor(i / legendItemsPerRow);
+            const col = i % legendItemsPerRow;
+            
+            // Create a group for each legend item
             const legendItem = legendItems.append('g')
-                .attr('transform', `translate(0, ${i * legendRowHeight})`)
+                .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`)
                 .attr('class', 'legend-item')
                 .attr('role', 'button')
                 .style('cursor', 'pointer');
@@ -669,7 +668,7 @@
                 .attr('fill', 'transparent')
                 .attr('class', 'legend-hitbox');
             
-            // Add color box - make it even smaller
+            // Add color box - make it smaller
             legendItem.append('rect')
                 .attr('width', 10)
                 .attr('height', 10)
@@ -696,9 +695,9 @@
             }
             
             const text = legendItem.append('text')
-                .attr('x', 15) // Reduce spacing further
+                .attr('x', 15) // Reduce spacing
                 .attr('y', 8) // Adjust vertical position
-                .attr('font-size', 'var(--font-size-xs)') // Keep font small
+                .attr('font-size', 'var(--font-size-xs)') // Make font smaller
                 .attr('fill', 'var(--text-color-secondary)') // Make text less prominent
                 .style('opacity', isVisible ? 1 : 0.5)
                 .text(displayText);
@@ -1045,15 +1044,15 @@
         box-shadow: var(--card-shadow);
     }
     
-    /* Style for the legend */
+    /* Style for the legend - make it more compact */
     :global(.legend-items) {
-        max-height: 100%;
-        overflow-y: auto;
+        display: flex;
+        flex-wrap: wrap;
     }
     
-    /* Reduce the height of the legend in the chart */
-    :global(.chart-container .legend) {
-        transform-origin: top left;
+    /* Make legend items more compact */
+    :global(.legend-item) {
+        font-size: var(--font-size-xs);
     }
     
     h3 {
