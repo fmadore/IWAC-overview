@@ -452,13 +452,20 @@
         width = rect.width;
         height = rect.height;
         
-        // Set margins - reduce top margin since we removed the title
-        const margin = { top: 20, right: 30, bottom: 120, left: 60 };
+        // Set margins - increase bottom margin to accommodate the legend
+        let margin = { top: 20, right: 30, bottom: 250, left: 60 };
         const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
         
         // Get all unique types
         const types = Array.from(new Set(typeYearData.map(d => d.type)));
+        
+        // Sort types alphabetically for consistent display
+        types.sort((a, b) => {
+            // Try to get translations for comparison
+            const aTranslated = t(`type.${a}`) !== `type.${a}` ? t(`type.${a}`) : a;
+            const bTranslated = t(`type.${b}`) !== `type.${b}` ? t(`type.${b}`) : b;
+            return aTranslated.localeCompare(bTranslated);
+        });
         
         // Initialize type visibility if not already set
         if (typeVisibility.length === 0) {
@@ -472,6 +479,19 @@
                 }
             });
         }
+        
+        // Calculate the number of legend rows needed
+        const legendItemWidth = 220;
+        const maxItemsPerRow = 3;
+        const legendItemsPerRow = Math.min(Math.floor(chartWidth / legendItemWidth) || 1, maxItemsPerRow);
+        const legendRowHeight = 35;
+        const numRows = Math.ceil(types.length / legendItemsPerRow);
+        
+        // Adjust bottom margin dynamically based on the number of rows
+        margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 120);
+        
+        // Recalculate chart height with the adjusted margin
+        const chartHeight = height - margin.top - margin.bottom;
         
         // Group the data by year, only including visible types
         const yearData = Array.from(d3.group(
@@ -565,7 +585,7 @@
         chart.append('text')
             .attr('text-anchor', 'middle')
             .attr('x', chartWidth / 2)
-            .attr('y', chartHeight + 50)
+            .attr('y', chartHeight + 40)
             .attr('fill', 'var(--text-color-secondary)')
             .style('font-size', 'var(--font-size-sm)')
             .text($yearText);
@@ -607,34 +627,23 @@
             });
         
         // Add interactive legend below the chart instead of on the right
-        const legendItemWidth = 150; // Width of each legend item
-        const legendItemsPerRow = Math.floor(chartWidth / legendItemWidth); // Number of items per row
-        const legendRowHeight = 25; // Height of each row
-        
         const legend = svg.append('g')
             .attr('class', 'legend')
-            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 80})`); // Increased y-offset from 70 to 80
-        
-        // Add a background for the legend section
-        legend.append('rect')
-            .attr('x', -10)
-            .attr('y', -30)
-            .attr('width', chartWidth + 20)
-            .attr('height', (Math.ceil(types.length / legendItemsPerRow) * legendRowHeight) + 40)
-            .attr('fill', 'var(--card-background)')
-            .attr('stroke', 'var(--border-color)')
-            .attr('stroke-width', 1)
-            .attr('rx', 4)
-            .attr('ry', 4);
+            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 80})`);
         
         // Add legend title with improved styling
         legend.append('text')
-            .attr('x', 10) // Move slightly to the right for padding
+            .attr('x', 0)
             .attr('y', -10)
             .attr('font-size', 'var(--font-size-md)')
             .attr('font-weight', 'bold')
             .attr('fill', 'var(--text-color-primary)')
             .text($toggleTypesText);
+        
+        // Create a container for the legend items with scrolling if needed
+        const legendItems = legend.append('g')
+            .attr('class', 'legend-items')
+            .attr('transform', 'translate(0, 10)');
         
         types.forEach((type, i) => {
             const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
@@ -644,8 +653,8 @@
             const col = i % legendItemsPerRow;
             
             // Create a group for each legend item
-            const legendItem = legend.append('g')
-                .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`) // Position in grid
+            const legendItem = legendItems.append('g')
+                .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`)
                 .attr('class', 'legend-item')
                 .attr('role', 'button')
                 .style('cursor', 'pointer');
@@ -1146,7 +1155,7 @@
     
     .chart-container {
         flex: 1;
-        min-height: 400px;
+        min-height: 600px;
         position: relative;
         background: var(--card-background);
         border-radius: var(--border-radius-md);
