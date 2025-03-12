@@ -37,7 +37,7 @@
 
     // Visualization state
     let container: HTMLDivElement;
-    let tooltip: HTMLDivElement;
+    let tooltip: HTMLDivElement | null;
     let width = 0;
     let height = 0;
     let countryOptions: FacetOption[] = [];
@@ -82,7 +82,7 @@
     }
     
     // Update title when totalItems changes
-    $: {
+    $: if (isMounted) {
         updateTitleHtml();
     }
 
@@ -342,6 +342,7 @@
             }
         } catch (e) {
             console.error('Error creating tooltip:', e);
+            tooltip = null;
         }
     }
 
@@ -420,8 +421,8 @@
 
     // Update visualization based on current data and filters
     function updateVisualization() {
-        if (!container) {
-            console.error('Container element not found');
+        if (!isMounted || !container || !document.body.contains(container)) {
+            console.error('Cannot update visualization - component not mounted or container not found');
             return;
         }
         
@@ -777,12 +778,12 @@
     }
 
     function handleItemsChange(items: any) {
-        if (!isMounted || !container) return;
+        if (!isMounted || !container || !document.body.contains(container)) return;
         
         logDebug(COMPONENT_ID, 'Items store changed', { itemCount: items?.length || 0 });
         
         // Only update if the component is still mounted
-        if (document.body.contains(container)) {
+        if (isMounted && document.body.contains(container)) {
             generateCountryFacets();
             generateYearRange();
             updateVisualization();
@@ -796,7 +797,7 @@
         logDebug(COMPONENT_ID, 'Component mounted');
         
         tick().then(() => {
-            if (!container) {
+            if (!isMounted || !container) {
                 console.error('Container element not found in onMount');
                 return;
             }
@@ -806,13 +807,17 @@
             
             // Subscribe to the items store
             unsubscribeItems = itemsStore.subscribe(store => {
-                handleItemsChange(store.items);
+                if (isMounted) {
+                    handleItemsChange(store.items);
+                }
             });
             
             // Subscribe to the language store
             unsubscribeLanguage = languageStore.subscribe(value => {
+                if (!isMounted) return;
+                
                 currentLang = value;
-                if (isMounted && container) {
+                if (isMounted && container && document.body.contains(container)) {
                     // Update country facets to get translated labels
                     generateCountryFacets();
                     
@@ -825,11 +830,11 @@
             });
             
             // Generate facets and create visualization if data is available
-            if ($itemsStore.items && $itemsStore.items.length > 0) {
+            if (isMounted && $itemsStore.items && $itemsStore.items.length > 0) {
                 generateCountryFacets();
                 generateYearRange();
                 updateVisualization();
-            } else {
+            } else if (isMounted) {
                 // Load items if not already loaded
                 itemsStore.loadItems();
             }
@@ -838,7 +843,7 @@
             resizeObserver = new ResizeObserver(() => {
                 if (!isMounted) return;
                 
-                if (container && document.body.contains(container)) {
+                if (isMounted && container && document.body.contains(container)) {
                     updateVisualization();
                 }
             });
@@ -863,6 +868,7 @@
                 } catch (e) {
                     console.error('Error disconnecting resize observer:', e);
                 }
+                resizeObserver = null;
             }
             
             // Clean up tooltip
@@ -871,6 +877,7 @@
                     document.body.removeChild(tooltip);
                     logDebug(COMPONENT_ID, 'Tooltip removed');
                 }
+                tooltip = null;
             } catch (e) {
                 console.error('Error removing tooltip:', e);
             }
@@ -878,12 +885,14 @@
             // Clean up store subscriptions
             if (unsubscribeItems) {
                 unsubscribeItems();
+                unsubscribeItems = null as unknown as () => void;
                 logDebug(COMPONENT_ID, 'Unsubscribed from items store');
             }
             
             // Clean up language subscription
             if (unsubscribeLanguage) {
                 unsubscribeLanguage();
+                unsubscribeLanguage = null as unknown as () => void;
                 logDebug(COMPONENT_ID, 'Unsubscribed from language store');
             }
             
@@ -898,11 +907,13 @@
         // Clean up store subscriptions
         if (unsubscribeItems) {
             unsubscribeItems();
+            unsubscribeItems = null as unknown as () => void;
         }
         
         // Clean up language subscription
         if (unsubscribeLanguage) {
             unsubscribeLanguage();
+            unsubscribeLanguage = null as unknown as () => void;
         }
         
         // Clean up resize observer
@@ -912,6 +923,17 @@
             } catch (e) {
                 console.error('Error disconnecting resize observer:', e);
             }
+            resizeObserver = null;
+        }
+        
+        // Clean up tooltip
+        try {
+            if (tooltip && document.body.contains(tooltip)) {
+                document.body.removeChild(tooltip);
+            }
+            tooltip = null;
+        } catch (e) {
+            console.error('Error removing tooltip:', e);
         }
         
         logDebug(COMPONENT_ID, 'Component destroyed');
