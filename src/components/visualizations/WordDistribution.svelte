@@ -4,8 +4,9 @@
     import { itemsStore } from '../../stores/itemsStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { log } from '../../utils/logger';
-    import { t, translate } from '../../stores/translationStore';
+    import { t, translate, languageStore } from '../../stores/translationStore';
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
+    import BaseVisualization from './BaseVisualization.svelte';
 
     const COMPONENT_ID = 'WordDistribution';
     let isMounted = false;
@@ -29,6 +30,8 @@
     let totalItems = 0;
     let hierarchyData: WordHierarchyNode = { name: 'root', children: [] };
     let zoomedNode: d3.HierarchyNode<WordHierarchyNode> | null = null;
+    let titleHtml = '';
+    let currentLang: 'en' | 'fr' = 'en';
     
     // Create reactive translations
     const noDataText = translate('viz.no_data');
@@ -50,6 +53,34 @@
     const percentOfTotalText = translate('viz.percent_of_total');
     const itemSetSummaryText = translate('viz.item_set_summary');
 
+    // Function to format numbers with spaces as thousands separator
+    function formatNumber(num: number): string {
+        // Use locale-specific formatting
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+
+    // Function to update the title HTML
+    function updateTitleHtml() {
+        if (totalItems > 0) {
+            titleHtml = t('viz.word_distribution_subtitle', [formatNumber(totalItems), formatNumber(totalWordCount)]);
+        } else {
+            titleHtml = t('viz.word_distribution_title');
+        }
+    }
+
+    // Subscribe to language changes
+    languageStore.subscribe(value => {
+        currentLang = value;
+        
+        // Update title when language changes
+        updateTitleHtml();
+        
+        // Update visualization if needed
+        if (container && document.body.contains(container)) {
+            updateVisualization();
+        }
+    });
+
     // Process data
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return { name: 'root', children: [] };
@@ -64,6 +95,9 @@
         // Update total counts
         totalItems = filteredItems.length;
         totalWordCount = filteredItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
+        
+        // Update title HTML
+        updateTitleHtml();
         
         // Group by country, then by item_set_title
         const countryGroups = d3.group(filteredItems, d => d.country || 'Unknown');
@@ -188,7 +222,7 @@
             height = rect.height;
             
             // Set margins
-            const margin = { top: 40, right: 10, bottom: 10, left: 10 };
+            const margin = { top: 10, right: 10, bottom: 10, left: 10 };
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
             
@@ -198,20 +232,6 @@
                 .attr('width', width)
                 .attr('height', height);
             
-            // Add title
-            const titleText = zoomedNode 
-                ? `${zoomedNode.data.name}: ${zoomedNode.data.wordCount?.toLocaleString() || 0} ${$wordsText} (${zoomedNode.data.itemCount} ${$itemsText})`
-                : t('viz.word_distribution_subtitle', [totalItems.toString(), totalWordCount.toLocaleString()]);
-                
-            svg.append('text')
-                .attr('x', width / 2)
-                .attr('y', 20)
-                .attr('text-anchor', 'middle')
-                .attr('font-size', 'var(--font-size-lg)')
-                .attr('font-weight', 'bold')
-                .attr('fill', 'var(--text-color-primary)')
-                .text(titleText);
-            
             // Create chart group
             const chart = svg.append('g')
                 .attr('transform', `translate(${margin.left}, ${margin.top})`);
@@ -220,7 +240,7 @@
             if (zoomedNode) {
                 const button = svg.append('g')
                     .attr('class', 'zoom-out-button')
-                    .attr('transform', `translate(${margin.left}, ${margin.top - 30})`)
+                    .attr('transform', `translate(${margin.left}, ${margin.top})`)
                     .style('cursor', 'pointer')
                     .on('click', () => zoomToNode(null));
                     
@@ -238,6 +258,9 @@
                     .attr('fill', 'white')
                     .attr('font-size', 'var(--font-size-sm)')
                     .text($backToAllText);
+                    
+                // Update title HTML for zoomed node
+                titleHtml = `${zoomedNode.data.name}: ${formatNumber(zoomedNode.data.wordCount || 0)} ${$wordsText} (${zoomedNode.data.itemCount} ${$itemsText})`;
             }
             
             // Create treemap layout
@@ -638,7 +661,7 @@
             
             if (!container) {
                 console.error('Container element not found in onMount');
-                return;
+                return undefined;
             }
             
             // Create tooltip
@@ -706,6 +729,7 @@
             };
         } catch (e) {
             console.error('Error in onMount:', e);
+            return undefined;
         }
     });
     
@@ -736,30 +760,38 @@
 </script>
 
 <div class="word-distribution-container">
-    <div class="chart-container" bind:this={container}>
-        {#if $itemsStore.loading}
-            <div class="loading">{t('ui.loading')}</div>
-        {:else if $itemsStore.error}
-            <div class="error">{$itemsStore.error}</div>
-        {/if}
-    </div>
-    
-    <div class="stats">
-        <div class="stat-summary">
-            <h3>{$summaryText}</h3>
-            <p>{$totalItemsWithWordCountText}: <strong>{totalItems}</strong></p>
-            <p>{$totalWordsText}: <strong>{totalWordCount.toLocaleString()}</strong></p>
-            {#if totalItems > 0}
-                <p>{$avgWordsPerItemText}: <strong>{Math.round(totalWordCount / totalItems).toLocaleString()}</strong></p>
-            {/if}
-            {#if zoomedNode}
-                <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
-                <p>{$clickBackText}</p>
-            {:else}
-                <p>{$clickZoomInText}</p>
+    <BaseVisualization
+        title=""
+        translationKey=""
+        description="This visualization shows the distribution of words across items by country and collection. The size of each block represents the word count in that country or collection."
+        descriptionTranslationKey="viz.word_distribution_description"
+        {titleHtml}
+    >
+        <div class="chart-container" bind:this={container}>
+            {#if $itemsStore.loading}
+                <div class="loading">{t('ui.loading')}</div>
+            {:else if $itemsStore.error}
+                <div class="error">{$itemsStore.error}</div>
             {/if}
         </div>
-    </div>
+        
+        <div class="stats">
+            <div class="stat-summary">
+                <h3>{$summaryText}</h3>
+                <p>{$totalItemsWithWordCountText}: <strong>{formatNumber(totalItems)}</strong></p>
+                <p>{$totalWordsText}: <strong>{formatNumber(totalWordCount)}</strong></p>
+                {#if totalItems > 0}
+                    <p>{$avgWordsPerItemText}: <strong>{formatNumber(Math.round(totalWordCount / totalItems))}</strong></p>
+                {/if}
+                {#if zoomedNode}
+                    <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
+                    <p>{$clickBackText}</p>
+                {:else}
+                    <p>{$clickZoomInText}</p>
+                {/if}
+            </div>
+        </div>
+    </BaseVisualization>
 </div>
 
 <style>
@@ -769,6 +801,16 @@
         display: flex;
         flex-direction: column;
         gap: var(--spacing-md);
+    }
+    
+    /* Override the visualization header margin to reduce space */
+    :global(.word-distribution-container .visualization-header) {
+        margin-bottom: var(--spacing-xs) !important;
+    }
+    
+    /* Override the title container padding to reduce space */
+    :global(.word-distribution-container .title-container) {
+        padding-bottom: 0 !important;
     }
     
     .chart-container {
