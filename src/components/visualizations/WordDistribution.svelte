@@ -32,6 +32,8 @@
     let zoomedNode: d3.HierarchyNode<WordHierarchyNode> | null = null;
     let titleHtml = '';
     let currentLang: 'en' | 'fr' = 'en';
+    // Store country colors to maintain consistency when zooming
+    let countryColors: Map<string, string> = new Map();
     
     // Create reactive translations
     const noDataText = translate('viz.no_data');
@@ -379,10 +381,22 @@
                 treemap(root as d3.HierarchyRectangularNode<WordHierarchyNode>);
             }
             
-            // Color scale
+            // Color scale - use d3.schemeCategory10 for consistent colors
             const colorScale = d3.scaleOrdinal<string>()
                 .domain(root.children ? root.children.map(d => d.data.name) : [root.data.name])
                 .range(d3.schemeCategory10);
+            
+            // If not zoomed, store the colors for each country
+            if (!zoomedNode) {
+                // Initialize or update country colors
+                if (root.children) {
+                    root.children.forEach(child => {
+                        if (!countryColors.has(child.data.name)) {
+                            countryColors.set(child.data.name, colorScale(child.data.name));
+                        }
+                    });
+                }
+            }
             
             // Create cells for countries (first level)
             const countries = chart.selectAll('.country')
@@ -391,7 +405,6 @@
                 .append('g')
                 .attr('class', 'country')
                 .attr('transform', d => {
-                    // Ensure d.x0 and d.y0 are valid numbers
                     const x = (d as any).x0 || 0;
                     const y = (d as any).y0 || 0;
                     return `translate(${x},${y})`;
@@ -400,18 +413,19 @@
             // Add country background
             countries.append('rect')
                 .attr('width', d => {
-                    // Ensure width is a valid number
                     const x0 = (d as any).x0 || 0;
                     const x1 = (d as any).x1 || 0;
                     return Math.max(0, x1 - x0);
                 })
                 .attr('height', d => {
-                    // Ensure height is a valid number
                     const y0 = (d as any).y0 || 0;
                     const y1 = (d as any).y1 || 0;
                     return Math.max(0, y1 - y0);
                 })
-                .attr('fill', d => colorScale(d.data.name))
+                .attr('fill', d => {
+                    // Use stored color if available
+                    return countryColors.get(d.data.name) || colorScale(d.data.name);
+                })
                 .attr('stroke', 'white')
                 .attr('stroke-width', 2)
                 .style('opacity', 0.7)
@@ -460,13 +474,11 @@
             // Add item set rectangles
             itemSets.append('rect')
                 .attr('width', d => {
-                    // Ensure width is a valid number
                     const x0 = (d as any).x0 || 0;
                     const x1 = (d as any).x1 || 0;
                     return Math.max(0, x1 - x0);
                 })
                 .attr('height', d => {
-                    // Ensure height is a valid number
                     const y0 = (d as any).y0 || 0;
                     const y1 = (d as any).y1 || 0;
                     return Math.max(0, y1 - y0);
@@ -474,8 +486,8 @@
                 .attr('fill', d => {
                     // Use a lighter shade of the country/parent color
                     const nodeColor = zoomedNode 
-                        ? colorScale(zoomedNode.data.name) 
-                        : colorScale((d.parent as any)?.data?.name || 'Unknown');
+                        ? countryColors.get(zoomedNode.data.name) || colorScale(zoomedNode.data.name)
+                        : countryColors.get((d.parent as any)?.data?.name) || colorScale((d.parent as any)?.data?.name);
                     const baseColor = d3.rgb(nodeColor);
                     return d3.rgb(baseColor).brighter(0.7).toString();
                 })
