@@ -33,12 +33,26 @@
   const tabs = [
     // { id: 'overview', label: 'Overview' },
     { id: 'countries', label: 'tab.countries' },
-    { id: 'languages', label: 'tab.languages' },
-    { id: 'timeline', label: 'tab.timeline' },
     { id: 'types', label: 'tab.types' },
-    { id: 'categories', label: 'tab.categories' },
     { id: 'words', label: 'tab.words' },
+    { id: 'languages', label: 'tab.languages' },
+    { id: 'categories', label: 'tab.categories' },
+    { id: 'timeline', label: 'tab.timeline' },
   ];
+
+  // Create reactive translations for tab labels
+  $: tabLabels = tabs.map(tab => ({
+    ...tab,
+    translatedLabel: t(tab.label)
+  }));
+
+  // Update tab labels when language changes
+  $: if ($languageStore) {
+    tabLabels = tabs.map(tab => ({
+      ...tab,
+      translatedLabel: t(tab.label)
+    }));
+  }
 
   // Manually track the language to avoid reactive statements
   let currentLanguage = '';
@@ -85,6 +99,12 @@
     // Update URL when language changes
     updateUrl(newLang as any, activeTab);
     
+    // Force refresh of tab labels
+    tabLabels = tabs.map(tab => ({
+      ...tab,
+      translatedLabel: t(tab.label)
+    }));
+    
     logDebug(COMPONENT_ID, `Language changed from ${previousLanguage} to ${newLang}`, {
       isMounted,
       updateCount,
@@ -122,6 +142,12 @@
       
       // Set initial language
       currentLanguage = $languageStore;
+      
+      // Initialize tab labels
+      tabLabels = tabs.map(tab => ({
+        ...tab,
+        translatedLabel: t(tab.label)
+      }));
       
       // Manually subscribe to the language store
       try {
@@ -179,7 +205,7 @@
       </div>
       <nav>
         <ul class="tabs">
-          {#each tabs as tab}
+          {#each tabLabels as tab}
             <li 
               class:active={activeTab === tab.id}
               on:click={() => handleTabChange(tab.id)}
@@ -188,7 +214,7 @@
               tabindex="0"
               aria-selected={activeTab === tab.id}
             >
-              {t(tab.label)}
+              {tab.translatedLabel}
             </li>
           {/each}
         </ul>
@@ -203,16 +229,16 @@
       {:else}
         {#if activeTab === 'countries'}
           <CountryDistribution />
-        {:else if activeTab === 'languages'}
-          <LanguageDistribution />
-        {:else if activeTab === 'timeline'}
-          <TimelineDistribution />
         {:else if activeTab === 'types'}
           <TypeDistribution />
-        {:else if activeTab === 'categories'}
-          <IndexDistribution />
         {:else if activeTab === 'words'}
           <WordDistribution />
+        {:else if activeTab === 'languages'}
+          <LanguageDistribution />
+        {:else if activeTab === 'categories'}
+          <IndexDistribution />
+        {:else if activeTab === 'timeline'}
+          <TimelineDistribution />
         {/if}
       {/if}
     </div>
