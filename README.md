@@ -12,6 +12,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Theme System](#theme-system)
 - [Translation System](#translation-system)
 - [URL Parameters](#url-parameters)
+- [Embedding in iframes](#embedding-in-iframes)
 - [Visualizations](#visualizations)
   - [Country Distribution](#country-distribution)
   - [Language Distribution](#language-distribution)
@@ -512,6 +513,77 @@ The application supports URL parameters for direct access to specific language v
 ### Examples Page
 
 An examples page is available at `https://fmadore.github.io/IWAC-overview/examples.html` that provides links to all available language and tab combinations.
+
+## Embedding in iframes
+
+The IWAC Database Overview application can be embedded in other websites using an iframe. To ensure that all functionality works correctly, especially the fullscreen toggle, you need to include specific attributes in your iframe element.
+
+### Basic Embedding
+
+Here's the basic HTML code to embed the application:
+
+```html
+<iframe 
+  src="https://fmadore.github.io/IWAC-overview/index.html" 
+  width="100%" 
+  height="600" 
+  allowfullscreen="true"
+  allow="fullscreen"
+  title="IWAC Database Overview"
+  frameborder="0">
+</iframe>
+```
+
+### Important Attributes
+
+To ensure fullscreen functionality works correctly, make sure to include these attributes:
+
+- `allowfullscreen="true"` - The standard attribute that enables fullscreen capability
+- `allow="fullscreen"` - For newer browsers that use the Feature Policy specification
+
+### Responsive Embedding
+
+For a responsive iframe that maintains its aspect ratio, wrap it in a container:
+
+```html
+<div style="position: relative; width: 100%; height: 0; padding-bottom: 56.25%;">
+  <iframe 
+    src="https://fmadore.github.io/IWAC-overview/index.html" 
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+    allowfullscreen="true"
+    allow="fullscreen"
+    title="IWAC Database Overview"
+    frameborder="0">
+  </iframe>
+</div>
+```
+
+### URL Parameters
+
+You can combine iframe embedding with URL parameters to control the initial state:
+
+```html
+<iframe 
+  src="https://fmadore.github.io/IWAC-overview/index.html?lang=fr&tab=timeline" 
+  width="100%" 
+  height="600" 
+  allowfullscreen="true"
+  allow="fullscreen"
+  title="IWAC Database Overview - Timeline (French)"
+  frameborder="0">
+</iframe>
+```
+
+### Troubleshooting
+
+If fullscreen doesn't work, check that:
+
+1. Both `allowfullscreen` and `allow="fullscreen"` attributes are present
+2. The iframe is not nested inside another iframe without fullscreen permissions
+3. The browser supports the Fullscreen API
+4. The page is served over HTTPS (required for some browsers)
+
+For a complete example of embedding, see the `iframe-embed-example.html` file in the repository.
 
 ## Visualizations
 

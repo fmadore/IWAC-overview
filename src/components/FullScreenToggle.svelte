@@ -8,15 +8,31 @@
     // Function to toggle fullscreen
     function toggleFullScreen() {
         if (!document.fullscreenElement) {
-            // Enter fullscreen
+            // Enter fullscreen - always use document.documentElement
+            // The iframe permission is handled by the allowfullscreen attribute
             document.documentElement.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                
+                // If we failed, it might be because we're in an iframe without allowfullscreen
+                if (isInIframe()) {
+                    console.warn('This application is in an iframe. Make sure the iframe has the "allowfullscreen" attribute.');
+                }
             });
         } else {
             // Exit fullscreen
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             }
+        }
+    }
+    
+    // Helper function to check if we're in an iframe
+    function isInIframe() {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            // If we can't access window.top due to same-origin policy, we're in an iframe
+            return true;
         }
     }
     
