@@ -463,7 +463,7 @@
             if (!isMounted || !document.body.contains(container)) return;
             
             // Set margins - make bottom margin just enough for the legend
-            let margin = { top: 20, right: 30, bottom: 100, left: 60 };
+            let margin = { top: 20, right: 30, bottom: 120, left: 60 };
             const chartWidth = width - margin.left - margin.right;
             
             // Get all unique types
@@ -497,11 +497,11 @@
             const legendItemWidth = 150; // Smaller width
             const maxItemsPerRow = 6; // More items per row
             const legendItemsPerRow = Math.min(Math.floor(chartWidth / legendItemWidth) || 1, maxItemsPerRow);
-            const legendRowHeight = 20; // Smaller row height
+            const legendRowHeight = 25; // Increased row height
             const numRows = Math.ceil(types.length / legendItemsPerRow);
             
             // Adjust bottom margin based on the number of rows
-            margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 50);
+            margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 70);
             
             // Recalculate chart height with the adjusted margin
             const chartHeight = height - margin.top - margin.bottom;
@@ -660,12 +660,12 @@
             // Add interactive legend below the chart (under x-axis)
             const legend = svg.append('g')
                 .attr('class', 'legend')
-                .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 40})`);
+                .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 60})`);
             
             // Add legend title with improved styling - make it smaller
             legend.append('text')
                 .attr('x', 0)
-                .attr('y', -5)
+                .attr('y', -15)
                 .attr('font-size', 'var(--font-size-xs)')
                 .attr('font-weight', 'normal')
                 .attr('fill', 'var(--text-color-secondary)')
@@ -674,7 +674,7 @@
             // Create a container for the legend items
             const legendItems = legend.append('g')
                 .attr('class', 'legend-items')
-                .attr('transform', 'translate(0, 10)');
+                .attr('transform', 'translate(0, 5)');
             
             // Check component is still mounted
             if (!isMounted || !document.body.contains(container)) return;
