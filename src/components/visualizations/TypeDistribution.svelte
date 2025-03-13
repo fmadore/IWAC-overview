@@ -1141,15 +1141,13 @@
     }
     
     .facet-options {
-        max-height: 120px;
-        overflow-y: auto;
         padding-right: var(--spacing-sm);
     }
     
     /* Add table-like layout for facet options to match screenshot */
     .facet-options.table-layout {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         grid-gap: var(--spacing-xs) var(--spacing-md);
     }
     
