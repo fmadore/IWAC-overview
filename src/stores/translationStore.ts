@@ -30,6 +30,8 @@ export const translations: Translations = {
         'ui.show_description': 'Show description',
         'ui.hide_description': 'Hide description',
         'ui.no_visualization_content': 'No visualization content available',
+        'ui.enter_fullscreen': 'Enter fullscreen mode',
+        'ui.exit_fullscreen': 'Exit fullscreen mode',
         
         // Visualization components
         'viz.summary': 'Summary',
@@ -173,6 +175,8 @@ export const translations: Translations = {
         'ui.show_description': 'Afficher la description',
         'ui.hide_description': 'Masquer la description',
         'ui.no_visualization_content': 'Aucun contenu de visualisation disponible',
+        'ui.enter_fullscreen': 'Passer en mode plein écran',
+        'ui.exit_fullscreen': 'Quitter le mode plein écran',
         
         // Visualization components
         'viz.summary': 'Résumé',

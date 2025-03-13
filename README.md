@@ -8,6 +8,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Project Structure](#project-structure)
 - [Core Components](#core-components)
 - [Data Management](#data-management)
+- [UI Elements](#ui-elements)
 - [Theme System](#theme-system)
 - [Translation System](#translation-system)
 - [URL Parameters](#url-parameters)
@@ -33,6 +34,7 @@ The IWAC Database Overview is a Svelte-based application that offers a set of in
 Key features:
 - Interactive D3.js visualizations
 - Multilingual support with English and French translations
+- Fullscreen mode for immersive data exploration
 - Country distribution treemap visualization
 - Language distribution pie chart with faceted filtering
 - Index distribution bar chart with category breakdown
@@ -54,6 +56,7 @@ IWAC-overview/
 │   ├── components/       # UI components
 │   │   ├── DebugPanel.svelte    # Debug panel component (hidden in production)
 │   │   ├── LanguageToggle.svelte    # Language switching component
+│   │   ├── FullScreenToggle.svelte  # Fullscreen mode toggle component
 │   │   ├── TranslationContext.svelte # Translation context provider
 │   │   └── visualizations/  # Visualization components
 │   │       ├── BaseVisualization.svelte  # Base component for visualizations
@@ -177,6 +180,19 @@ Features:
 - Summary statistics showing total items with word count, total words, and average words per item
 - Responsive design that adapts to different screen sizes
 
+### LanguageToggle.svelte
+
+A component that allows users to switch between English and French language modes. The toggle button updates the language store, which triggers reactive updates throughout the application.
+
+### FullScreenToggle.svelte
+
+A component that provides fullscreen functionality for a more immersive data exploration experience:
+- Toggle between normal and fullscreen modes
+- Responsive SVG icons that change based on the current state
+- Multilingual tooltips for accessibility
+- Keyboard event handling for fullscreen changes
+- Clean integration with the application header
+
 ## Data Management
 
 ### itemsStore.ts
@@ -226,6 +242,34 @@ The theme system also includes utility classes for common styling needs:
 ```html
 <div class="text-primary bg-card">Themed content</div>
 ```
+
+## UI Elements
+
+### Header Controls
+
+The application header includes several controls for enhancing the user experience:
+
+#### Language Toggle
+- Allows users to switch between English and French interfaces
+- Updates all text content throughout the application in real-time
+- Preserves the current visualization and state when switching languages
+
+#### Fullscreen Toggle
+- Enables fullscreen mode for a more immersive visualization experience
+- Shows different icons based on the current fullscreen state
+- Provides localized tooltips in the current language
+- Automatically updates its state when the user exits fullscreen using browser controls
+
+### Tab Navigation
+- Provides easy access to different visualization types
+- Highlights the currently active tab
+- Updates the URL for direct linking to specific visualizations
+- Supports keyboard navigation
+
+### Visualization Header
+- Displays the title of the current visualization
+- Includes an expandable description panel with detailed information
+- Supports HTML content in titles for rich formatting
 
 ## Translation System
 

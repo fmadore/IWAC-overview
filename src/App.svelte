@@ -3,6 +3,7 @@
   import { itemsStore } from './stores/itemsStore';
   import { t, languageStore, translate } from './stores/translationStore';
   import LanguageToggle from './components/LanguageToggle.svelte';
+  import FullScreenToggle from './components/FullScreenToggle.svelte';
   import TranslationContext from './components/TranslationContext.svelte';
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
   import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
@@ -206,7 +207,10 @@
     <header>
       <div class="header-top">
         <h1>{@html $appTitle}</h1>
-        <LanguageToggle />
+        <div class="header-controls">
+          <FullScreenToggle />
+          <LanguageToggle />
+        </div>
       </div>
       <nav>
         <ul class="tabs">
@@ -266,9 +270,21 @@
     --spacing-sm: 8px;
     --spacing-md: 16px;
     --spacing-lg: 24px;
+    --spacing-xs: 4px;
+    --spacing-xl: 32px;
     --border-radius-sm: 4px;
     --border-radius-md: 8px;
     --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --text-color-light: #fff;
+    --text-color-primary: #333;
+    --text-color-secondary: #666;
+    --primary-color-faded: rgba(52, 152, 219, 0.3);
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 24px;
+    --transition-fast: 0.2s ease;
   }
 
   :global(body) {
@@ -294,6 +310,12 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--spacing-md);
+  }
+  
+  .header-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
   }
 
   h1 {
