@@ -21,7 +21,7 @@
    - ✅ CountryDistribution - Updated to use useTooltip
    - ⬜ TimelineDistribution
    - ⬜ TypeDistribution
-   - ⬜ WordDistribution
+   - ✅ WordDistribution - Updated to use useTooltip
 4. Document the component API for consistency
 
 ## 2. Consolidate D3.js Integration

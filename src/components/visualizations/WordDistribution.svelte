@@ -7,6 +7,7 @@
     import { t, translate, languageStore } from '../../stores/translationStore';
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
     import BaseVisualization from './BaseVisualization.svelte';
+    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     const COMPONENT_ID = 'WordDistribution';
     let isMounted = false;
@@ -23,7 +24,6 @@
 
     // Visualization state
     let container: HTMLDivElement;
-    let tooltip: HTMLDivElement;
     let width = 0;
     let height = 0;
     let totalWordCount = 0;
@@ -34,6 +34,11 @@
     let currentLang: 'en' | 'fr' = 'en';
     // Store country colors to maintain consistency when zooming
     let countryColors: Map<string, string> = new Map();
+    
+    // Initialize tooltip hook
+    const { showTooltip, hideTooltip } = useTooltip({
+        maxWidth: '250px'
+    });
     
     // Create reactive translations
     const noDataText = translate('viz.no_data');
@@ -555,12 +560,12 @@
                         .attr('stroke', 'var(--primary-color)')
                         .attr('stroke-width', 2);
                     
-                    // Show tooltip
-                    showTooltip(d, event);
+                    // Show tooltip using the new handler
+                    handleShowTooltip(event, d);
                 })
                 .on('mousemove', function(event, d) {
                     // Update tooltip position
-                    showTooltip(d, event);
+                    handleShowTooltip(event, d);
                 })
                 .on('mouseout', function() {
                     // Remove highlight
@@ -624,44 +629,11 @@
         }
     }
 
-    // Create tooltip
-    function createTooltip() {
+    // Handle tooltip display
+    function handleShowTooltip(event: MouseEvent, d: any) {
         try {
-            // Remove any existing tooltip to prevent duplicates
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
-            }
-            
-            tooltip = document.createElement('div');
-            tooltip.style.position = 'absolute';
-            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            tooltip.style.color = 'white';
-            tooltip.style.padding = '8px 12px';
-            tooltip.style.borderRadius = '4px';
-            tooltip.style.pointerEvents = 'none';
-            tooltip.style.display = 'none';
-            tooltip.style.fontSize = '12px';
-            tooltip.style.zIndex = '1000';
-            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-            
-            if (document && document.body) {
-                document.body.appendChild(tooltip);
-            }
-        } catch (e) {
-            console.error('Error creating tooltip:', e);
-        }
-    }
-
-    // Show tooltip with data
-    function showTooltip(d, event) {
-        try {
-            if (!tooltip || !document.body.contains(tooltip)) {
-                logDebug(COMPONENT_ID, 'Tooltip element not found, creating new one');
-                createTooltip();
-            }
-            
             if (!event) {
-                logDebug(COMPONENT_ID, 'Event object is undefined in showTooltip');
+                logDebug(COMPONENT_ID, 'Event object is undefined in handleShowTooltip');
                 return;
             }
             
@@ -678,77 +650,26 @@
             const percentOfTotal = totalWordCount > 0 ? 
                 ((wordCount / totalWordCount) * 100).toFixed(1) + '%' : 'N/A';
             
-            tooltip.innerHTML = `
-                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                    ${country} > ${itemSet}
-                </div>
-                <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
-                    <span>${$wordsText}:</span>
-                    <span style="text-align:right;font-weight:bold">${wordCount.toLocaleString()}</span>
-                    <span>${$itemsText}:</span>
-                    <span style="text-align:right">${itemCount}</span>
-                    <span>${$avgWordsPerItemText}:</span>
-                    <span style="text-align:right">${avgWordsPerItem}</span>
-                    <span>${$percentOfCountryText}:</span>
-                    <span style="text-align:right">${percentOfCountry}</span>
-                    <span>${$percentOfTotalText}:</span>
-                    <span style="text-align:right">${percentOfTotal}</span>
-                </div>
-            `;
+            const content = createGridTooltipContent(
+                `${country} > ${itemSet}`,
+                [
+                    { label: $wordsText, value: wordCount.toLocaleString() },
+                    { label: $itemsText, value: itemCount },
+                    { label: $avgWordsPerItemText, value: avgWordsPerItem },
+                    { label: $percentOfCountryText, value: percentOfCountry },
+                    { label: $percentOfTotalText, value: percentOfTotal }
+                ]
+            );
             
-            const tooltipWidth = 200;
-            const tooltipHeight = 120;
-            
-            // Get safe coordinates for the tooltip
-            let left = 0;
-            let top = 0;
-            
-            try {
-                left = event.pageX + 10;
-                top = event.pageY + 10;
-                
-                // Make sure tooltip stays within viewport
-                if (left + tooltipWidth > window.innerWidth) {
-                    left = event.pageX - tooltipWidth - 10;
-                }
-                
-                if (top + tooltipHeight > window.innerHeight) {
-                    top = event.pageY - tooltipHeight - 10;
-                }
-                
-                // Ensure we don't have negative positions
-                left = Math.max(0, left);
-                top = Math.max(0, top);
-            } catch (e) {
-                logDebug(COMPONENT_ID, 'Error calculating tooltip position', e);
-                // Fallback to center of screen
-                left = window.innerWidth / 2 - tooltipWidth / 2;
-                top = window.innerHeight / 2 - tooltipHeight / 2;
-            }
-            
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-            tooltip.style.display = 'block';
+            showTooltip(event, content, 250, 150);
             
             logDebug(COMPONENT_ID, 'Tooltip shown', { 
                 country, 
-                itemSet, 
-                position: { left, top } 
+                itemSet
             });
         } catch (e) {
             console.error('Error showing tooltip:', e);
             logDebug(COMPONENT_ID, 'Error showing tooltip', e);
-        }
-    }
-
-    // Hide tooltip
-    function hideTooltip() {
-        try {
-            if (tooltip && document.body.contains(tooltip)) {
-                tooltip.style.display = 'none';
-            }
-        } catch (e) {
-            console.error('Error hiding tooltip:', e);
         }
     }
 
@@ -777,9 +698,6 @@
                     console.error('Container element not found in onMount');
                     return;
                 }
-                
-                // Create tooltip
-                createTooltip();
                 
                 // Subscribe to the items store
                 unsubscribeItems = itemsStore.subscribe(store => {
@@ -823,12 +741,6 @@
                         logDebug(COMPONENT_ID, 'D3 selections removed');
                     }
                     
-                    // Clean up tooltip
-                    if (tooltip && document.body.contains(tooltip)) {
-                        document.body.removeChild(tooltip);
-                        logDebug(COMPONENT_ID, 'Tooltip removed');
-                    }
-                    
                     // Clean up store subscriptions
                     if (unsubscribeItems) {
                         unsubscribeItems();
@@ -858,12 +770,6 @@
                 if (unsubscribeItems) {
                     unsubscribeItems();
                     logDebug(COMPONENT_ID, 'Unsubscribed from items store (backup)');
-                }
-                
-                // Clean up tooltip as a backup
-                if (tooltip && document.body.contains(tooltip)) {
-                    document.body.removeChild(tooltip);
-                    logDebug(COMPONENT_ID, 'Tooltip removed (backup)');
                 }
             } catch (e) {
                 console.error('Error during backup cleanup:', e);
