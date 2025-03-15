@@ -11,8 +11,17 @@
 
 **Implementation steps:**
 1. Refine the BaseVisualization component to handle more common functionality 
-2. Create visualization-specific hooks (useTooltip, useD3Resize, useDataProcessing)
+2. Create visualization-specific hooks:
+   - ✅ useTooltip - Completed
+   - ⬜ useD3Resize
+   - ⬜ useDataProcessing
 3. Update each visualization component to leverage the shared code
+   - ✅ IndexDistribution - Updated to use useTooltip
+   - ✅ LanguageDistribution - Updated to use useTooltip
+   - ⬜ CountryDistribution
+   - ⬜ TimelineDistribution
+   - ⬜ TypeDistribution
+   - ⬜ WordDistribution
 4. Document the component API for consistency
 
 ## 2. Consolidate D3.js Integration

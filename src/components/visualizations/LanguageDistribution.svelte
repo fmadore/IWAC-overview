@@ -6,6 +6,7 @@
     import { t, translate, languageStore } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import BaseVisualization from './BaseVisualization.svelte';
+    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     // Define interfaces for data structures
     interface LanguageCount {
@@ -36,8 +37,10 @@
     let width = 0;
     let height = 0;
     let container: HTMLDivElement;
-    let tooltip: HTMLDivElement;
     let legend: HTMLDivElement;
+
+    // Initialize tooltip hook
+    const { showTooltip, hideTooltip } = useTooltip();
 
     // Color scale for pie segments
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
@@ -199,68 +202,22 @@
         ];
     }
 
-    // Create tooltip element
-    function createTooltip() {
-        tooltip = document.createElement('div');
-        tooltip.style.position = 'absolute';
-        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '8px 12px';
-        tooltip.style.borderRadius = '4px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.display = 'none';
-        tooltip.style.fontSize = '12px';
-        tooltip.style.zIndex = '1000';
-        tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-        
-        if (document && document.body) {
-            document.body.appendChild(tooltip);
-        }
-    }
-    
     // Show tooltip with language information
-    function showTooltip(event: MouseEvent, d: d3.PieArcDatum<LanguageCount>) {
-        if (!tooltip) return;
-        
+    function handleShowTooltip(event: MouseEvent, d: d3.PieArcDatum<LanguageCount>) {
         const data = d.data;
         const languageName = t(`lang.${data.language}`) || data.language;
         
-        tooltip.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                ${languageName}
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                <span>${t('viz.items')}:</span><span style="text-align:right;font-weight:bold;">${formatNumber(data.count)}</span>
-                <span>${t('viz.percent_of_total')}:</span><span style="text-align:right;font-weight:bold;">${data.percentage.toFixed(2)}%</span>
-            </div>
-        `;
+        const content = createGridTooltipContent(
+            languageName,
+            [
+                { label: t('viz.items'), value: formatNumber(data.count) },
+                { label: t('viz.percent_of_total'), value: `${data.percentage.toFixed(2)}%` }
+            ]
+        );
         
-        const tooltipWidth = 200;
-        const tooltipHeight = 100;
-        
-        let left = event.pageX + 10;
-        let top = event.pageY + 10;
-        
-        if (left + tooltipWidth > window.innerWidth) {
-            left = event.pageX - tooltipWidth - 10;
-        }
-        
-        if (top + tooltipHeight > window.innerHeight) {
-            top = event.pageY - tooltipHeight - 10;
-        }
-        
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
-        tooltip.style.display = 'block';
+        showTooltip(event, content);
     }
-    
-    // Hide tooltip
-    function hideTooltip() {
-        if (tooltip) {
-            tooltip.style.display = 'none';
-        }
-    }
-    
+
     // Create legend element
     function createLegend() {
         if (legend) {
@@ -368,10 +325,10 @@
                     .transition()
                     .duration(200)
                     .attr('d', (d: any) => arcHover(d as d3.PieArcDatum<LanguageCount>)!);
-                showTooltip(event, d);
+                handleShowTooltip(event, d);
             })
             .on('mousemove', function(event, d) {
-                showTooltip(event, d);
+                handleShowTooltip(event, d);
             })
             .on('mouseleave', function(event, d) {
                 d3.select(this)
@@ -422,19 +379,11 @@
             return;
         }
         
-        // Create tooltip
-        createTooltip();
-        
         // Generate facet options and create visualization
-        if ($itemsStore.items && $itemsStore.items.length > 0) {
-            generateFacetOptions();
-            createPieChart();
-        } else {
-            // Load items if not already loaded
-            itemsStore.loadItems();
-        }
+        generateFacetOptions();
+        createPieChart();
         
-        // Add resize observer
+        // Set up resize observer for responsive behavior
         const resizeObserver = new ResizeObserver(() => {
             if (container) {
                 createPieChart();
@@ -443,17 +392,13 @@
         
         resizeObserver.observe(container);
         
+        // Return cleanup function
         return () => {
             resizeObserver.disconnect();
             
-            // Clean up tooltip
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
-            }
-            
             // Clean up legend
-            if (legend && legend.parentNode) {
-                legend.parentNode.removeChild(legend);
+            if (legend && document.body.contains(legend)) {
+                document.body.removeChild(legend);
             }
         };
     });

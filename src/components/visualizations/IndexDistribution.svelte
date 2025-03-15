@@ -6,6 +6,7 @@
     import type { OmekaItem } from '../../types/OmekaItem';
     import { t, translate, languageStore, translations } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
+    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     // Define interfaces for data structures
     interface CategoryCount {
@@ -24,9 +25,11 @@
     let width = 0;
     let height = 0;
     let container: HTMLDivElement;
-    let tooltip: HTMLDivElement;
     let currentLang: 'en' | 'fr' = 'en';
     let titleHtml = '';
+
+    // Initialize tooltip hook
+    const { showTooltip, hideTooltip } = useTooltip();
 
     // Define translation keys
     const indexDescriptionKey = 'viz.index_distribution_description';
@@ -124,84 +127,17 @@
         return sortedResults;
     }
 
-    // Create tooltip element
-    function createTooltip() {
-        try {
-            // Remove any existing tooltip to prevent duplicates
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
-            }
-            
-            tooltip = document.createElement('div');
-            tooltip.style.position = 'absolute';
-            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            tooltip.style.color = 'white';
-            tooltip.style.padding = '8px 12px';
-            tooltip.style.borderRadius = '4px';
-            tooltip.style.pointerEvents = 'none';
-            tooltip.style.display = 'none';
-            tooltip.style.fontSize = '12px';
-            tooltip.style.zIndex = '1000';
-            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-            
-            if (document && document.body) {
-                document.body.appendChild(tooltip);
-            }
-        } catch (e) {
-            console.error('Error creating tooltip:', e);
-        }
-    }
-    
     // Show tooltip with category information
-    function showTooltip(event: MouseEvent, d: CategoryCount) {
-        try {
-            if (!tooltip || !document.body.contains(tooltip)) {
-                createTooltip(); // Recreate tooltip if it doesn't exist
-            }
-            
-            if (!tooltip) return;
-            
-            tooltip.innerHTML = `
-                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                    ${d.category}
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                    <span>${t('viz.items')}:</span><span style="text-align:right;font-weight:bold;">${formatNumber(d.count)}</span>
-                    <span>${t('viz.percent_of_total')}:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
-                </div>
-            `;
-            
-            const tooltipWidth = 200;
-            const tooltipHeight = 100;
-            
-            let left = event.pageX + 10;
-            let top = event.pageY + 10;
-            
-            if (left + tooltipWidth > window.innerWidth) {
-                left = event.pageX - tooltipWidth - 10;
-            }
-            
-            if (top + tooltipHeight > window.innerHeight) {
-                top = event.pageY - tooltipHeight - 10;
-            }
-            
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-            tooltip.style.display = 'block';
-        } catch (e) {
-            console.error('Error showing tooltip:', e);
-        }
-    }
-    
-    // Hide tooltip
-    function hideTooltip() {
-        try {
-            if (tooltip && document.body.contains(tooltip)) {
-                tooltip.style.display = 'none';
-            }
-        } catch (e) {
-            console.error('Error hiding tooltip:', e);
-        }
+    function handleShowTooltip(event: MouseEvent, d: CategoryCount) {
+        const content = createGridTooltipContent(
+            d.category,
+            [
+                { label: t('viz.items'), value: formatNumber(d.count) },
+                { label: t('viz.percent_of_total'), value: `${d.percentage.toFixed(2)}%` }
+            ]
+        );
+        
+        showTooltip(event, content);
     }
 
     // Create bar chart visualization
@@ -327,10 +263,10 @@
                         .transition()
                         .duration(200)
                         .attr('fill', d3.rgb(colorScale(d.category)).brighter(0.5).toString());
-                    showTooltip(event, d);
+                    handleShowTooltip(event, d);
                 })
                 .on('mousemove', function(event, d) {
-                    showTooltip(event, d);
+                    handleShowTooltip(event, d);
                 })
                 .on('mouseleave', function(event, d) {
                     // Restore original color
@@ -377,9 +313,6 @@
                     return;
                 }
                 
-                // Create tooltip
-                createTooltip();
-                
                 // Create visualization
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
                     createBarChart();
@@ -416,11 +349,6 @@
                 if (container) {
                     // Remove any SVG, divs or other elements D3 might have created
                     d3.select(container).selectAll('*').remove();
-                }
-                
-                // Clean up tooltip
-                if (tooltip && document.body.contains(tooltip)) {
-                    document.body.removeChild(tooltip);
                 }
             } catch (e) {
                 console.error('Error during cleanup:', e);
