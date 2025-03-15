@@ -139,6 +139,12 @@
             // Group items by item_set_title
             const setGroups = d3.group(countryItems, d => d.item_set_title || 'No Set');
             
+            // Calculate total word count for this country
+            const countryWordCount = countryItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
+            
+            // Skip countries with no word count
+            if (countryWordCount <= 0) return;
+            
             // Create country node
             const countryNode: WordHierarchyNode = {
                 name: country,
@@ -151,6 +157,9 @@
             setGroups.forEach((setItems, setTitle) => {
                 // Calculate total word count for this set
                 const setWordCount = setItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
+                
+                // Skip item sets with no word count
+                if (setWordCount <= 0) return;
                 
                 // Create set node with value representing word count
                 const setNode: WordHierarchyNode = {
@@ -317,8 +326,8 @@
             // Create treemap layout
             const treemap = d3.treemap<WordHierarchyNode>()
                 .size([chartWidth, chartHeight])
-                .paddingOuter(4)
-                .paddingTop(20)
+                .paddingOuter(3)
+                .paddingTop(16)
                 .paddingInner(1)
                 .round(true);
             
@@ -372,6 +381,19 @@
                 root = d3.hierarchy<WordHierarchyNode>(hierarchyData)
                     .sum(d => d.value || 0)
                     .sort((a, b) => (b.value || 0) - (a.value || 0));
+                
+                // Filter out nodes with very small values that might cause display issues
+                // This ensures all displayed countries have enough space to be visible
+                if (root.children) {
+                    // Calculate minimum threshold (e.g., 0.1% of total)
+                    const totalValue = root.value || 0;
+                    const minThreshold = totalValue * 0.001; // 0.1% of total
+                    
+                    // Filter children to only include those with sufficient value
+                    root.children = root.children.filter(child => 
+                        (child.value || 0) > minThreshold
+                    );
+                }
             }
             
             // Apply treemap layout - make sure to validate
@@ -451,7 +473,14 @@
                 .attr('font-size', 'var(--font-size-sm)')
                 .attr('font-weight', 'bold')
                 .attr('fill', 'white')
-                .text(d => `${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`)
+                .text(d => {
+                    // Calculate available width
+                    const width = (d as any).x1 - (d as any).x0 - 10;
+                    // If width is too small, just show the name without word count
+                    if (width < 150) return d.data.name;
+                    // Otherwise show name with word count
+                    return `${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`;
+                })
                 .style('pointer-events', 'none')
                 .each(function(d) {
                     const self = d3.select(this);
@@ -459,8 +488,27 @@
                     const availableWidth = (d as any).x1 - (d as any).x0 - 10;
                     
                     if (textLength > availableWidth) {
-                        self.text(d.data.name)
-                            .append('title')
+                        // If text is too long, truncate it
+                        let text = d.data.name;
+                        self.text(text);
+                        
+                        // Check if text fits and truncate if necessary
+                        let currentTextLength = (this as SVGTextElement).getComputedTextLength();
+                        let ellipsis = false;
+                        
+                        while (currentTextLength > availableWidth && text.length > 3) {
+                            text = text.slice(0, -1);
+                            self.text(text);
+                            currentTextLength = (this as SVGTextElement).getComputedTextLength();
+                            ellipsis = true;
+                        }
+                        
+                        if (ellipsis) {
+                            self.text(text + '...');
+                        }
+                        
+                        // Add tooltip with full name and word count
+                        self.append('title')
                             .text(`${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`);
                     }
                 });
@@ -566,6 +614,9 @@
                     
                     if (ellipsis) {
                         self.text(text + '...');
+                        // Re-add the tooltip since it was lost when changing the text
+                        self.append('title')
+                            .text(`${country} > ${d.data.name}: ${d.data.wordCount?.toLocaleString() || 0} ${$wordsText} (${d.data.itemCount} ${$itemsText})`);
                     }
                 });
         } catch (e) {
