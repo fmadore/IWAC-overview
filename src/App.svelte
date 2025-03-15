@@ -35,7 +35,7 @@
   // Note: Tab labels have been updated in translationStore.ts:
   // - "Word Distribution" → "Word Count" / "Nombre de mots"
   // - "Index Categories" → "Index"
-  // - "Timeline" → "Database Growth" / "Croissance base de données"
+  // - "Timeline" → "Collection growth" / "Croissance collection"
   const tabs = [
     // { id: 'overview', label: 'Overview' },
     { id: 'countries', label: 'tab.countries' },
