@@ -6,6 +6,7 @@
     import type { OmekaItem } from '../../types/OmekaItem';
     import { t, translate, languageStore } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
+    import { subcollectionCategories, subcollectionMapping, getCategoryForSubcollection, getTranslatedCategoryName } from '../../types/SubcollectionCategories';
 
     // Move all the interface definitions to the top
     interface Item {
@@ -20,6 +21,8 @@
         value?: number;
         itemCount?: number;
         originalName?: string; // Store original name for data lookups
+        categoryId?: string;   // Store category ID for subcollection grouping
+        isCategory?: boolean;  // Flag to identify if this is a category node
     }
 
     // Initialize essential variables first
@@ -34,6 +37,7 @@
     let totalItems = 0;
     let countryCount = 0;
     let subCollectionCount = 0;
+    let categoryCount = 0;
     let searchResults: d3.HierarchyRectangularNode<HierarchyDatum>[] = [];
     let selectedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
     let zoomedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
@@ -43,6 +47,8 @@
     
     // Store country colors to maintain consistency when zooming
     let countryColors: Map<string, string> = new Map();
+    // Store category colors to maintain consistency
+    let categoryColors: Map<string, string> = new Map();
     
     // Define translation keys
     const countryDescriptionKey = 'viz.country_distribution_description';
@@ -59,6 +65,7 @@
     const summaryText = translate('viz.summary');
     const totalItemsText = translate('viz.total_items');
     const countriesText = translate('viz.countries');
+    const categoriesText = translate('viz.categories');
     const subCollectionsText = translate('viz.sub_collections');
     const currentlyViewingText = translate('viz.currently_viewing');
     const clickBackText = translate('viz.click_back_to_return');
@@ -148,25 +155,71 @@
         // Create hierarchical structure
         const root: HierarchyDatum = {
             name: "root",
-            children: Array.from(countryGroups, ([country, items]) => {
+            children: Array.from(countryGroups, ([country, countryItems]) => {
                 // Translate country name
                 const translatedCountry = t(`country.${country}`) || country;
                 
                 // Group by item_set_title within each country
-                const itemSets = Array.from(
-                    d3.group(items, (d: Item) => d.item_set_title || $noSetText),
-                    ([itemSet, setItems]) => ({
-                        name: itemSet,
-                        value: setItems.length, // Count of items in this set
-                        itemCount: setItems.length,
-                        originalName: itemSet // Store original name for data lookups
-                    })
-                );
+                const itemSetGroups = d3.group(countryItems, (d: Item) => d.item_set_title || $noSetText);
+                
+                // Group item sets by category
+                const categoryMap = new Map<string, HierarchyDatum>();
+                
+                // First, create category nodes for this country
+                Object.values(subcollectionCategories).forEach(category => {
+                    categoryMap.set(category.id, {
+                        name: getTranslatedCategoryName(category.id, currentLang),
+                        children: [],
+                        itemCount: 0,
+                        originalName: category.id,
+                        categoryId: category.id,
+                        isCategory: true
+                    });
+                });
+                
+                // Then assign each item set to its category
+                itemSetGroups.forEach((setItems, itemSetName) => {
+                    const categoryId = subcollectionMapping[itemSetName] || 'other';
+                    const category = categoryMap.get(categoryId);
+                    
+                    if (category && category.children) {
+                        // Create item set node
+                        const itemSetNode: HierarchyDatum = {
+                            name: itemSetName,
+                            value: setItems.length,
+                            itemCount: setItems.length,
+                            originalName: itemSetName,
+                            categoryId: categoryId
+                        };
+                        
+                        // Add to category's children
+                        category.children.push(itemSetNode);
+                        
+                        // Update category's item count
+                        if (category.itemCount !== undefined) {
+                            category.itemCount += setItems.length;
+                        }
+                    }
+                });
+                
+                // Filter out empty categories
+                const nonEmptyCategories = Array.from(categoryMap.values())
+                    .filter(category => category.children && category.children.length > 0);
+                
+                // Sort categories by item count
+                nonEmptyCategories.sort((a, b) => (b.itemCount || 0) - (a.itemCount || 0));
+                
+                // Sort item sets within each category by item count
+                nonEmptyCategories.forEach(category => {
+                    if (category.children) {
+                        category.children.sort((a, b) => (b.itemCount || 0) - (a.itemCount || 0));
+                    }
+                });
                 
                 return {
                     name: translatedCountry,
-                    children: itemSets,
-                    itemCount: items.length,
+                    children: nonEmptyCategories,
+                    itemCount: countryItems.length,
                     originalName: country // Store original country name for data lookups
                 };
             })
@@ -175,8 +228,17 @@
         // Update statistics
         totalItems = validItems.length;
         countryCount = countryGroups.size;
-        subCollectionCount = root.children?.reduce((total, country) => 
-            total + (country.children?.length || 0), 0) || 0;
+        categoryCount = Object.keys(subcollectionCategories).length;
+        
+        // Count total subcollections across all countries and categories
+        subCollectionCount = 0;
+        root.children?.forEach(country => {
+            country.children?.forEach(category => {
+                if (category.children) {
+                    subCollectionCount += category.children.length;
+                }
+            });
+        });
         
         // Important: Update the title HTML whenever the data changes
         updateTitleHtml();
@@ -199,28 +261,56 @@
             }
             
             // Log the zoomed node for debugging
-            console.log('Zooming to node:', zoomedNode.data.name, 'Original name:', zoomedNode.data.originalName);
+            console.log('Zooming to node:', zoomedNode.data.name, 'Original name:', zoomedNode.data.originalName, 'Is category:', zoomedNode.data.isCategory);
             
             // Update statistics for the zoomed node
             totalItems = zoomedNode.data.itemCount || 0;
-            subCollectionCount = zoomedNode.children?.length || 0;
+            
+            // If zooming to a country, count its categories
+            if (!zoomedNode.data.isCategory) {
+                // Count categories
+                const categoryNodes = zoomedNode.children?.filter(child => child.data.isCategory) || [];
+                categoryCount = categoryNodes.length;
+                
+                // Count subcollections across all categories
+                subCollectionCount = 0;
+                categoryNodes.forEach(category => {
+                    if (category.children) {
+                        subCollectionCount += category.children.length;
+                    }
+                });
+            } 
+            // If zooming to a category, count its subcollections
+            else if (zoomedNode.data.isCategory) {
+                subCollectionCount = zoomedNode.children?.length || 0;
+                categoryCount = 1; // We're zoomed into a single category
+            }
         } else {
             // Reset to global statistics when zooming out
             if ($itemsStore.items && $itemsStore.items.length > 0) {
-                // Cast items to the correct type
-                const items = $itemsStore.items as unknown as Item[];
-                const validItems = items.filter(item => item.country && item.country.trim() !== '');
+                // Reprocess data to get fresh statistics
+                hierarchyData = processData($itemsStore.items as Item[]);
+                
+                // Update counts from the processed data
+                const validItems = ($itemsStore.items as Item[]).filter(item => item.country && item.country.trim() !== '');
                 totalItems = validItems.length;
                 
-                // Recalculate country count and subcollection count
+                // Recalculate country count
                 const countryGroups = d3.group(validItems, (d) => d.country);
                 countryCount = countryGroups.size;
                 
-                // Calculate subcollection count across all countries
-                subCollectionCount = Array.from(countryGroups).reduce((total, [country, countryItems]) => {
-                    const itemSets = d3.group(countryItems, (d) => d.item_set_title || '');
-                    return total + itemSets.size;
-                }, 0);
+                // Category count is fixed based on our defined categories
+                categoryCount = Object.keys(subcollectionCategories).length;
+                
+                // Count total subcollections across all countries and categories
+                subCollectionCount = 0;
+                hierarchyData.children?.forEach(country => {
+                    country.children?.forEach(category => {
+                        if (category.children) {
+                            subCollectionCount += category.children.length;
+                        }
+                    });
+                });
             }
         }
         
@@ -277,8 +367,7 @@
                 .attr('width', width)
                 .attr('height', height);
             
-            // DO NOT add any title text to the SVG - removed
-            // Instead create chart group directly
+            // Create chart group directly
             const chart = svg.append('g')
                 .attr('transform', `translate(${margin.left}, ${margin.top})`);
                 
@@ -311,7 +400,7 @@
                 .size([chartWidth, chartHeight])
                 .paddingOuter(4)
                 .paddingTop(20)
-                .paddingInner(1)
+                .paddingInner(2)
                 .round(true);
             
             // Create hierarchy
@@ -322,7 +411,9 @@
                 const zoomedData: HierarchyDatum = {
                     name: zoomedNode.data.name,
                     children: zoomedNode.data.children,
-                    originalName: zoomedNode.data.originalName // Preserve original name
+                    originalName: zoomedNode.data.originalName, // Preserve original name
+                    isCategory: zoomedNode.data.isCategory,
+                    categoryId: zoomedNode.data.categoryId
                 };
                 
                 localRoot = d3.hierarchy<HierarchyDatum>(zoomedData)
@@ -352,198 +443,419 @@
                 treemap(localRoot as d3.HierarchyRectangularNode<HierarchyDatum>);
             }
             
-            // Color scale - use d3.schemeCategory10 for similar colors to WordDistribution
-            const colorScale = d3.scaleOrdinal<string>()
+            // Use the same color scheme as WordDistribution
+            const countryColorScale = d3.scaleOrdinal<string>()
                 .domain(localRoot.children ? localRoot.children.map(d => d.data.originalName || d.data.name) : [localRoot.data.originalName || localRoot.data.name])
                 .range(d3.schemeCategory10);
+                
+            // Use a consistent color scheme for categories based on their ID
+            const categoryColorScale = d3.scaleOrdinal<string>()
+                .domain(Object.keys(subcollectionCategories))
+                .range(d3.schemeSet3);
             
-            // Create cells for countries (first level)
-            const countries = chart.selectAll('.country')
-                .data(zoomedNode ? [] : (localRoot.children || []))
-                .enter()
-                .append('g')
-                .attr('class', 'country')
-                .attr('transform', d => {
-                    const x = (d as any).x0 || 0;
-                    const y = (d as any).y0 || 0;
-                    return `translate(${x},${y})`;
-                });
+            // Determine what level we're at based on zoomed node
+            const isCountryLevel = !zoomedNode;
+            const isCategoryLevel = zoomedNode && !zoomedNode.data.isCategory;
+            const isSubcollectionLevel = zoomedNode && zoomedNode.data.isCategory;
             
-            // Add country background
-            countries.append('rect')
-                .attr('width', d => {
-                    const x0 = (d as any).x0 || 0;
-                    const x1 = (d as any).x1 || 0;
-                    return Math.max(0, x1 - x0);
-                })
-                .attr('height', d => {
-                    const y0 = (d as any).y0 || 0;
-                    const y1 = (d as any).y1 || 0;
-                    return Math.max(0, y1 - y0);
-                })
-                .attr('fill', d => {
-                    // Use the original country name for color consistency
-                    const originalName = d.data.originalName || d.data.name;
-                    if (countryColors.has(originalName)) {
-                        return countryColors.get(originalName) || colorScale(originalName);
+            // Create cells for countries (first level) - only if not zoomed
+            if (isCountryLevel) {
+                // Get all countries and their categories
+                const countryNodes = localRoot.children || [];
+                
+                // Create a group for each country
+                const countries = chart.selectAll('.country')
+                    .data(countryNodes)
+                    .enter()
+                    .append('g')
+                    .attr('class', 'country');
+                
+                // For each country, create category cells
+                countries.each(function(countryNode) {
+                    const countryGroup = d3.select(this);
+                    const countryName = countryNode.data.name;
+                    const countryOriginalName = countryNode.data.originalName || countryName;
+                    
+                    // Store country color for consistency
+                    let countryColor: string;
+                    if (countryColors.has(countryOriginalName)) {
+                        countryColor = countryColors.get(countryOriginalName) || countryColorScale(countryOriginalName);
                     } else {
-                        const color = colorScale(originalName);
-                        countryColors.set(originalName, color);
-                        return color;
-                    }
-                })
-                .attr('stroke', 'white')
-                .attr('stroke-width', 2)
-                .style('opacity', 0.7)
-                .style('cursor', 'pointer')
-                .on('click', (event, d) => {
-                    zoomToNode(d);
-                })
-                .on('mouseover', function(event, d) {
-                    // Show tooltip for countries too
-                    showTooltip(event, d as any);
-                })
-                .on('mousemove', function(event, d) {
-                    showTooltip(event, d as any);
-                })
-                .on('mouseout', function() {
-                    hideTooltip();
-                })
-                .attr('title', $clickZoomInText)
-                .append('title')
-                .text(() => $clickZoomInText);
-            
-            // Add country labels
-            countries.append('text')
-                .attr('x', 5)
-                .attr('y', 15)
-                .attr('font-size', 'var(--font-size-sm)')
-                .attr('font-weight', 'bold')
-                .attr('fill', 'white')
-                .text(d => `${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`)
-                .style('pointer-events', 'none')
-                .each(function(d) {
-                    const self = d3.select(this);
-                    const textLength = (this as SVGTextElement).getComputedTextLength();
-                    const availableWidth = (d as any).x1 - (d as any).x0 - 10;
-                    
-                    if (textLength > availableWidth) {
-                        self.text(d.data.name)
-                            .append('title')
-                            .text(`${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`);
-                    }
-                });
-            
-            // Create cells for item sets (second level)
-            const itemSets = chart.selectAll('.item-set')
-                .data(zoomedNode ? (localRoot.children || []) : localRoot.leaves())
-                .enter()
-                .append('g')
-                .attr('class', 'item-set')
-                .attr('transform', d => {
-                    const x = (d as any).x0 || 0;
-                    const y = (d as any).y0 || 0;
-                    return `translate(${x},${y})`;
-                });
-            
-            // Add item set rectangles
-            itemSets.append('rect')
-                .attr('width', d => {
-                    const x0 = (d as any).x0 || 0;
-                    const x1 = (d as any).x1 || 0;
-                    return Math.max(0, x1 - x0);
-                })
-                .attr('height', d => {
-                    const y0 = (d as any).y0 || 0;
-                    const y1 = (d as any).y1 || 0;
-                    return Math.max(0, y1 - y0);
-                })
-                .attr('fill', d => {
-                    // Use a lighter shade of the country/parent color
-                    let originalName: string;
-                    
-                    if (zoomedNode) {
-                        // When zoomed in, use the original name of the zoomed node
-                        originalName = zoomedNode.data.originalName || zoomedNode.data.name;
-                    } else {
-                        // When not zoomed, use the original name of the parent country
-                        originalName = (d.parent as any)?.data?.originalName || (d.parent as any)?.data?.name || 'Unknown';
+                        countryColor = countryColorScale(countryOriginalName);
+                        countryColors.set(countryOriginalName, countryColor);
                     }
                     
-                    const nodeColor = countryColors.get(originalName) || colorScale(originalName);
-                    const baseColor = d3.rgb(nodeColor);
-                    return d3.rgb(baseColor).brighter(0.7).toString();
-                })
-                .attr('stroke', 'white')
-                .attr('stroke-width', 0.5)
-                .style('cursor', 'pointer')
-                .on('mouseover', function(event, d) {
-                    // Highlight on hover
-                    d3.select(this)
-                        .attr('stroke', 'var(--primary-color)')
-                        .attr('stroke-width', 2);
+                    // Get all category nodes for this country
+                    const categoryNodes = countryNode.children || [];
                     
-                    // Show tooltip
-                    showTooltip(event, d as any);
-                })
-                .on('mousemove', function(event, d) {
-                    // Update tooltip position
-                    showTooltip(event, d as any);
-                })
-                .on('mouseout', function() {
-                    // Remove highlight
-                    d3.select(this)
+                    // Create category cells
+                    const categories = countryGroup.selectAll('.category')
+                        .data(categoryNodes)
+                        .enter()
+                        .append('g')
+                        .attr('class', 'category')
+                        .attr('transform', d => {
+                            const x = (d as any).x0 || 0;
+                            const y = (d as any).y0 || 0;
+                            return `translate(${x},${y})`;
+                        });
+                    
+                    // Add category background
+                    categories.append('rect')
+                        .attr('width', d => {
+                            const x0 = (d as any).x0 || 0;
+                            const x1 = (d as any).x1 || 0;
+                            return Math.max(0, x1 - x0);
+                        })
+                        .attr('height', d => {
+                            const y0 = (d as any).y0 || 0;
+                            const y1 = (d as any).y1 || 0;
+                            return Math.max(0, y1 - y0);
+                        })
+                        .attr('fill', d => {
+                            // Use a color derived from the country color but influenced by category
+                            const categoryId = d.data.categoryId || 'other';
+                            const baseColor = d3.rgb(countryColor);
+                            
+                            // Store category color for this country-category combination
+                            const categoryKey = `${countryOriginalName}-${categoryId}`;
+                            let categoryColor: string;
+                            
+                            if (categoryColors.has(categoryKey)) {
+                                categoryColor = categoryColors.get(categoryKey) || baseColor.toString();
+                            } else {
+                                // Create a variation of the country color based on the category
+                                const categoryBaseColor = d3.rgb(categoryColorScale(categoryId));
+                                // Blend the country color with the category color
+                                const blendedColor = d3.rgb(
+                                    (baseColor.r * 0.7) + (categoryBaseColor.r * 0.3),
+                                    (baseColor.g * 0.7) + (categoryBaseColor.g * 0.3),
+                                    (baseColor.b * 0.7) + (categoryBaseColor.b * 0.3)
+                                );
+                                categoryColor = blendedColor.toString();
+                                categoryColors.set(categoryKey, categoryColor);
+                            }
+                            
+                            return categoryColor;
+                        })
                         .attr('stroke', 'white')
-                        .attr('stroke-width', 0.5);
+                        .attr('stroke-width', 1.5)
+                        .style('opacity', 0.8)
+                        .style('cursor', 'pointer')
+                        .on('click', (event, d) => {
+                            // When clicking on a category in the country view, zoom to the country
+                            zoomToNode(countryNode);
+                        })
+                        .on('mouseover', function(event, d) {
+                            // Show tooltip for categories
+                            showTooltip(event, d as any);
+                        })
+                        .on('mousemove', function(event, d) {
+                            showTooltip(event, d as any);
+                        })
+                        .on('mouseout', function() {
+                            hideTooltip();
+                        });
                     
-                    // Hide tooltip
-                    hideTooltip();
+                    // Add category labels
+                    categories.append('text')
+                        .attr('x', 5)
+                        .attr('y', 15)
+                        .attr('font-size', 'var(--font-size-xs)')
+                        .attr('font-weight', 'bold')
+                        .attr('fill', 'white')
+                        .text(d => {
+                            const width = (d as any).x1 - (d as any).x0;
+                            // If width is too small, just show the name without item count
+                            if (width < 100) return d.data.name;
+                            // Otherwise show name with item count
+                            return `${d.data.name} (${d.data.itemCount || 0})`;
+                        })
+                        .style('pointer-events', 'none')
+                        .each(function(d) {
+                            const self = d3.select(this);
+                            const textLength = (this as SVGTextElement).getComputedTextLength();
+                            const availableWidth = (d as any).x1 - (d as any).x0 - 10;
+                            
+                            if (textLength > availableWidth) {
+                                let text = d.data.name;
+                                self.text(text);
+                                
+                                // Check if text fits and truncate if necessary
+                                let currentTextLength = (this as SVGTextElement).getComputedTextLength();
+                                let ellipsis = false;
+                                
+                                while (currentTextLength > availableWidth && text.length > 3) {
+                                    text = text.slice(0, -1);
+                                    self.text(text);
+                                    currentTextLength = (this as SVGTextElement).getComputedTextLength();
+                                    ellipsis = true;
+                                }
+                                
+                                if (ellipsis) {
+                                    self.text(text + '...');
+                                }
+                                
+                                // Add tooltip with full name and item count
+                                self.append('title')
+                                    .text(`${countryName} > ${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`);
+                            }
+                        });
+                    
+                    // Add country label at the top of the country group
+                    // Find the bounding box of all categories in this country
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    categoryNodes.forEach(node => {
+                        const x0 = (node as any).x0 || 0;
+                        const y0 = (node as any).y0 || 0;
+                        const x1 = (node as any).x1 || 0;
+                        const y1 = (node as any).y1 || 0;
+                        
+                        minX = Math.min(minX, x0);
+                        minY = Math.min(minY, y0);
+                        maxX = Math.max(maxX, x1);
+                        maxY = Math.max(maxY, y1);
+                    });
+                    
+                    // Add a semi-transparent overlay for the country name
+                    countryGroup.append('rect')
+                        .attr('x', minX)
+                        .attr('y', minY - 20) // Position above the categories
+                        .attr('width', maxX - minX)
+                        .attr('height', 20)
+                        .attr('fill', countryColor)
+                        .attr('opacity', 0.9)
+                        .style('cursor', 'pointer')
+                        .on('click', (event) => {
+                            zoomToNode(countryNode);
+                        });
+                    
+                    // Add country name
+                    countryGroup.append('text')
+                        .attr('x', minX + 5)
+                        .attr('y', minY - 6)
+                        .attr('font-size', 'var(--font-size-sm)')
+                        .attr('font-weight', 'bold')
+                        .attr('fill', 'white')
+                        .text(`${countryName} (${countryNode.data.itemCount || 0} ${$itemsText})`)
+                        .style('pointer-events', 'none');
                 });
-            
-            // Add item set labels
-            itemSets.append('text')
-                .attr('x', 3)
-                .attr('y', 13)
-                .attr('font-size', 'var(--font-size-xs)')
-                .attr('fill', 'var(--text-color-primary)')
-                .style('pointer-events', 'none')
-                .each(function(d) {
-                    const self = d3.select(this);
-                    const width = (d as any).x1 - (d as any).x0;
-                    const height = (d as any).y1 - (d as any).y0;
-                    
-                    // Only add text if rectangle is big enough
-                    if (width < 30 || height < 20) {
-                        return;
-                    }
-                    
-                    let text = d.data.name;
-                    // Truncate text if too long
-                    const availableWidth = width - 6;
-                    
-                    // Get the parent/country for the tooltip
-                    const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
-                    
-                    self.text(text)
-                        .append('title')
-                        .text(`${country} > ${d.data.name}: ${d.data.itemCount || d.value || 0} ${$itemsText}`);
-                    
-                    // Check if text fits and truncate if necessary
-                    const node = this as SVGTextElement;
-                    let textLength = node.getComputedTextLength();
-                    let ellipsis = false;
-                    
-                    while (textLength > availableWidth && text.length > 3) {
-                        text = text.slice(0, -1);
-                        self.text(text);
-                        textLength = node.getComputedTextLength();
-                        ellipsis = true;
-                    }
-                    
-                    if (ellipsis) {
-                        self.text(text + '...');
-                    }
-                });
+            } else if (isCategoryLevel) {
+                // When zoomed to a country, show its categories
+                const categories = chart.selectAll('.category')
+                    .data(localRoot.children || [])
+                    .enter()
+                    .append('g')
+                    .attr('class', 'category')
+                    .attr('transform', d => {
+                        const x = (d as any).x0 || 0;
+                        const y = (d as any).y0 || 0;
+                        return `translate(${x},${y})`;
+                    });
+                
+                // Get country color
+                const countryOriginalName = zoomedNode?.data.originalName || zoomedNode?.data.name || '';
+                const countryColor = countryColors.get(countryOriginalName) || countryColorScale(countryOriginalName);
+                
+                // Add category background
+                categories.append('rect')
+                    .attr('width', d => {
+                        const x0 = (d as any).x0 || 0;
+                        const x1 = (d as any).x1 || 0;
+                        return Math.max(0, x1 - x0);
+                    })
+                    .attr('height', d => {
+                        const y0 = (d as any).y0 || 0;
+                        const y1 = (d as any).y1 || 0;
+                        return Math.max(0, y1 - y0);
+                    })
+                    .attr('fill', d => {
+                        // Use a color derived from the country color but influenced by category
+                        const categoryId = d.data.categoryId || 'other';
+                        const categoryKey = `${countryOriginalName}-${categoryId}`;
+                        
+                        if (categoryColors.has(categoryKey)) {
+                            return categoryColors.get(categoryKey) || countryColor;
+                        } else {
+                            // Create a variation of the country color based on the category
+                            const baseColor = d3.rgb(countryColor);
+                            const categoryBaseColor = d3.rgb(categoryColorScale(categoryId));
+                            // Blend the country color with the category color
+                            const blendedColor = d3.rgb(
+                                (baseColor.r * 0.7) + (categoryBaseColor.r * 0.3),
+                                (baseColor.g * 0.7) + (categoryBaseColor.g * 0.3),
+                                (baseColor.b * 0.7) + (categoryBaseColor.b * 0.3)
+                            );
+                            const categoryColor = blendedColor.toString();
+                            categoryColors.set(categoryKey, categoryColor);
+                            return categoryColor;
+                        }
+                    })
+                    .attr('stroke', 'white')
+                    .attr('stroke-width', 1.5)
+                    .style('opacity', 0.8)
+                    .style('cursor', 'pointer')
+                    .on('click', (event, d) => {
+                        zoomToNode(d);
+                    })
+                    .on('mouseover', function(event, d) {
+                        // Show tooltip for categories
+                        showTooltip(event, d as any);
+                    })
+                    .on('mousemove', function(event, d) {
+                        showTooltip(event, d as any);
+                    })
+                    .on('mouseout', function() {
+                        hideTooltip();
+                    });
+                
+                // Add category labels
+                categories.append('text')
+                    .attr('x', 5)
+                    .attr('y', 15)
+                    .attr('font-size', 'var(--font-size-sm)')
+                    .attr('font-weight', 'bold')
+                    .attr('fill', 'white')
+                    .text(d => `${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`)
+                    .style('pointer-events', 'none')
+                    .each(function(d) {
+                        const self = d3.select(this);
+                        const textLength = (this as SVGTextElement).getComputedTextLength();
+                        const availableWidth = (d as any).x1 - (d as any).x0 - 10;
+                        
+                        if (textLength > availableWidth) {
+                            self.text(d.data.name)
+                                .append('title')
+                                .text(`${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`);
+                        }
+                    });
+            } else if (isSubcollectionLevel && zoomedNode) {
+                // When zoomed to a category, show its subcollections
+                const subcollections = chart.selectAll('.subcollection')
+                    .data(localRoot.children || [])
+                    .enter()
+                    .append('g')
+                    .attr('class', 'subcollection')
+                    .attr('transform', d => {
+                        const x = (d as any).x0 || 0;
+                        const y = (d as any).y0 || 0;
+                        return `translate(${x},${y})`;
+                    });
+                
+                // Get category color
+                const categoryId = zoomedNode.data.categoryId || 'other';
+                const countryNode = zoomedNode.parent;
+                let categoryColor: string;
+                
+                if (countryNode) {
+                    const countryOriginalName = countryNode.data.originalName || countryNode.data.name;
+                    const categoryKey = `${countryOriginalName}-${categoryId}`;
+                    categoryColor = categoryColors.get(categoryKey) || categoryColorScale(categoryId);
+                } else {
+                    categoryColor = categoryColorScale(categoryId);
+                }
+                
+                // Add subcollection rectangles
+                subcollections.append('rect')
+                    .attr('width', d => {
+                        const x0 = (d as any).x0 || 0;
+                        const x1 = (d as any).x1 || 0;
+                        return Math.max(0, x1 - x0);
+                    })
+                    .attr('height', d => {
+                        const y0 = (d as any).y0 || 0;
+                        const y1 = (d as any).y1 || 0;
+                        return Math.max(0, y1 - y0);
+                    })
+                    .attr('fill', d => {
+                        // Use a lighter shade of the category color
+                        const baseColor = d3.rgb(categoryColor);
+                        return d3.rgb(baseColor).brighter(0.5).toString();
+                    })
+                    .attr('stroke', 'white')
+                    .attr('stroke-width', 0.5)
+                    .style('cursor', 'pointer')
+                    .on('mouseover', function(event, d) {
+                        // Highlight on hover
+                        d3.select(this)
+                            .attr('stroke', 'var(--primary-color)')
+                            .attr('stroke-width', 2);
+                        
+                        // Show tooltip
+                        showTooltip(event, d as any);
+                    })
+                    .on('mousemove', function(event, d) {
+                        // Update tooltip position
+                        showTooltip(event, d as any);
+                    })
+                    .on('mouseout', function() {
+                        // Remove highlight
+                        d3.select(this)
+                            .attr('stroke', 'white')
+                            .attr('stroke-width', 0.5);
+                        
+                        // Hide tooltip
+                        hideTooltip();
+                    });
+                
+                // Add subcollection labels
+                subcollections.append('text')
+                    .attr('x', 3)
+                    .attr('y', 13)
+                    .attr('font-size', 'var(--font-size-xs)')
+                    .attr('fill', 'var(--text-color-primary)')
+                    .style('pointer-events', 'none')
+                    .each(function(d) {
+                        const self = d3.select(this);
+                        const width = (d as any).x1 - (d as any).x0;
+                        const height = (d as any).y1 - (d as any).y0;
+                        
+                        // Only add text if rectangle is big enough
+                        if (width < 30 || height < 20) {
+                            return;
+                        }
+                        
+                        let text = d.data.name;
+                        // Truncate text if too long
+                        const availableWidth = width - 6;
+                        
+                        // Get the parent info for the tooltip
+                        const country = countryNode ? countryNode.data.name : '';
+                        const category = zoomedNode ? zoomedNode.data.name : '';
+                        
+                        let tooltipText = '';
+                        if (country && category) {
+                            tooltipText = `${country} > ${category} > ${d.data.name}: ${d.data.itemCount || d.value || 0} ${$itemsText}`;
+                        } else if (category) {
+                            tooltipText = `${category} > ${d.data.name}: ${d.data.itemCount || d.value || 0} ${$itemsText}`;
+                        } else {
+                            tooltipText = `${d.data.name}: ${d.data.itemCount || d.value || 0} ${$itemsText}`;
+                        }
+                        
+                        self.text(text)
+                            .append('title')
+                            .text(tooltipText);
+                        
+                        // Check if text fits and truncate if necessary
+                        const node = this as SVGTextElement;
+                        let textLength = node.getComputedTextLength();
+                        let ellipsis = false;
+                        
+                        while (textLength > availableWidth && text.length > 3) {
+                            text = text.slice(0, -1);
+                            self.text(text);
+                            textLength = node.getComputedTextLength();
+                            ellipsis = true;
+                        }
+                        
+                        if (ellipsis) {
+                            self.text(text + '...');
+                            // Re-add the tooltip since it was lost when changing the text
+                            self.append('title')
+                                .text(tooltipText);
+                        }
+                    });
+            }
         } catch (e) {
             console.error('Error in updateVisualization:', e);
         }
@@ -586,15 +898,16 @@
         }
         
         try {
-            // Different tooltips for countries vs item sets
+            // Determine the node type
             const isCountry = d.parent === root; // If parent is root, it's a country
-            const isItemSet = !isCountry;
+            const isCategory = d.data.isCategory === true;
+            const isSubcollection = !isCountry && !isCategory;
             
             if (isCountry) {
                 // Country tooltip
                 const countryName = d.data.name; // Already translated in processData
                 const countryItems = d.data.itemCount || d.value || 0;
-                const subCollections = d.children?.length || 0;
+                const categories = d.children?.length || 0;
                 const percentOfTotal = totalItems > 0 ? ((countryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
                 
                 tooltip.innerHTML = `
@@ -604,8 +917,44 @@
                     <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
                         <span>${$itemsText}:</span>
                         <span style="text-align:right;font-weight:bold">${countryItems}</span>
+                        <span>${$categoriesText}:</span>
+                        <span style="text-align:right">${categories}</span>
+                        <span>${$percentTotalText}:</span>
+                        <span style="text-align:right">${percentOfTotal}</span>
+                    </div>
+                    <div style="margin-top:4px;font-style:italic;font-size:10px;">
+                        ${$clickZoomInText}
+                    </div>
+                `;
+            } else if (isCategory) {
+                // Category tooltip
+                const country = zoomedNode && !zoomedNode.data.isCategory ? zoomedNode.data.name : '';
+                const categoryName = d.data.name;
+                const categoryItems = d.data.itemCount || d.value || 0;
+                const subcollections = d.children?.length || 0;
+                
+                const totalItemCount = totalItems;
+                const countryItemCount = zoomedNode ? zoomedNode.data.itemCount : 0;
+                
+                const percentOfCountry = countryItemCount && countryItemCount > 0 ? 
+                    ((categoryItems / countryItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                    
+                const percentOfTotal = totalItemCount > 0 ? 
+                    ((categoryItems / totalItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                
+                let title = country ? `${country} > ${categoryName}` : categoryName;
+                
+                tooltip.innerHTML = `
+                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                        ${title}
+                    </div>
+                    <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
+                        <span>${$itemsText}:</span>
+                        <span style="text-align:right;font-weight:bold">${categoryItems}</span>
                         <span>${$subCollectionsText}:</span>
-                        <span style="text-align:right">${subCollections}</span>
+                        <span style="text-align:right">${subcollections}</span>
+                        ${country ? `<span>${$percentParentText}:</span>
+                        <span style="text-align:right">${percentOfCountry}</span>` : ''}
                         <span>${$percentTotalText}:</span>
                         <span style="text-align:right">${percentOfTotal}</span>
                     </div>
@@ -614,29 +963,46 @@
                     </div>
                 `;
             } else {
-                // Item set tooltip
-                const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
-                const itemSet = d.data.name;
+                // Subcollection tooltip
+                const country = zoomedNode && !zoomedNode.data.isCategory ? zoomedNode.data.name : '';
+                const category = zoomedNode && zoomedNode.data.isCategory ? zoomedNode.data.name : 
+                                (d.parent && d.parent.data.isCategory ? d.parent.data.name : '');
+                const subcollection = d.data.name;
                 const itemCount = d.data.itemCount || d.value || 0;
                 
                 const totalItemCount = totalItems;
-                const countryItemCount = zoomedNode ? zoomedNode.data.itemCount : (d.parent ? d.parent.data.itemCount : 0);
+                const parentItemCount = d.parent ? d.parent.data.itemCount || 0 : 0;
+                const countryItemCount = zoomedNode && !zoomedNode.data.isCategory ? zoomedNode.data.itemCount || 0 : 0;
                 
-                const percentOfCountry = countryItemCount && countryItemCount > 0 ? 
+                const percentOfCategory = parentItemCount > 0 ? 
+                    ((itemCount / parentItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                    
+                const percentOfCountry = countryItemCount > 0 ? 
                     ((itemCount / countryItemCount) * 100).toFixed(1) + '%' : 'N/A';
                     
                 const percentOfTotal = totalItemCount > 0 ? 
                     ((itemCount / totalItemCount) * 100).toFixed(1) + '%' : 'N/A';
                 
+                let title = '';
+                if (country && category) {
+                    title = `${country} > ${category} > ${subcollection}`;
+                } else if (category) {
+                    title = `${category} > ${subcollection}`;
+                } else {
+                    title = subcollection;
+                }
+                
                 tooltip.innerHTML = `
                     <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                        ${country} > ${itemSet}
+                        ${title}
                     </div>
                     <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
                         <span>${$itemsText}:</span>
                         <span style="text-align:right;font-weight:bold">${itemCount}</span>
-                        <span>${$percentParentText}:</span>
-                        <span style="text-align:right">${percentOfCountry}</span>
+                        ${category ? `<span>% of ${category}:</span>
+                        <span style="text-align:right">${percentOfCategory}</span>` : ''}
+                        ${country ? `<span>${$percentParentText}:</span>
+                        <span style="text-align:right">${percentOfCountry}</span>` : ''}
                         <span>${$percentTotalText}:</span>
                         <span style="text-align:right">${percentOfTotal}</span>
                     </div>
@@ -644,7 +1010,7 @@
             }
             
             const tooltipWidth = 250;
-            const tooltipHeight = 120;
+            const tooltipHeight = 150;
             
             let left = event.pageX + 10;
             let top = event.pageY + 10;
@@ -795,6 +1161,7 @@
                 {#if !zoomedNode}
                     <p>{$countriesText}: <strong>{formatNumber(countryCount)}</strong></p>
                 {/if}
+                <p>{$categoriesText}: <strong>{formatNumber(categoryCount)}</strong></p>
                 <p>{$subCollectionsText}: <strong>{formatNumber(subCollectionCount)}</strong></p>
                 {#if zoomedNode}
                     <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>

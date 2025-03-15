@@ -7,6 +7,7 @@ A data visualization application for exploring the Indigenous World Arts and Cul
 - [Overview](#overview)
 - [Project Structure](#project-structure)
 - [Core Components](#core-components)
+- [Subcollection Categories](#subcollection-categories)
 - [Data Management](#data-management)
 - [UI Elements](#ui-elements)
 - [Theme System](#theme-system)
@@ -71,6 +72,7 @@ IWAC-overview/
 │   │   └── translationStore.ts # Store for translations and language state
 │   ├── types/            # TypeScript type definitions
 │   │   ├── OmekaItem.ts   # Types for Omeka items and visualization data
+│   │   ├── SubcollectionCategories.ts # Subcollection category definitions and mappings
 │   │   ├── global.d.ts    # Global type declarations
 │   │   ├── svelte-components.d.ts # Component type definitions
 │   │   └── svelte-store.d.ts # Store type definitions
@@ -102,11 +104,16 @@ A base component that provides common functionality for all visualization compon
 
 ### CountryDistribution.svelte
 
-A treemap visualization that shows the distribution of items by country and sub-collection. Features include:
+A treemap visualization that shows the distribution of items by country, category, and sub-collection. Features include:
+- Three-level hierarchical structure (Country > Category > Subcollection)
 - Interactive zooming for hierarchical exploration
-- Color coding based on item counts
-- Tooltips with detailed information
-- Responsive layout
+- Consistent color scheme matching the Word Distribution visualization
+- Categories shown directly in the first-level view for better context
+- Color consistency between parent and child elements for easier tracking
+- Tooltips with detailed information on item counts and percentages
+- Country headers with total item counts
+- Responsive layout that adapts to container size
+- Summary statistics panel showing total items, countries, categories, and subcollections
 
 ### LanguageDistribution.svelte
 
@@ -193,6 +200,102 @@ A component that provides fullscreen functionality for a more immersive data exp
 - Multilingual tooltips for accessibility
 - Keyboard event handling for fullscreen changes
 - Clean integration with the application header
+
+## Subcollection Categories
+
+The application organizes subcollections into meaningful categories to provide better context and organization in visualizations, particularly in the Country Distribution treemap.
+
+### SubcollectionCategories.ts
+
+This file defines the structure and mapping of subcollections to categories:
+
+- **Category Definitions**: Each category has an ID, English name, French name, and description
+- **Subcollection Mapping**: Maps specific subcollection names to their respective category IDs
+- **Helper Functions**: Provides utility functions for retrieving category information and translations
+
+### Available Categories
+
+The following categories are defined for organizing subcollections:
+
+1. **News Articles** (`news_article`)
+   - Newspaper and magazine articles from various countries
+   - Examples from Benin: "24h au Bénin", "La Nation", "Fraternité"
+   - Examples from Burkina Faso: "Burkina 24", "Le Pays", "Sidwaya"
+   - Examples from Ivory Coast: "Fraternité Matin", "Le Patriote", "Notre Voie"
+   - Examples from Niger: "Le Sahel"
+   - Examples from Togo: "Togo-Presse", "La Lettre de Tchaoudjo", "Forum Hebdo", "Le Démocrate"
+
+2. **Islamic Periodicals** (`islamic_periodical`)
+   - Islamic magazines and periodicals
+   - Examples: "ASSALAM", "Islam Hebdo", "Islam Info"
+
+3. **Documents** (`documents`)
+   - Various documents organized by country
+   - Examples: "Documents divers (Burkina Faso)", "Documents divers (Bénin)"
+
+4. **Photographs** (`photographs`)
+   - Photographs and images organized by country
+   - Examples: "Photographies (Burkina Faso)", "Photographies (Côte d'Ivoire)"
+   - Note: All "Photographies" subcollections are properly categorized under the 'photographs' category
+
+5. **Video Recordings** (`video_recording`)
+   - Video recordings and footage
+   - Examples: "Collection de sermons islamiques sur vidéo"
+
+6. **References** (`references`)
+   - Reference materials organized by country
+   - Examples: "Références (Burkina Faso)", "Références (Nigéria)"
+
+7. **Other** (`other`)
+   - Uncategorized items that don't fit into the above categories
+
+### Implementation
+
+The category system is implemented through TypeScript interfaces and objects:
+
+```typescript
+// Define category structure
+export interface SubcollectionCategory {
+    id: string;
+    nameEn: string;
+    nameFr: string;
+    description?: string;
+}
+
+// Define mapping structure
+export interface SubcollectionMapping {
+    [subcollectionName: string]: string; // Maps subcollection name to category ID
+}
+
+// Define the categories
+export const subcollectionCategories: Record<string, SubcollectionCategory> = {
+    'news_article': {
+        id: 'news_article',
+        nameEn: 'News article',
+        nameFr: 'Article de presse',
+        description: 'Newspaper and magazine articles'
+    },
+    // Other categories...
+};
+
+// Define the mapping of subcollections to categories
+export const subcollectionMapping: SubcollectionMapping = {
+    // News articles - Benin
+    '24h au Bénin': 'news_article',
+    // Other mappings...
+};
+```
+
+### Usage in Visualizations
+
+The category system is primarily used in the Country Distribution visualization to:
+
+1. Group subcollections into meaningful categories
+2. Provide a three-level hierarchy (Country > Category > Subcollection)
+3. Apply consistent coloring based on category types
+4. Display translated category names based on the current language
+
+This categorization enhances the visualization by providing more context and organization to the data, making it easier for users to understand the content distribution across countries and categories.
 
 ## Data Management
 
@@ -589,13 +692,27 @@ For a complete example of embedding, see the `iframe-embed-example.html` file in
 
 ### Country Distribution
 
-The Country Distribution visualization uses a treemap to show the hierarchical breakdown of items by country and sub-collection. 
+The Country Distribution visualization uses a treemap to show the hierarchical breakdown of items by country, category, and sub-collection. 
 
 Features:
-- Hierarchical navigation through zooming in/out
-- Color intensity representing item counts
-- Interactive tooltips showing detailed information
+- Three-level hierarchical structure (Country > Category > Subcollection)
+- Consistent color scheme matching the Word Distribution visualization
+- Categories shown directly in the first-level view for better context
+- Color consistency between parent and child elements for easier tracking
+- Interactive zooming to explore the hierarchy at different levels
+- Detailed tooltips showing item counts and percentage information
+- Country headers with total item counts
+- Support for multiple subcollection categories:
+  - News articles (from Benin, Burkina Faso, Côte d'Ivoire, Niger, and Togo)
+  - Islamic periodicals
+  - Documents
+  - Photographs (properly categorized as 'photographs' for all countries)
+  - Video recordings
+  - References
+  - Other
 - Responsive scaling to container size
+- Summary statistics panel showing total items, countries, categories, and subcollections
+- Proper handling of null values and edge cases for stability
 
 ### Language Distribution
 
@@ -870,15 +987,11 @@ If your visualization requires additional data fields:
    export interface OmekaItem {
        id: number;
        title: string;
-       type: string;
-       country: string;
-       collection: string;
-       language: string;
-       keywords: string[];
-       dateAdded: string;
-       item_set_title: string;
-       // Add your new properties here
-       yourNewProperty: string;
+       description?: string;
+       type?: string;
+       country?: string;
+       language?: string;
+       // ...other properties
    }
    ```
 
@@ -1112,13 +1225,13 @@ The project includes several type definition files to improve type safety:
 1. **OmekaItem.ts**: Defines the structure of database items and visualization data
    ```typescript
    export interface OmekaItem {
-     id: number;
-     title: string;
-     description?: string;
-     type?: string;
-     country?: string;
-     language?: string;
-     // ...other properties
+       id: number;
+       title: string;
+       description?: string;
+       type?: string;
+       country?: string;
+       language?: string;
+       // ...other properties
    }
    ```
 
