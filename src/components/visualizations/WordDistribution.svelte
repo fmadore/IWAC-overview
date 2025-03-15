@@ -108,9 +108,12 @@
         if (!$itemsStore.items || $itemsStore.items.length === 0) return { name: 'root', children: [] };
         
         // Filter items - only include those with word_count greater than 0
+        // AND with a valid country value (not null, undefined, or empty string)
         const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
             // Must have word_count field and it must be greater than 0
             if (item.word_count === undefined || item.word_count === 0) return false;
+            // Must have a valid country value
+            if (!item.country) return false;
             return true;
         });
         
@@ -122,7 +125,8 @@
         updateTitleHtml();
         
         // Group by country, then by item_set_title
-        const countryGroups = d3.group(filteredItems, d => d.country || 'Unknown');
+        // No need for 'Unknown' fallback since we've filtered out items without country
+        const countryGroups = d3.group(filteredItems, d => d.country as string);
         
         // Create hierarchy
         const root: WordHierarchyNode = {
@@ -213,8 +217,11 @@
             // Reset to global statistics when zooming out
             if ($itemsStore.items && $itemsStore.items.length > 0) {
                 // Recalculate total counts from all items with word count > 0
+                // AND with a valid country value
                 const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
                     if (item.word_count === undefined || item.word_count === 0) return false;
+                    // Must have a valid country value
+                    if (!item.country) return false;
                     return true;
                 });
                 
