@@ -87,62 +87,32 @@
     // IMPORTANT - Replace the reactive declaration for titleHtml with a function call
     // Instead, compute titleHtml directly inside a function
     function updateTitleHtml() {
-        if (totalItems > 0) {
-            titleHtml = getTitle(totalItems);
-        } else {
-            titleHtml = t('viz.country_distribution_title');
+        try {
+            if (totalItems > 0) {
+                titleHtml = getTitle(totalItems);
+            } else {
+                titleHtml = t('viz.country_distribution_title');
+            }
+            console.log("Title HTML updated:", titleHtml);
+        } catch (error) {
+            console.error("Error updating title HTML:", error);
+            // Set a fallback title
+            titleHtml = "Country Distribution";
         }
-        console.log("Title HTML updated:", titleHtml);
     }
 
     // Call this function initially and whenever totalItems or language changes
-    $: {
+    $: if (isMounted) {
         updateTitleHtml();
     }
 
     // Direct subscription to log title changes for debugging
-    $: {
+    $: if (isMounted && titleHtml) {
         console.log("Title HTML updated:", titleHtml);
     }
     
-    // Subscribe to language changes - do this after initializing all variables
-    languageStore.subscribe(value => {
-        console.log("Language changed to:", value);
-        currentLang = value;
-        
-        // Force refresh the title when language changes
-        updateTitleHtml();
-        
-        // Reprocess data with translated country names when language changes
-        if ($itemsStore.items && $itemsStore.items.length > 0) {
-            // Store the current zoom state
-            const currentZoomedNode = zoomedNode;
-            const currentZoomedCountry = currentZoomedNode?.data.originalName;
-            
-            // Reset zoom state temporarily
-            zoomedNode = null;
-            
-            // Reprocess data with new translations
-            hierarchyData = processData($itemsStore.items as Item[]);
-            
-            // Restore zoom state if needed
-            if (currentZoomedNode && currentZoomedCountry) {
-                // Find the node with the same original country name
-                const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
-                const matchingNode = newRoot.children?.find(node => 
-                    node.data.originalName === currentZoomedCountry
-                );
-                
-                if (matchingNode) {
-                    zoomToNode(matchingNode);
-                    return; // updateVisualization is called in zoomToNode
-                }
-            }
-            
-            // Update visualization with new translations
-            updateVisualization();
-        }
-    });
+    // Store unsubscribe functions
+    let languageUnsubscribe: () => void;
 
     // Function to process data into hierarchical structure
     function processData(items: Item[]): HierarchyDatum {
@@ -1048,13 +1018,58 @@
         hierarchyData = processData($itemsStore.items as Item[]);
     }
 
+    // Track if component is mounted
+    let isMounted = false;
+
     // Initialize visualization when data changes
-    $: if ($itemsStore.items && container) {
+    $: if ($itemsStore.items && container && isMounted) {
         updateVisualization();
     }
 
     onMount(() => {
         try {
+            // Set mounted flag
+            isMounted = true;
+            
+            // Subscribe to language changes - do this inside onMount
+            languageUnsubscribe = languageStore.subscribe(value => {
+                console.log("Language changed to:", value);
+                currentLang = value;
+                
+                // Force refresh the title when language changes
+                updateTitleHtml();
+                
+                // Reprocess data with translated country names when language changes
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    // Store the current zoom state
+                    const currentZoomedNode = zoomedNode;
+                    const currentZoomedCountry = currentZoomedNode?.data.originalName;
+                    
+                    // Reset zoom state temporarily
+                    zoomedNode = null;
+                    
+                    // Reprocess data with new translations
+                    hierarchyData = processData($itemsStore.items as Item[]);
+                    
+                    // Restore zoom state if needed
+                    if (currentZoomedNode && currentZoomedCountry) {
+                        // Find the node with the same original country name
+                        const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
+                        const matchingNode = newRoot.children?.find(node => 
+                            node.data.originalName === currentZoomedCountry
+                        );
+                        
+                        if (matchingNode) {
+                            zoomToNode(matchingNode);
+                            return; // updateVisualization is called in zoomToNode
+                        }
+                    }
+                    
+                    // Update visualization with new translations
+                    updateVisualization();
+                }
+            });
+            
             // Wait for component to render
             tick().then(() => {
                 if (!container) {
@@ -1108,6 +1123,14 @@
             // Return cleanup function
             return () => {
                 try {
+                    // Set mounted flag to false
+                    isMounted = false;
+                    
+                    // Unsubscribe from language store
+                    if (languageUnsubscribe) {
+                        languageUnsubscribe();
+                    }
+                    
                     // Safely disconnect observer if it exists
                     if (resizeObserver) {
                         resizeObserver.disconnect();
@@ -1128,7 +1151,9 @@
             };
         } catch (error) {
             console.error('Error in onMount:', error);
-            return () => {}; // Return empty cleanup function in case of error
+            return () => {
+                isMounted = false;
+            }; // Return empty cleanup function in case of error
         }
     });
 </script>
