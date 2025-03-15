@@ -56,7 +56,6 @@ export const subcollectionCategories: Record<string, SubcollectionCategory> = {
 };
 
 // Define the mapping of subcollections to categories
-// This is a sample mapping - you'll need to provide the complete mapping
 export const subcollectionMapping: SubcollectionMapping = {
     // News articles - Benin
     '24h au Bénin': 'news_article',
