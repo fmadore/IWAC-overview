@@ -18,7 +18,7 @@
 3. Update each visualization component to leverage the shared code
    - ✅ IndexDistribution - Updated to use useTooltip
    - ✅ LanguageDistribution - Updated to use useTooltip
-   - ⬜ CountryDistribution
+   - ✅ CountryDistribution - Updated to use useTooltip
    - ⬜ TimelineDistribution
    - ⬜ TypeDistribution
    - ⬜ WordDistribution

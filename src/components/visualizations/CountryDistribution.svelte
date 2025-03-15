@@ -7,6 +7,7 @@
     import { t, translate, languageStore } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
     import { subcollectionCategories, subcollectionMapping, getCategoryForSubcollection, getTranslatedCategoryName } from '../../types/SubcollectionCategories';
+    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     // Move all the interface definitions to the top
     interface Item {
@@ -29,7 +30,6 @@
     let width = 0;
     let height = 0;
     let container: HTMLDivElement;
-    let tooltip: HTMLDivElement;
     let hierarchyData: HierarchyDatum = { name: 'root', children: [] };
     let root: d3.HierarchyNode<HierarchyDatum> | null = null;
     let currentLang: 'en' | 'fr' = 'en';
@@ -69,6 +69,12 @@
     const subCollectionsText = translate('viz.sub_collections');
     const currentlyViewingText = translate('viz.currently_viewing');
     const clickBackText = translate('viz.click_back_to_return');
+    
+    // Initialize tooltip hook
+    const { showTooltip, hideTooltip } = useTooltip({
+        maxWidth: '250px',
+        whiteSpace: 'nowrap'
+    });
     
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -518,10 +524,10 @@
                         })
                         .on('mouseover', function(event, d) {
                             // Show tooltip for categories
-                            showTooltip(event, d as any);
+                            handleShowTooltip(event, d as any);
                         })
                         .on('mousemove', function(event, d) {
-                            showTooltip(event, d as any);
+                            handleShowTooltip(event, d as any);
                         })
                         .on('mouseout', function() {
                             hideTooltip();
@@ -670,10 +676,10 @@
                     })
                     .on('mouseover', function(event, d) {
                         // Show tooltip for categories
-                        showTooltip(event, d as any);
+                        handleShowTooltip(event, d as any);
                     })
                     .on('mousemove', function(event, d) {
-                        showTooltip(event, d as any);
+                        handleShowTooltip(event, d as any);
                     })
                     .on('mouseout', function() {
                         hideTooltip();
@@ -752,11 +758,11 @@
                             .attr('stroke-width', 2);
                         
                         // Show tooltip
-                        showTooltip(event, d as any);
+                        handleShowTooltip(event, d as any);
                     })
                     .on('mousemove', function(event, d) {
                         // Update tooltip position
-                        showTooltip(event, d as any);
+                        handleShowTooltip(event, d as any);
                     })
                     .on('mouseout', function() {
                         // Remove highlight
@@ -831,42 +837,8 @@
         }
     }
 
-    // Create tooltip element - make it more resilient
-    function createTooltip() {
-        // Remove any existing tooltip to prevent duplication
-        if (tooltip && document.body.contains(tooltip)) {
-            document.body.removeChild(tooltip);
-        }
-        
-        try {
-            tooltip = document.createElement('div');
-            tooltip.style.position = 'absolute';
-            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            tooltip.style.color = 'white';
-            tooltip.style.padding = '8px 12px';
-            tooltip.style.borderRadius = '4px';
-            tooltip.style.pointerEvents = 'none';
-            tooltip.style.display = 'none';
-            tooltip.style.fontSize = '12px';
-            tooltip.style.zIndex = '1000';
-            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-            tooltip.style.maxWidth = '250px';
-            tooltip.style.whiteSpace = 'nowrap';
-            
-            if (document && document.body) {
-                document.body.appendChild(tooltip);
-            }
-        } catch (e) {
-            console.error('Error creating tooltip:', e);
-        }
-    }
-
     // Show tooltip with data - add error handling
-    function showTooltip(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
-        if (!tooltip || !document.body.contains(tooltip)) {
-            createTooltip(); // Recreate tooltip if it doesn't exist
-        }
-        
+    function handleShowTooltip(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
         try {
             // Determine the node type
             const isCountry = d.parent === root; // If parent is root, it's a country
@@ -880,7 +852,7 @@
                 const categories = d.children?.length || 0;
                 const percentOfTotal = totalItems > 0 ? ((countryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
                 
-                tooltip.innerHTML = `
+                const content = `
                     <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
                         ${countryName}
                     </div>
@@ -896,35 +868,34 @@
                         ${$clickZoomInText}
                     </div>
                 `;
+                
+                showTooltip(event, content, 250, 150);
             } else if (isCategory) {
                 // Category tooltip
-                const country = zoomedNode && !zoomedNode.data.isCategory ? zoomedNode.data.name : '';
                 const categoryName = d.data.name;
                 const categoryItems = d.data.itemCount || d.value || 0;
                 const subcollections = d.children?.length || 0;
                 
-                const totalItemCount = totalItems;
-                const countryItemCount = zoomedNode ? zoomedNode.data.itemCount : 0;
+                // Get parent country name
+                const countryNode = d.parent;
+                const countryName = countryNode ? countryNode.data.name : '';
+                const countryItems = countryNode ? (countryNode.data.itemCount || countryNode.value || 0) : 0;
                 
-                const percentOfCountry = countryItemCount && countryItemCount > 0 ? 
-                    ((categoryItems / countryItemCount) * 100).toFixed(1) + '%' : 'N/A';
-                    
-                const percentOfTotal = totalItemCount > 0 ? 
-                    ((categoryItems / totalItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                // Calculate percentages
+                const percentOfCountry = countryItems > 0 ? ((categoryItems / countryItems) * 100).toFixed(1) + '%' : 'N/A';
+                const percentOfTotal = totalItems > 0 ? ((categoryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
                 
-                let title = country ? `${country} > ${categoryName}` : categoryName;
-                
-                tooltip.innerHTML = `
+                const content = `
                     <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                        ${title}
+                        ${countryName} > ${categoryName}
                     </div>
                     <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
                         <span>${$itemsText}:</span>
                         <span style="text-align:right;font-weight:bold">${categoryItems}</span>
                         <span>${$subCollectionsText}:</span>
                         <span style="text-align:right">${subcollections}</span>
-                        ${country ? `<span>${$percentParentText}:</span>
-                        <span style="text-align:right">${percentOfCountry}</span>` : ''}
+                        <span>${$percentParentText}:</span>
+                        <span style="text-align:right">${percentOfCountry}</span>
                         <span>${$percentTotalText}:</span>
                         <span style="text-align:right">${percentOfTotal}</span>
                     </div>
@@ -932,37 +903,43 @@
                         ${$clickZoomInText}
                     </div>
                 `;
+                
+                showTooltip(event, content, 250, 150);
             } else {
                 // Subcollection tooltip
-                const country = zoomedNode && !zoomedNode.data.isCategory ? zoomedNode.data.name : '';
-                const category = zoomedNode && zoomedNode.data.isCategory ? zoomedNode.data.name : 
-                                (d.parent && d.parent.data.isCategory ? d.parent.data.name : '');
-                const subcollection = d.data.name;
+                const subcollectionName = d.data.name;
                 const itemCount = d.data.itemCount || d.value || 0;
                 
-                const totalItemCount = totalItems;
-                const parentItemCount = d.parent ? d.parent.data.itemCount || 0 : 0;
-                const countryItemCount = zoomedNode && !zoomedNode.data.isCategory ? zoomedNode.data.itemCount || 0 : 0;
+                // Get parent category and country
+                const categoryNode = d.parent;
+                const countryNode = categoryNode?.parent;
                 
-                const percentOfCategory = parentItemCount > 0 ? 
-                    ((itemCount / parentItemCount) * 100).toFixed(1) + '%' : 'N/A';
-                    
-                const percentOfCountry = countryItemCount > 0 ? 
-                    ((itemCount / countryItemCount) * 100).toFixed(1) + '%' : 'N/A';
-                    
-                const percentOfTotal = totalItemCount > 0 ? 
-                    ((itemCount / totalItemCount) * 100).toFixed(1) + '%' : 'N/A';
+                const categoryName = categoryNode ? categoryNode.data.name : '';
+                const countryName = countryNode ? countryNode.data.name : '';
                 
-                let title = '';
-                if (country && category) {
-                    title = `${country} > ${category} > ${subcollection}`;
-                } else if (category) {
-                    title = `${category} > ${subcollection}`;
-                } else {
-                    title = subcollection;
+                const categoryItems = categoryNode ? (categoryNode.data.itemCount || categoryNode.value || 0) : 0;
+                const countryItems = countryNode ? (countryNode.data.itemCount || countryNode.value || 0) : 0;
+                
+                // Calculate percentages
+                const percentOfCategory = categoryItems > 0 ? ((itemCount / categoryItems) * 100).toFixed(1) + '%' : 'N/A';
+                const percentOfCountry = countryItems > 0 ? ((itemCount / countryItems) * 100).toFixed(1) + '%' : 'N/A';
+                const percentOfTotal = totalItems > 0 ? ((itemCount / totalItems) * 100).toFixed(1) + '%' : 'N/A';
+                
+                // Determine title based on available context
+                let title = subcollectionName;
+                if (categoryName && countryName) {
+                    title = `${countryName} > ${categoryName} > ${subcollectionName}`;
+                } else if (categoryName) {
+                    title = `${categoryName} > ${subcollectionName}`;
+                } else if (countryName) {
+                    title = `${countryName} > ${subcollectionName}`;
                 }
                 
-                tooltip.innerHTML = `
+                // Determine which context to show
+                const category = categoryName ? categoryName : null;
+                const country = countryName ? countryName : null;
+                
+                const content = `
                     <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
                         ${title}
                     </div>
@@ -977,38 +954,11 @@
                         <span style="text-align:right">${percentOfTotal}</span>
                     </div>
                 `;
+                
+                showTooltip(event, content, 250, 150);
             }
-            
-            const tooltipWidth = 250;
-            const tooltipHeight = 150;
-            
-            let left = event.pageX + 10;
-            let top = event.pageY + 10;
-            
-            if (left + tooltipWidth > window.innerWidth) {
-                left = event.pageX - tooltipWidth - 10;
-            }
-            
-            if (top + tooltipHeight > window.innerHeight) {
-                top = event.pageY - tooltipHeight - 10;
-            }
-            
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-            tooltip.style.display = 'block';
         } catch (e) {
             console.error('Error showing tooltip:', e);
-        }
-    }
-
-    // Hide tooltip
-    function hideTooltip() {
-        try {
-            if (tooltip && document.body.contains(tooltip)) {
-                tooltip.style.display = 'none';
-            }
-        } catch (e) {
-            console.error('Error hiding tooltip:', e);
         }
     }
 
@@ -1077,9 +1027,6 @@
                     return;
                 }
                 
-                // Create tooltip
-                createTooltip();
-                
                 // Initialize data
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
                     // Process data and update visualization
@@ -1141,10 +1088,7 @@
                         d3.select(container).selectAll('*').remove();
                     }
                     
-                    // Clean up tooltip
-                    if (tooltip && document.body.contains(tooltip)) {
-                        document.body.removeChild(tooltip);
-                    }
+                    // The tooltip cleanup is now handled by the useTooltip hook's onDestroy
                 } catch (e) {
                     console.error('Error during cleanup:', e);
                 }

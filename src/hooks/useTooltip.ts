@@ -24,6 +24,10 @@ export interface TooltipOptions {
     defaultHeight?: number;
     /** Offset from cursor in pixels */
     offset?: number;
+    /** Maximum width of the tooltip */
+    maxWidth?: string;
+    /** White space handling in the tooltip */
+    whiteSpace?: string;
 }
 
 /**
@@ -80,6 +84,15 @@ export function useTooltip(options: TooltipOptions = {}) {
             tooltip.style.fontSize = fontSize;
             tooltip.style.zIndex = zIndex;
             tooltip.style.boxShadow = boxShadow;
+            
+            // Apply optional styles if provided
+            if (options.maxWidth) {
+                tooltip.style.maxWidth = options.maxWidth;
+            }
+            
+            if (options.whiteSpace) {
+                tooltip.style.whiteSpace = options.whiteSpace;
+            }
             
             if (document && document.body) {
                 document.body.appendChild(tooltip);
