@@ -7,6 +7,7 @@
     import { t, translate, languageStore, translations } from '../../stores/translationStore';
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
     import BaseVisualization from './BaseVisualization.svelte';
+    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     const COMPONENT_ID = 'TypeDistribution';
     let isMounted = false;
@@ -37,7 +38,6 @@
 
     // Visualization state
     let container: HTMLDivElement;
-    let tooltip: HTMLDivElement | null;
     let width = 0;
     let height = 0;
     let countryOptions: FacetOption[] = [];
@@ -48,6 +48,12 @@
     
     // Add state for type visibility
     let typeVisibility: TypeVisibility[] = [];
+    
+    // Initialize tooltip hook
+    const { showTooltip, hideTooltip } = useTooltip({
+        defaultWidth: 250,
+        defaultHeight: 150
+    });
 
     // Create reactive translations
     const noDataText = translate('viz.no_data');
@@ -319,108 +325,6 @@
         updateVisualization();
     }
 
-    // Create tooltip
-    function createTooltip() {
-        try {
-            // Remove any existing tooltip first
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
-            }
-            
-            tooltip = document.createElement('div');
-            tooltip.style.position = 'absolute';
-            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            tooltip.style.color = 'white';
-            tooltip.style.padding = '8px 12px';
-            tooltip.style.borderRadius = '4px';
-            tooltip.style.pointerEvents = 'none';
-            tooltip.style.display = 'none';
-            tooltip.style.fontSize = '12px';
-            tooltip.style.zIndex = '1000';
-            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-            
-            if (document && document.body) {
-                document.body.appendChild(tooltip);
-            }
-        } catch (e) {
-            console.error('Error creating tooltip:', e);
-            tooltip = null;
-        }
-    }
-
-    // Show tooltip with data
-    function showTooltip(event: MouseEvent, d: any, stackedData: d3.Series<any, string>[]) {
-        try {
-            if (!tooltip || !document.body.contains(tooltip)) {
-                createTooltip();
-            }
-            
-            if (!tooltip) return;
-            
-            const year = d.data.year;
-            const typeCounts = stackedData.map(series => {
-                const typeItem = series.find(item => item.data.year === year);
-                return {
-                    type: series.key,
-                    count: typeItem ? typeItem[1] - typeItem[0] : 0
-                };
-            }).filter(item => item.count > 0);
-            
-            // Calculate total for percentage
-            const total = typeCounts.reduce((sum, item) => sum + item.count, 0);
-            
-            tooltip.innerHTML = `
-                <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                    Year: ${year}
-                </div>
-                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:4px;">
-                    <span style="font-weight:bold">Type</span>
-                    <span style="text-align:right;font-weight:bold">Count</span>
-                    <span style="text-align:right;font-weight:bold">%</span>
-                    ${typeCounts.map(item => `
-                        <span>${item.type}</span>
-                        <span style="text-align:right">${item.count}</span>
-                        <span style="text-align:right">${((item.count / total) * 100).toFixed(1)}%</span>
-                    `).join('')}
-                    <span style="border-top:1px solid rgba(255,255,255,0.3);font-weight:bold;margin-top:2px;padding-top:2px;">Total</span>
-                    <span style="border-top:1px solid rgba(255,255,255,0.3);text-align:right;font-weight:bold;margin-top:2px;padding-top:2px;">${total}</span>
-                    <span></span>
-                </div>
-            `;
-            
-            const tooltipWidth = 250;
-            const tooltipHeight = 150;
-            
-            let left = event.pageX + 10;
-            let top = event.pageY + 10;
-            
-            if (left + tooltipWidth > window.innerWidth) {
-                left = event.pageX - tooltipWidth - 10;
-            }
-            
-            if (top + tooltipHeight > window.innerHeight) {
-                top = event.pageY - tooltipHeight - 10;
-            }
-            
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-            tooltip.style.display = 'block';
-        } catch (e) {
-            console.error('Error showing tooltip:', e);
-        }
-    }
-
-    // Hide tooltip
-    function hideTooltip() {
-        try {
-            if (tooltip && document.body.contains(tooltip)) {
-                tooltip.style.display = 'none';
-            }
-        } catch (e) {
-            console.error('Error hiding tooltip:', e);
-        }
-    }
-
     // Update visualization based on current data and filters
     function updateVisualization() {
         if (!isMounted || !container || !document.body.contains(container)) {
@@ -645,10 +549,16 @@
                 .attr('stroke', 'white')
                 .attr('stroke-width', 1)
                 .on('mouseenter', (event, d) => {
-                    if (isMounted) showTooltip(event, d, stackedData);
+                    if (isMounted) {
+                        const content = createTypeTooltipContent(d, stackedData);
+                        showTooltip(event, content);
+                    }
                 })
                 .on('mousemove', (event, d) => {
-                    if (isMounted) showTooltip(event, d, stackedData);
+                    if (isMounted) {
+                        const content = createTypeTooltipContent(d, stackedData);
+                        showTooltip(event, content);
+                    }
                 })
                 .on('mouseleave', () => {
                     if (isMounted) hideTooltip();
@@ -837,6 +747,61 @@
         }
     }
 
+    // Function to create tooltip content for a data point
+    function createTypeTooltipContent(d: any, stackedData: d3.Series<any, string>[]) {
+        const year = d.data.year;
+        const typeCounts = stackedData.map(series => {
+            const typeItem = series.find(item => item.data.year === year);
+            return {
+                type: series.key,
+                count: typeItem ? typeItem[1] - typeItem[0] : 0
+            };
+        }).filter(item => item.count > 0);
+        
+        // Calculate total for percentage
+        const total = typeCounts.reduce((sum, item) => sum + item.count, 0);
+        
+        // Create rows for the grid tooltip
+        const rows = [
+            // Header row for types, count, and percentage
+            { label: t('viz.type'), value: t('viz.count') + ' / %' }
+        ];
+        
+        // Add rows for each type
+        typeCounts.forEach(item => {
+            const typeKey = `type.${item.type}`;
+            let displayType = item.type;
+            
+            // Try to get the translation
+            const translatedType = t(typeKey);
+            // If translation doesn't return the key itself, use it
+            if (translatedType !== typeKey) {
+                displayType = translatedType;
+            }
+            
+            rows.push({
+                label: displayType,
+                value: `${formatNumber(item.count)} (${((item.count / total) * 100).toFixed(1)}%)`
+            });
+        });
+        
+        // Add total row
+        rows.push({ 
+            label: t('viz.total_items'), 
+            value: formatNumber(total)
+        });
+        
+        return createGridTooltipContent(
+            `${t('viz.year')}: ${year}`,
+            rows
+        );
+    }
+    
+    // Function to format numbers with locale-specific formatting
+    function formatNumber(num: number): string {
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+
     onMount(() => {
         isMounted = true;
         trackMount(COMPONENT_ID);
@@ -849,9 +814,6 @@
                 console.error('Container element not found in onMount or component unmounted');
                 return;
             }
-            
-            // Create tooltip
-            createTooltip();
             
             // Subscribe to the items store - using the local mounted variable
             unsubscribeItems = itemsStore.subscribe(store => {
@@ -921,17 +883,6 @@
                 resizeObserver = null;
             }
             
-            // Clean up tooltip
-            try {
-                if (tooltip && document.body.contains(tooltip)) {
-                    document.body.removeChild(tooltip);
-                    logDebug(COMPONENT_ID, 'Tooltip removed');
-                }
-                tooltip = null;
-            } catch (e) {
-                console.error('Error removing tooltip:', e);
-            }
-            
             // Clean up store subscriptions
             if (unsubscribeItems) {
                 unsubscribeItems();
@@ -974,16 +925,6 @@
                 console.error('Error disconnecting resize observer:', e);
             }
             resizeObserver = null;
-        }
-        
-        // Clean up tooltip
-        try {
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
-            }
-            tooltip = null;
-        } catch (e) {
-            console.error('Error removing tooltip:', e);
         }
         
         logDebug(COMPONENT_ID, 'Component destroyed');

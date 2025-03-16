@@ -152,6 +152,8 @@ export const translations: Translations = {
         'viz.type_distribution_description': 'This visualization shows the distribution of items by type over time. You can filter by country and year range to explore how different types of items have been published over time.',
         'viz.types': 'Types',
         'viz.published_between': 'published between {0} and {1}',
+        'viz.type': 'Type',
+        'viz.count': 'Count',
         
         // Category translations
         'category.Events': 'Events',
@@ -299,6 +301,8 @@ export const translations: Translations = {
         'viz.type_distribution_description': 'Cette visualisation montre la répartition des éléments par type au fil du temps. Vous pouvez filtrer par pays et par plage d\'années pour explorer comment différents types d\'éléments ont été publiés au fil du temps.',
         'viz.types': 'Types',
         'viz.published_between': 'publiés entre {0} et {1}',
+        'viz.type': 'Type',
+        'viz.count': 'Nombre',
         
         // Category translations
         'category.Events': 'Événements',
