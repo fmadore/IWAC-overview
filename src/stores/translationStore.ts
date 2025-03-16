@@ -60,6 +60,8 @@ export const translations: Translations = {
         'viz.months': 'months',
         'viz.monthly_additions': 'Monthly Additions',
         'viz.month': 'Month',
+        'viz.new_items': 'New Items',
+        'viz.percentage': 'Percentage',
         
         'viz.publication_year': 'Publication Year',
         'viz.year': 'Year',
@@ -205,6 +207,8 @@ export const translations: Translations = {
         'viz.months': 'mois',
         'viz.monthly_additions': 'Ajouts mensuels',
         'viz.month': 'Mois',
+        'viz.new_items': 'Nouveaux Éléments',
+        'viz.percentage': 'Pourcentage',
         
         'viz.publication_year': 'Année de publication',
         'viz.year': 'Année',

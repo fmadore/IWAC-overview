@@ -6,6 +6,7 @@
     import { t, translate, languageStore } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import BaseVisualization from './BaseVisualization.svelte';
+    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     // Define interfaces for data structures
     interface MonthlyData {
@@ -44,7 +45,12 @@
     let width = 0;
     let height = 0;
     let container: HTMLDivElement;
-    let tooltip: HTMLDivElement;
+    
+    // Initialize tooltip hook
+    const { showTooltip, hideTooltip } = useTooltip({
+        defaultWidth: 200,
+        defaultHeight: 100
+    });
 
     // Format date strings
     const monthFormat = d3.timeFormat('%Y-%m');
@@ -64,6 +70,9 @@
     const timelineItemsText = translate('viz.timeline_distribution_items');
     const monthlyAdditionsText = translate('viz.monthly_additions');
     const monthText = translate('viz.month');
+    // Add translations for tooltip labels
+    const newItemsText = translate('viz.new_items');
+    const percentageText = translate('viz.percentage');
 
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -153,6 +162,9 @@
         const beforeAprilItems = $itemsStore.items.filter(item => {
             if (!filterItem(item)) return false;
             
+            // Add null check for created_date
+            if (!item.created_date) return false;
+            
             const itemDate = new Date(item.created_date);
             return itemDate < startDate;
         });
@@ -164,6 +176,9 @@
             if (!filterItem(item)) return false;
             
             // Only include items from April 2024 onwards in the monthly breakdown
+            // Add null check for created_date
+            if (!item.created_date) return false;
+            
             const itemDate = new Date(item.created_date);
             return itemDate >= startDate;
         });
@@ -178,7 +193,8 @@
         
         filteredItems.forEach(item => {
             // Parse the date and extract the month
-            const date = new Date(item.created_date);
+            // We've already filtered out items without created_date, but add an assertion for TypeScript
+            const date = new Date(item.created_date!);
             const month = monthFormat(date);
             
             // Increment the count for this month
@@ -269,100 +285,6 @@
             })).filter(option => option.value !== "Unknown") // Remove Unknown option
             .sort((a, b) => b.count - a.count)
         ];
-    }
-
-    // Create tooltip element
-    function createTooltip() {
-        try {
-            // Remove existing tooltip if it exists to prevent duplicates
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
-            }
-            
-            tooltip = document.createElement('div');
-            tooltip.style.position = 'absolute';
-            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            tooltip.style.color = 'white';
-            tooltip.style.padding = '8px 12px';
-            tooltip.style.borderRadius = '4px';
-            tooltip.style.pointerEvents = 'none';
-            tooltip.style.display = 'none';
-            tooltip.style.fontSize = '12px';
-            tooltip.style.zIndex = '1000';
-            tooltip.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-            
-            if (document && document.body) {
-                document.body.appendChild(tooltip);
-            }
-        } catch (e) {
-            console.error('Error creating tooltip:', e);
-        }
-    }
-    
-    // Show tooltip with data information
-    function showTooltip(event: MouseEvent, d: MonthlyData, type: 'monthly' | 'total') {
-        try {
-            if (!tooltip || !document.body.contains(tooltip)) {
-                createTooltip(); // Recreate tooltip if it doesn't exist
-            }
-            
-            if (!tooltip) return;
-            
-            const monthName = d.date.toLocaleString('default', { month: 'long' });
-            const year = d.date.getFullYear();
-            
-            if (type === 'monthly') {
-                tooltip.innerHTML = `
-                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                        ${monthName} ${year}
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                        <span>New Items:</span><span style="text-align:right;font-weight:bold;">${d.count}</span>
-                        <span>Percentage:</span><span style="text-align:right;font-weight:bold;">${d.percentage.toFixed(2)}%</span>
-                    </div>
-                `;
-            } else {
-                tooltip.innerHTML = `
-                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
-                        ${monthName} ${year}
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                        <span>Total Items:</span><span style="text-align:right;font-weight:bold;">${d.total}</span>
-                    </div>
-                `;
-            }
-            
-            const tooltipWidth = 200;
-            const tooltipHeight = 100;
-            
-            let left = event.pageX + 10;
-            let top = event.pageY + 10;
-            
-            if (left + tooltipWidth > window.innerWidth) {
-                left = event.pageX - tooltipWidth - 10;
-            }
-            
-            if (top + tooltipHeight > window.innerHeight) {
-                top = event.pageY - tooltipHeight - 10;
-            }
-            
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-            tooltip.style.display = 'block';
-        } catch (e) {
-            console.error('Error showing tooltip:', e);
-        }
-    }
-    
-    // Hide tooltip
-    function hideTooltip() {
-        try {
-            if (tooltip && document.body.contains(tooltip)) {
-                tooltip.style.display = 'none';
-            }
-        } catch (e) {
-            console.error('Error hiding tooltip:', e);
-        }
     }
 
     // Create timeline visualization
@@ -571,10 +493,33 @@
                     .transition()
                     .duration(200)
                     .attr('r', 6);
-                showTooltip(event, d, 'monthly');
+                
+                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
+                const year = d.date.getFullYear();
+                
+                const content = createGridTooltipContent(
+                    `${monthName} ${year}`,
+                    [
+                        { label: t('viz.new_items'), value: formatNumber(d.count) },
+                        { label: t('viz.percentage'), value: `${d.percentage.toFixed(2)}%` }
+                    ]
+                );
+                
+                showTooltip(event, content);
             })
             .on('mousemove', function(event, d) {
-                showTooltip(event, d, 'monthly');
+                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
+                const year = d.date.getFullYear();
+                
+                const content = createGridTooltipContent(
+                    `${monthName} ${year}`,
+                    [
+                        { label: t('viz.new_items'), value: formatNumber(d.count) },
+                        { label: t('viz.percentage'), value: `${d.percentage.toFixed(2)}%` }
+                    ]
+                );
+                
+                showTooltip(event, content);
             })
             .on('mouseleave', function() {
                 d3.select(this)
@@ -686,10 +631,31 @@
                     .transition()
                     .duration(200)
                     .attr('r', 6);
-                showTooltip(event, d, 'total');
+                
+                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
+                const year = d.date.getFullYear();
+                
+                const content = createGridTooltipContent(
+                    `${monthName} ${year}`,
+                    [
+                        { label: t('viz.total_items'), value: formatNumber(d.total) }
+                    ]
+                );
+                
+                showTooltip(event, content);
             })
             .on('mousemove', function(event, d) {
-                showTooltip(event, d, 'total');
+                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
+                const year = d.date.getFullYear();
+                
+                const content = createGridTooltipContent(
+                    `${monthName} ${year}`,
+                    [
+                        { label: t('viz.total_items'), value: formatNumber(d.total) }
+                    ]
+                );
+                
+                showTooltip(event, content);
             })
             .on('mouseleave', function() {
                 d3.select(this)
@@ -720,34 +686,36 @@
         createTimeline();
     }
 
-    onMount(async () => {
+    onMount(() => {
         console.log('[TimelineDistribution] Component mounted');
         
-        // Wait for component to mount and DOM to update
-        await tick();
+        // Setup function to initialize the component
+        const setup = async () => {
+            await tick();
+            
+            // Wait for items to load if needed
+            if (!$itemsStore.items || $itemsStore.items.length === 0) {
+                console.log('[TimelineDistribution] No items loaded, waiting for data');
+                await itemsStore.loadItems();
+            }
+            
+            // Wait for another tick to ensure container is bound
+            await tick();
+            
+            if (!container) {
+                console.error('[TimelineDistribution] Container element not found after waiting');
+                return;
+            }
+            
+            console.log('[TimelineDistribution] Container found, generating visualization');
+            
+            // Generate facet options and create visualization
+            generateFacetOptions();
+            createTimeline();
+        };
         
-        // Create tooltip
-        createTooltip();
-        
-        // Wait for items to load if needed
-        if (!$itemsStore.items || $itemsStore.items.length === 0) {
-            console.log('[TimelineDistribution] No items loaded, waiting for data');
-            await itemsStore.loadItems();
-        }
-        
-        // Wait for another tick to ensure container is bound
-        await tick();
-        
-        if (!container) {
-            console.error('[TimelineDistribution] Container element not found after waiting');
-            return;
-        }
-        
-        console.log('[TimelineDistribution] Container found, generating visualization');
-        
-        // Generate facet options and create visualization
-        generateFacetOptions();
-        createTimeline();
+        // Call setup function
+        setup();
         
         // Add resize observer
         const resizeObserver = new ResizeObserver(() => {
@@ -756,15 +724,13 @@
             }
         });
         
-        resizeObserver.observe(container);
+        if (container) {
+            resizeObserver.observe(container);
+        }
         
+        // Return cleanup function directly (not from an async function)
         return () => {
             resizeObserver.disconnect();
-            
-            // Clean up tooltip
-            if (tooltip && document.body.contains(tooltip)) {
-                document.body.removeChild(tooltip);
-            }
         };
     });
 </script>
