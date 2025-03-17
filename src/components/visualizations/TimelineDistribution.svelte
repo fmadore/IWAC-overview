@@ -74,8 +74,9 @@
     // Store unsubscribe functions
     let languageUnsubscribe: () => void;
     
-    // Track if component is mounted
+    // Track component state
     let isMounted = false;
+    let isInitialized = false;
 
     // Format date strings
     const monthFormat = d3.timeFormat('%Y-%m');
@@ -147,7 +148,7 @@
     $: $languageStore, updateTitleHtml();
 
     // Initialize visualization when data changes
-    $: if (isMounted && $itemsStore.items && container && resizeHook) {
+    $: if (isMounted && isInitialized && $itemsStore.items && container && resizeHook) {
         const { width: newWidth, height: newHeight } = resizeHook.dimensions;
         width = newWidth;
         height = newHeight;
@@ -176,7 +177,7 @@
                 resizeHook = useD3Resize({
                     container,
                     onResize: () => {
-                        if (isMounted && container) {
+                        if (isMounted && isInitialized && container) {
                             const { width: newWidth, height: newHeight } = resizeHook.dimensions;
                             width = newWidth;
                             height = newHeight;
@@ -187,16 +188,13 @@
                 
                 // Subscribe to language changes
                 languageUnsubscribe = languageStore.subscribe(value => {
-                    if (!isMounted) return;
+                    if (!isMounted || !isInitialized) return;
                     console.log("[TimelineDistribution] Language changed to:", value);
                     currentLang = value;
                     
                     if (container) {
                         updateTitleHtml();
-                        
-                        if ($itemsStore.items && $itemsStore.items.length > 0) {
-                            updateVisualization();
-                        }
+                        updateVisualization();
                     }
                 });
                 
@@ -207,13 +205,21 @@
                     width = initialWidth;
                     height = initialHeight;
                     
+                    // Generate initial facet options
+                    generateFacetOptions();
+                    
+                    // Set initialization flag
+                    isInitialized = true;
+                    
                     // Wait for next tick before updating visualization
                     await tick();
                     if (container) {
                         updateVisualization();
                     }
                 } else {
-                    itemsStore.loadItems();
+                    await itemsStore.loadItems();
+                    // Set initialization flag after data is loaded
+                    isInitialized = true;
                 }
             } catch (error) {
                 console.error('Error during initialization:', error);
@@ -224,6 +230,7 @@
         return () => {
             try {
                 isMounted = false;
+                isInitialized = false;
                 
                 if (resizeHook) {
                     resizeHook.cleanup();
@@ -244,8 +251,8 @@
 
     // Create timeline visualization
     function updateVisualization() {
-        if (!container) {
-            console.error('[TimelineDistribution] Container element not found in updateVisualization');
+        if (!container || !isMounted || !isInitialized) {
+            console.error('[TimelineDistribution] Cannot update visualization - component not ready');
             return;
         }
         
@@ -720,8 +727,10 @@
         ];
     }
 
-    // Make the visualization update when filters change
-    $: selectedCountry, selectedType, updateVisualization();
+    // Update when filters change, but only if initialized
+    $: if (isInitialized && (selectedCountry || selectedType)) {
+        updateVisualization();
+    }
 </script>
 
 <div class="timeline-visualization-container">
