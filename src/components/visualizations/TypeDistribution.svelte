@@ -90,11 +90,6 @@
         console.log("Type Distribution Title updated:", titleHtml);
     }
     
-    // Update title when totalItems changes
-    $: if (isMounted) {
-        updateTitleHtml();
-    }
-
     // Extract year from different date formats
     function extractYear(dateString?: string): number | null {
         if (!dateString) return null;
@@ -843,6 +838,7 @@
                         updateTitleHtml();
                         
                         if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            generateCountryFacets();
                             updateVisualization();
                         }
                     }
@@ -856,6 +852,7 @@
                         // Generate year range and country facets
                         generateYearRange();
                         generateCountryFacets();
+                        updateTitleHtml();
                         
                         // Update visualization
                         if (container) {
@@ -868,6 +865,7 @@
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
                     generateYearRange();
                     generateCountryFacets();
+                    updateTitleHtml();
                     updateVisualization();
                 } else {
                     itemsStore.loadItems();

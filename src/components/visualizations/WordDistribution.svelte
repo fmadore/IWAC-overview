@@ -95,23 +95,6 @@
         }
     }
 
-    // Subscribe to language changes
-    languageStore.subscribe(value => {
-        currentLang = value;
-        
-        // Update title when language changes
-        if (zoomedNode) {
-            updateZoomedNodeTitle();
-        } else {
-            updateTitleHtml();
-        }
-        
-        // Update visualization if needed
-        if (container && document.body.contains(container)) {
-            updateVisualization();
-        }
-    });
-
     // Process data
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return { name: 'root', children: [] };
@@ -688,19 +671,19 @@
         }
     }
 
-    onMount(() => {
+    onMount((): (() => void) => {
         try {
             isMounted = true;
             trackMount(COMPONENT_ID);
             logDebug(COMPONENT_ID, 'Component mounted');
             
             // Use tick() in a separate function to avoid Promise return type issues
-            const initialize = async () => {
+            const initialize = async (): Promise<() => void> => {
                 await tick();
                 
                 if (!container) {
                     console.error('Container element not found in onMount');
-                    return;
+                    return () => {}; // Return empty cleanup function for this path
                 }
                 
                 // Initialize resize hook
@@ -713,6 +696,24 @@
                             height = newHeight;
                             updateVisualization();
                         }
+                    }
+                });
+
+                // Add language subscription here
+                const languageUnsubscribe = languageStore.subscribe(value => {
+                    if (!isMounted) return;
+                    currentLang = value;
+                    
+                    // Update title when language changes
+                    if (zoomedNode) {
+                        updateZoomedNodeTitle();
+                    } else {
+                        updateTitleHtml();
+                    }
+                    
+                    // Update visualization if needed
+                    if (container && document.body.contains(container)) {
+                        updateVisualization();
                     }
                 });
                 
@@ -728,41 +729,50 @@
                     // Load items if not already loaded
                     itemsStore.loadItems();
                 }
+                
+                // Return cleanup function
+                return () => {
+                    try {
+                        // This cleanup function is called when the component is unmounted
+                        isMounted = false;
+                        trackUnmount(COMPONENT_ID);
+                        logDebug(COMPONENT_ID, 'Component cleanup started');
+                        
+                        // Clean up D3 selections to prevent memory leaks
+                        if (container) {
+                            d3.select(container).selectAll('*').remove();
+                            logDebug(COMPONENT_ID, 'D3 selections removed');
+                        }
+                        
+                        // Clean up resize hook
+                        if (resizeHook) {
+                            resizeHook.cleanup();
+                            logDebug(COMPONENT_ID, 'Resize hook cleaned up');
+                        }
+                        
+                        // Clean up store subscriptions
+                        if (unsubscribeItems) {
+                            unsubscribeItems();
+                            logDebug(COMPONENT_ID, 'Unsubscribed from items store');
+                        }
+
+                        // Clean up language subscription
+                        if (languageUnsubscribe) {
+                            languageUnsubscribe();
+                            logDebug(COMPONENT_ID, 'Unsubscribed from language store');
+                        }
+                        
+                        logDebug(COMPONENT_ID, 'Component cleanup completed');
+                    } catch (e) {
+                        console.error('Error during cleanup:', e);
+                    }
+                };
             };
             
-            // Start initialization
-            initialize();
-            
-            // Return cleanup function
+            // Start initialization and return its result
+            const cleanup = initialize();
             return () => {
-                try {
-                    // This cleanup function is called when the component is unmounted
-                    isMounted = false;
-                    trackUnmount(COMPONENT_ID);
-                    logDebug(COMPONENT_ID, 'Component cleanup started');
-                    
-                    // Clean up D3 selections to prevent memory leaks
-                    if (container) {
-                        d3.select(container).selectAll('*').remove();
-                        logDebug(COMPONENT_ID, 'D3 selections removed');
-                    }
-                    
-                    // Clean up resize hook
-                    if (resizeHook) {
-                        resizeHook.cleanup();
-                        logDebug(COMPONENT_ID, 'Resize hook cleaned up');
-                    }
-                    
-                    // Clean up store subscriptions
-                    if (unsubscribeItems) {
-                        unsubscribeItems();
-                        logDebug(COMPONENT_ID, 'Unsubscribed from items store');
-                    }
-                    
-                    logDebug(COMPONENT_ID, 'Component cleanup completed');
-                } catch (e) {
-                    console.error('Error during cleanup:', e);
-                }
+                cleanup.then(cleanupFn => cleanupFn());
             };
         } catch (e) {
             console.error('Error in onMount:', e);
