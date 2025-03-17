@@ -8,6 +8,7 @@
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
+    import { useDataProcessing } from '../../hooks/useDataProcessing';
 
     // Define interfaces for data structures
     interface CategoryCount {
@@ -35,6 +36,16 @@
 
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
+
+    // Initialize data processing hook with custom filter function
+    const { filterItems, groupAndCount } = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['type'],
+        filterFn: (item: OmekaItem) => item.type === "Notice d'autorité",
+        calculatePercentages: true,
+        sortByCount: true,
+        sortDescending: true
+    });
 
     // Define translation keys
     const indexDescriptionKey = 'viz.index_distribution_description';
@@ -74,49 +85,26 @@
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return [];
         
-        // Filter items with type "Notice d'autorité"
-        const indexItems = $itemsStore.items.filter((item: OmekaItem) => 
-            item.type === "Notice d'autorité"
+        // Filter and group items
+        const results = groupAndCount(
+            $itemsStore.items,
+            item => item.item_set_title || t('viz.uncategorized')
         );
         
-        totalItems = indexItems.length;
+        // Transform results to match our CategoryCount interface
+        const categoryCounts: CategoryCount[] = results.map(result => ({
+            category: t(`category.${result.key}`) === `category.${result.key}` ? result.key : t(`category.${result.key}`),
+            originalCategory: result.key,
+            count: result.count,
+            percentage: result.percentage || 0
+        }));
         
-        if (totalItems === 0) return [];
-        
-        // Group by item_set_title
-        const categoryGroups = d3.rollup(
-            indexItems,
-            v => v.length,
-            d => d.item_set_title || t('viz.uncategorized')
-        );
-        
-        // Convert map to array and calculate percentages
-        const results: CategoryCount[] = Array.from(categoryGroups, ([category, count]) => {
-            // Try to translate the category name if it's one of our known categories
-            // If no translation exists, it will return the key, which we'll replace with the original category
-            const translationKey = `category.${category}`;
-            const translated = t(translationKey);
-            // If the translation is the same as the key, it means no translation was found
-            const translatedCategory = (translated === translationKey) ? category : translated;
-            
-            return {
-                category: translatedCategory,
-                originalCategory: category, // Store original category name for data lookups
-                count,
-                percentage: (count / totalItems) * 100
-            };
-        });
-        
-        // Sort by count descending
-        const sortedResults = results.sort((a, b) => b.count - a.count);
-        
-        // Find max count for scaling
-        maxCount = d3.max(sortedResults, d => d.count) || 0;
-        
-        // Update title HTML
+        // Update state
+        totalItems = results.reduce((sum, r) => sum + r.count, 0);
+        maxCount = d3.max(categoryCounts, d => d.count) || 0;
         updateTitleHtml();
         
-        return sortedResults;
+        return categoryCounts;
     }
 
     // Show tooltip with category information
