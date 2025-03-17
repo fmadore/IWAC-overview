@@ -8,6 +8,7 @@
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
+    import { useDataProcessing } from '../../hooks/useDataProcessing';
 
     // Define interfaces for data structures
     interface MonthlyData {
@@ -55,6 +56,20 @@
 
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
+    
+    // Initialize data processing hook
+    const { filterItems, groupAndCount, processTimeData } = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['created_date'],
+        calculatePercentages: true,
+        sortByCount: true,
+        sortDescending: true,
+        filterFn: (item: OmekaItem) => {
+            if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
+            if (selectedType !== 'all' && item.type !== selectedType) return false;
+            return true;
+        }
+    });
     
     // Store unsubscribe functions
     let languageUnsubscribe: () => void;
@@ -625,151 +640,88 @@
         
         // Define the start date (April 1, 2024)
         const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
-        
-        // First, calculate the starting total from items before April 2024
-        let startingTotal = 0;
-        
-        // Apply country and type filters consistently
-        const filterItem = (item: OmekaItem) => {
-            if (!item.created_date) return false;
-            
-            // Apply country filter if not 'all'
-            if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
-            
-            // Apply type filter if not 'all'
-            if (selectedType !== 'all' && item.type !== selectedType) return false;
-            
-            return true;
-        };
-        
-        // Calculate items from before April 2024 (our starting total)
-        const beforeAprilItems = $itemsStore.items.filter(item => {
-            if (!filterItem(item)) return false;
-            
-            // Add null check for created_date
-            if (!item.created_date) return false;
-            
-            const itemDate = new Date(item.created_date);
-            return itemDate < startDate;
-        });
-        
-        startingTotal = beforeAprilItems.length;
-        
-        // Filter items for April 2024 and onwards (for monthly visualization)
-        let filteredItems = $itemsStore.items.filter(item => {
-            if (!filterItem(item)) return false;
-            
-            // Only include items from April 2024 onwards in the monthly breakdown
-            // Add null check for created_date
-            if (!item.created_date) return false;
-            
-            const itemDate = new Date(item.created_date);
-            return itemDate >= startDate;
-        });
-        
-        // Total items is the sum of starting total and filtered items
-        totalItems = startingTotal + filteredItems.length;
-        
-        if (filteredItems.length === 0) return [];
-        
-        // Extract the month from created_date and count occurrences
-        const monthCounts = new Map<string, number>();
-        
-        filteredItems.forEach(item => {
-            // Parse the date and extract the month
-            // We've already filtered out items without created_date, but add an assertion for TypeScript
-            const date = new Date(item.created_date!);
-            const month = monthFormat(date);
-            
-            // Increment the count for this month
-            monthCounts.set(month, (monthCounts.get(month) || 0) + 1);
-        });
-        
-        // Convert to array and sort chronologically
-        const monthsArray = Array.from(monthCounts.entries())
-            .map(([month, count]) => {
-                // Convert YYYY-MM to Date object (first day of month)
-                const [year, monthNum] = month.split('-').map(Number);
-                const date = new Date(year, monthNum - 1, 1); // JS months are 0-indexed
-                
-                return {
-                    date,
-                    month,
-                    monthFormatted: displayFormat(date),
-                    count,
-                    total: 0, // Will calculate cumulative total next
-                    percentage: 0 // Will calculate percentage next
-                };
-            })
-            .sort((a, b) => a.date.getTime() - b.date.getTime());
-        
-        // Calculate cumulative totals and percentages
-        // Start with the initial total from before April 2024
-        let runningTotal = startingTotal;
-        monthsArray.forEach(month => {
-            runningTotal += month.count;
-            month.total = runningTotal;
-            // Calculate percentage based on the count relative to all items added since April
-            month.percentage = (month.count / filteredItems.length) * 100;
-        });
-        
+
+        // Process time-based data using the hook
+        const timelineData = processTimeData(
+            $itemsStore.items,
+            'created_date',
+            {
+                startDate,
+                includeCumulative: true
+            }
+        );
+
+        if (timelineData.length === 0) return [];
+
+        // Update total items count
+        totalItems = timelineData[timelineData.length - 1].total;
+
         // Calculate max values for scaling
-        maxMonthlyCount = d3.max(monthsArray, d => d.count) || 0;
-        maxTotalCount = d3.max(monthsArray, d => d.total) || 0;
+        maxMonthlyCount = Math.max(...timelineData.map(d => d.count));
+        maxTotalCount = Math.max(...timelineData.map(d => d.total));
         
-        return monthsArray;
+        return timelineData;
     }
     
-    // Generate facet options
+    // Generate facet options using the data processing hook
     function generateFacetOptions() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
         // Define the start date (April 1, 2024)
-        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
+        const startDate = new Date(2024, 3, 1);
         
-        // Get only items with created_date and after April 2024
-        const itemsWithDate = $itemsStore.items.filter(item => {
-            if (!item.created_date) return false;
-            const itemDate = new Date(item.created_date);
-            return itemDate >= startDate;
+        // Filter items after April 2024 without applying country/type filters
+        const { filterItems: filterItemsWithoutFacets } = useDataProcessing({
+            filterMissingValues: true,
+            requiredFields: ['created_date']
         });
         
-        // Generate country options
-        const countries = d3.rollup(
-            itemsWithDate,
-            v => v.length,
-            d => d.country || "Unknown"
+        const filteredItems = filterItemsWithoutFacets($itemsStore.items).filter(item => {
+            const itemDate = new Date(item.created_date!);
+            return itemDate >= startDate;
+        });
+
+        // Generate country options using groupAndCount
+        const countryData = groupAndCount(
+            filteredItems,
+            item => item.country || 'Unknown',
+            filteredItems.length
         );
-        
+
         countryOptions = [
-            { value: 'all', label: t('country.all'), count: itemsWithDate.length },
-            ...Array.from(countries, ([country, count]) => ({
-                value: country,
-                // Use translation for country name if available
-                label: t(`country.${country}`),
-                count
-            })).filter(option => option.value !== "Unknown") // Remove Unknown option
-            .sort((a, b) => b.count - a.count)
+            { value: 'all', label: t('country.all'), count: filteredItems.length },
+            ...countryData
+                .filter(item => item.key !== 'Unknown')
+                .map(item => ({
+                    value: item.key,
+                    label: t(`country.${item.key}`),
+                    count: item.count
+                }))
+                .sort((a, b) => b.count - a.count)
         ];
-        
-        // Generate type options
-        const types = d3.rollup(
-            itemsWithDate,
-            v => v.length,
-            d => d.type || "Unknown"
+
+        // Generate type options using groupAndCount
+        const typeData = groupAndCount(
+            filteredItems,
+            item => item.type || 'Unknown',
+            filteredItems.length
         );
-        
+
         typeOptions = [
-            { value: 'all', label: t('type.all'), count: itemsWithDate.length },
-            ...Array.from(types, ([type, count]) => ({
-                value: type,
-                // Use translation for the type label if available
-                label: t(`type.${type}`),
-                count
-            })).filter(option => option.value !== "Unknown") // Remove Unknown option
-            .sort((a, b) => b.count - a.count)
+            { value: 'all', label: t('type.all'), count: filteredItems.length },
+            ...typeData
+                .filter(item => item.key !== 'Unknown')
+                .map(item => ({
+                    value: item.key,
+                    label: t(`type.${item.key}`),
+                    count: item.count
+                }))
+                .sort((a, b) => b.count - a.count)
         ];
     }
+
+    // Make the visualization update when filters change
+    $: selectedCountry, selectedType, updateVisualization();
 </script>
 
 <div class="timeline-visualization-container">
