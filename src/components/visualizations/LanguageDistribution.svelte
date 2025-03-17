@@ -8,6 +8,7 @@
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
+    import { useDataProcessing } from '../../hooks/useDataProcessing';
 
     // Define interfaces for data structures
     interface LanguageCount {
@@ -45,6 +46,24 @@
     
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
+    
+    // Initialize data processing hook with custom filter function
+    const { filterItems, groupAndCount } = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['language'],
+        filterFn: (item: OmekaItem) => {
+            // Apply country filter if not 'all'
+            if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
+            
+            // Apply type filter if not 'all'
+            if (selectedType !== 'all' && item.type !== selectedType) return false;
+            
+            return true;
+        },
+        calculatePercentages: true,
+        sortByCount: true,
+        sortDescending: true
+    });
     
     // Store unsubscribe functions
     let languageUnsubscribe: () => void;
@@ -191,57 +210,41 @@
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Filter items based on selected facets
-        let filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
-            // Only include items with a language
-            if (!item.language) return false;
-            
-            // Apply country filter if not 'all'
-            if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
-            
-            // Apply type filter if not 'all'
-            if (selectedType !== 'all' && item.type !== selectedType) return false;
-            
-            return true;
-        });
+        // Use the data processing hook to filter and group items
+        const results = groupAndCount(
+            $itemsStore.items,
+            item => item.language || "Unknown"
+        );
         
-        totalItems = filteredItems.length;
+        // Transform results to match our LanguageCount interface
+        const processedCounts: LanguageCount[] = results.map(result => ({
+            language: result.key,
+            count: result.count,
+            percentage: result.percentage || 0
+        }));
+        
+        // Update total items
+        totalItems = processedCounts.reduce((sum, item) => sum + item.count, 0);
         
         // Update the title after the total items count has been updated
         updateTitleHtml();
         
         console.log(`Processed ${totalItems} items with language data`);
         
-        // Count by language
-        const languageCounts = d3.rollup(
-            filteredItems,
-            v => v.length,
-            d => d.language || "Unknown"
-        );
-        
-        // Convert map to array and calculate percentages
-        const results: LanguageCount[] = Array.from(languageCounts, ([language, count]) => ({
-            language, 
-            count,
-            percentage: (count / totalItems) * 100
-        }));
-        
-        // Sort by count descending
-        return results.sort((a, b) => b.count - a.count);
+        return processedCounts;
     }
     
     // Generate facet options
     function generateFacetOptions() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Get only items with languages
-        const itemsWithLanguage = $itemsStore.items.filter(item => item.language);
+        // Use the data processing hook to filter items with languages
+        const itemsWithLanguage = filterItems($itemsStore.items);
         
-        // Generate country options
-        const countries = d3.rollup(
+        // Generate country options using the hook
+        const countryResults = groupAndCount(
             itemsWithLanguage,
-            v => v.length,
-            d => d.country || "Unknown"
+            item => item.country || "Unknown"
         );
         
         // Get the current translations directly from the translation store
@@ -250,36 +253,35 @@
         
         countryOptions = [
             { value: 'all', label: currentAllCountriesText, count: itemsWithLanguage.length },
-            ...Array.from(countries, ([country, count]) => {
-                // Skip "Unknown" country
-                if (country === "Unknown") return null;
-                
-                // Translate country name if available
-                const translatedCountry = t(`country.${country}`) || country;
-                return {
-                    value: country,
-                    label: translatedCountry,
-                    count
-                };
-            })
-            .filter(item => item !== null) // Remove null items (Unknown)
-            .sort((a, b) => b.count - a.count)
+            ...countryResults
+                .filter(result => result.key !== "Unknown")
+                .map(result => {
+                    // Translate country name if available
+                    const translatedCountry = t(`country.${result.key}`) || result.key;
+                    return {
+                        value: result.key,
+                        label: translatedCountry,
+                        count: result.count
+                    };
+                })
+                .sort((a, b) => b.count - a.count)
         ];
         
-        // Generate type options
-        const types = d3.rollup(
+        // Generate type options using the hook
+        const typeResults = groupAndCount(
             itemsWithLanguage,
-            v => v.length,
-            d => d.type || "Unknown"
+            item => item.type || "Unknown"
         );
         
         typeOptions = [
             { value: 'all', label: currentAllTypesText, count: itemsWithLanguage.length },
-            ...Array.from(types, ([type, count]) => ({
-                value: type,
-                label: type,
-                count
-            })).sort((a, b) => b.count - a.count)
+            ...typeResults
+                .map(result => ({
+                    value: result.key,
+                    label: result.key,
+                    count: result.count
+                }))
+                .sort((a, b) => b.count - a.count)
         ];
     }
 
