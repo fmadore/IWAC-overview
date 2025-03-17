@@ -315,18 +315,22 @@ export const translations: Translations = {
 
 // Create a store for the current language
 function createTranslationStore() {
-    // Default language is English
     const { subscribe, set, update } = writable<Language>('en');
+    
+    // Check if we're in development mode (non-production build)
+    const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     
     return {
         subscribe,
         setLanguage: (language: Language) => {
-            console.log('[TranslationStore] Setting language to:', language);
+            // Only log language changes in development
+            if (isDevelopment) {
+                console.log('[Translation] Language changed to:', language);
+            }
             set(language);
         },
         toggleLanguage: () => update(currentLang => {
             const newLang = currentLang === 'en' ? 'fr' : 'en';
-            console.log('[TranslationStore] Toggling language from', currentLang, 'to', newLang);
             return newLang;
         })
     };
@@ -337,28 +341,22 @@ export const languageStore = createTranslationStore();
 
 // Process a translation string with replacements
 function processTranslation(text: string, replacements: string[] = []): string {
-    console.log('[TranslationStore] Processing translation:', { text, replacements });
-    const result = text.replace(/{(\d+)}/g, (match, index) => {
+    return text.replace(/{(\d+)}/g, (match, index) => {
         const position = parseInt(index);
         return position < replacements.length ? replacements[position] : match;
     });
-    console.log('[TranslationStore] Processed result:', result);
-    return result;
 }
 
 // Helper function to translate a key (not reactive, use with caution)
 export function t(key: string, replacements: string[] = []): string {
     const currentLang = get(languageStore);
-    console.log('[TranslationStore] t() translation lookup:', { key, currentLang, replacements });
     const translation = translations[currentLang]?.[key] || key;
     return processTranslation(translation, replacements);
 }
 
 // Create a derived store for reactive translations in components
 export function translate(key: string, replacements: string[] = []) {
-    console.log('[TranslationStore] Creating reactive translation for key:', key);
     return derived(languageStore, ($language) => {
-        console.log('[TranslationStore] Reactive translation update:', { key, language: $language });
         const translation = translations[$language]?.[key] || key;
         return processTranslation(translation, replacements);
     });

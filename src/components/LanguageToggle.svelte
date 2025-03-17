@@ -6,9 +6,7 @@
 
     // Toggle language when the button is clicked
     function toggleLanguage() {
-        console.log('[LanguageToggle] Button clicked, current language:', $languageStore);
         languageStore.toggleLanguage();
-        console.log('[LanguageToggle] Toggle text is:', $toggleText);
     }
 </script>
 
