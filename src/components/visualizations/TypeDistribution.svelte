@@ -9,6 +9,7 @@
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
+    import { useDataProcessing } from '../../hooks/useDataProcessing';
 
     const COMPONENT_ID = 'TypeDistribution';
     let isMounted = false;
@@ -57,6 +58,15 @@
 
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
+
+    // Initialize data processing hook
+    const { filterItems, groupAndCount, groupHierarchically } = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['publication_date', 'type'],
+        calculatePercentages: true,
+        sortByCount: true,
+        sortDescending: true
+    });
 
     // Create reactive translations
     const noDataText = translate('viz.no_data');
@@ -124,8 +134,8 @@
         // Check if "all" is selected
         const allCountriesSelected = selectedCountries.includes('all');
         
-        // Filter items by selected countries, valid publication dates, and exclude "Notice d'autorité" type
-        const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
+        // Create filter function for the data processing hook
+        const filterFn = (item: OmekaItem) => {
             // Exclude items with type "Notice d'autorité"
             if (item.type === "Notice d'autorité") return false;
             
@@ -147,7 +157,17 @@
             }
             
             return true;
+        };
+
+        // Initialize data processing with the filter
+        const { filterItems: processWithFilter } = useDataProcessing({
+            filterMissingValues: true,
+            requiredFields: ['publication_date', 'type'],
+            filterFn
         });
+
+        // Filter items
+        const filteredItems = processWithFilter($itemsStore.items);
         
         // Update total items count
         totalItems = filteredItems.length;
@@ -155,31 +175,25 @@
         // Update title with new count
         updateTitleHtml();
         
-        // Group items by year and type
-        const yearTypeMap = new Map();
-        
-        filteredItems.forEach(item => {
-            const year = extractYear(item.publication_date);
-            if (!year) return;
-            
-            const type = item.type || 'Unknown';
-            
-            const key = `${year}-${type}`;
-            if (yearTypeMap.has(key)) {
-                yearTypeMap.set(key, yearTypeMap.get(key) + 1);
-            } else {
-                yearTypeMap.set(key, 1);
-            }
-        });
-        
-        // Convert map to array of TypeYearData objects
+        // Group items by year and type using groupHierarchically
+        const yearTypeData = groupHierarchically(
+            filteredItems,
+            [
+                item => extractYear(item.publication_date)?.toString() || 'Unknown',
+                item => item.type || 'Unknown'
+            ]
+        );
+
+        // Convert hierarchical data to TypeYearData format
         const result: TypeYearData[] = [];
-        yearTypeMap.forEach((count, key) => {
-            const [yearStr, type] = key.split('-');
-            result.push({
-                year: parseInt(yearStr),
-                type,
-                count
+        yearTypeData.children?.forEach(yearGroup => {
+            const year = parseInt(yearGroup.name);
+            yearGroup.children?.forEach(typeGroup => {
+                result.push({
+                    year,
+                    type: typeGroup.name,
+                    count: typeGroup.value
+                });
             });
         });
         
@@ -190,37 +204,39 @@
     function generateCountryFacets() {
         if (!isMounted || !$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Filter out "Notice d'autorité" items first
-        const filteredItems = $itemsStore.items.filter(item => item.type !== "Notice d'autorité");
-        
-        // Filter by year range if it's set
-        let itemsInTimeRange = filteredItems;
-        if (selectedYearRange[0] > 0 && selectedYearRange[1] > 0) {
-            itemsInTimeRange = filteredItems.filter(item => {
-                const year = extractYear(item.publication_date);
-                return year !== null && 
-                       year >= selectedYearRange[0] && 
-                       year <= selectedYearRange[1];
-            });
-        }
-        
-        // Get all countries from filtered items, excluding "Unknown"
-        const countries = itemsInTimeRange
-            .map((item: OmekaItem) => item.country || 'Unknown')
-            .filter((country: string) => country.trim() !== '' && country !== 'Unknown');
-        
-        // Count items per country
-        const countryCounts = d3.rollup(
-            countries,
-            v => v.length,
-            d => d
+        // Create filter function for facets
+        const filterFn = (item: OmekaItem) => {
+            // Filter out "Notice d'autorité" items
+            if (item.type === "Notice d'autorité") return false;
+            
+            // Filter by year range
+            const year = extractYear(item.publication_date);
+            return year !== null && 
+                   year >= selectedYearRange[0] && 
+                   year <= selectedYearRange[1];
+        };
+
+        // Initialize data processing with the filter
+        const { filterItems: filterForFacets, groupAndCount: countForFacets } = useDataProcessing({
+            filterMissingValues: true,
+            requiredFields: ['publication_date'],
+            filterFn
+        });
+
+        // Filter items
+        const filteredItems = filterForFacets($itemsStore.items);
+
+        // Generate country counts using groupAndCount
+        const countryData = countForFacets(
+            filteredItems,
+            item => item.country || 'Unknown'
         );
-        
-        // Count items with known countries (excluding Unknown)
-        const itemsWithKnownCountry = itemsInTimeRange.filter(item => 
+
+        // Count items with known countries
+        const itemsWithKnownCountry = filteredItems.filter(item => 
             item.country && item.country.trim() !== '' && item.country !== 'Unknown'
         ).length;
-        
+
         // Create options with translated labels
         countryOptions = [
             {
@@ -229,12 +245,14 @@
                 count: itemsWithKnownCountry,
                 selected: countryOptions.find(opt => opt.value === 'all')?.selected ?? true
             },
-            ...Array.from(countryCounts, ([country, count]) => ({
-                value: country,
-                label: t(`country.${country}`) || country,
-                count,
-                selected: countryOptions.find(opt => opt.value === country)?.selected ?? false
-            }))
+            ...countryData
+                .filter(item => item.key !== 'Unknown')
+                .map(item => ({
+                    value: item.key,
+                    label: t(`country.${item.key}`) || item.key,
+                    count: item.count,
+                    selected: countryOptions.find(opt => opt.value === item.key)?.selected ?? false
+                }))
         ];
         
         // Sort alphabetically by label (except "All Countries" which stays first)
