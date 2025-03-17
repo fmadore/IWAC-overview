@@ -8,6 +8,7 @@
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
+    import { useD3Resize } from '../../hooks/useD3Resize';
 
     const COMPONENT_ID = 'WordDistribution';
     let isMounted = false;
@@ -39,6 +40,9 @@
     const { showTooltip, hideTooltip } = useTooltip({
         maxWidth: '250px'
     });
+    
+    // Initialize resize hook after container is bound
+    let resizeHook: ReturnType<typeof useD3Resize>;
     
     // Create reactive translations
     const noDataText = translate('viz.no_data');
@@ -699,6 +703,19 @@
                     return;
                 }
                 
+                // Initialize resize hook
+                resizeHook = useD3Resize({
+                    container,
+                    onResize: () => {
+                        if (isMounted && container) {
+                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            width = newWidth;
+                            height = newHeight;
+                            updateVisualization();
+                        }
+                    }
+                });
+                
                 // Subscribe to the items store
                 unsubscribeItems = itemsStore.subscribe(store => {
                     handleItemsChange(store.items);
@@ -711,17 +728,6 @@
                     // Load items if not already loaded
                     itemsStore.loadItems();
                 }
-                
-                // Add resize observer
-                const resizeObserver = new ResizeObserver(() => {
-                    if (!isMounted) return;
-                    
-                    if (container && document.body.contains(container)) {
-                        updateVisualization();
-                    }
-                });
-                
-                resizeObserver.observe(container);
             };
             
             // Start initialization
@@ -739,6 +745,12 @@
                     if (container) {
                         d3.select(container).selectAll('*').remove();
                         logDebug(COMPONENT_ID, 'D3 selections removed');
+                    }
+                    
+                    // Clean up resize hook
+                    if (resizeHook) {
+                        resizeHook.cleanup();
+                        logDebug(COMPONENT_ID, 'Resize hook cleaned up');
                     }
                     
                     // Clean up store subscriptions
@@ -766,6 +778,12 @@
             logDebug(COMPONENT_ID, 'Component destroyed (backup cleanup)');
             
             try {
+                // Clean up resize hook
+                if (resizeHook) {
+                    resizeHook.cleanup();
+                    logDebug(COMPONENT_ID, 'Resize hook cleaned up (backup)');
+                }
+                
                 // Clean up store subscriptions
                 if (unsubscribeItems) {
                     unsubscribeItems();
