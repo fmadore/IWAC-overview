@@ -1,10 +1,11 @@
 import type { VisualizationData } from './OmekaItem';
+import type { Language, TranslationStore, TranslationFunction } from './translations';
 
 // Global declarations for store values
 declare global {
   // Add store values as properties on the global namespace
   var $itemsStore: VisualizationData;
-  var $language: string;
+  var $languageStore: Language;
   
   // Add window extensions for debug
   interface Window {
@@ -19,7 +20,7 @@ declare global {
     __TRANSLATION_DEBUG?: {
       dumpLogs: () => void;
       exportLogs: () => string;
-      currentLanguage: () => string;
+      currentLanguage: () => Language;
       isMounted: () => boolean;
     };
   }

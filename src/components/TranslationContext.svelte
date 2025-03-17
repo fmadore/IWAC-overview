@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy, setContext } from 'svelte';
-    import { languageStore, type Language } from '../stores/translationStore';
+    import { languageStore } from '../stores/translationStore';
+    import type { Language, TranslationStore } from '../types/translations';
 
     const COMPONENT_ID = 'TranslationContext';
     let isMounted = false;
@@ -12,7 +13,8 @@
     // Set context for child components to access
     setContext('translationContext', {
         componentId: COMPONENT_ID,
-        getLanguage: () => currentLanguage
+        getLanguage: () => currentLanguage,
+        languageStore: languageStore as TranslationStore
     });
     
     function handleLanguageChange(newLanguage: Language) {

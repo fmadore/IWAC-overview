@@ -4,7 +4,7 @@
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
     import type { OmekaItem } from '../../types/OmekaItem';
-    import { t, translate, languageStore, translations } from '../../stores/translationStore';
+    import { t, translate, languageStore } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
@@ -64,7 +64,7 @@
         // Format the number with spaces as thousands separator
         const formattedCount = formatNumber(count);
         // Use the current language's translation with the formatted count
-        return t('viz.index_distribution_items', [formattedCount]);
+        return t('viz.index_distribution_items', { '0': formattedCount });
     }
     
     // Update title HTML when needed

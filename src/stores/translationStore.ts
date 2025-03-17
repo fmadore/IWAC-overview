@@ -1,18 +1,15 @@
-import { writable, derived, get } from 'svelte/store';
-
-// Define types for translations
-export type Language = 'en' | 'fr';
-
-export interface Translation {
-    [key: string]: string;
-}
-
-export interface Translations {
-    [language: string]: Translation;
-}
+import { writable, derived, get, type Readable } from 'svelte/store';
+import type { 
+    Language, 
+    TranslationKeys, 
+    TranslationParams, 
+    TranslationStore,
+    TranslationFunction,
+    ReactiveTranslationFunction 
+} from '../types/translations';
 
 // Define translations for English and French
-export const translations: Translations = {
+const translations: Record<Language, Record<string, string>> = {
     en: {
         // App navigation
         'app.title': '<i>Islam West Africa Collection</i> Overview',
@@ -314,7 +311,7 @@ export const translations: Translations = {
 };
 
 // Create a store for the current language
-function createTranslationStore() {
+function createTranslationStore(): TranslationStore {
     const { subscribe, set, update } = writable<Language>('en');
     
     // Check if we're in development mode (non-production build)
@@ -340,24 +337,26 @@ function createTranslationStore() {
 export const languageStore = createTranslationStore();
 
 // Process a translation string with replacements
-function processTranslation(text: string, replacements: string[] = []): string {
+function processTranslation(text: string, params?: TranslationParams): string {
+    if (!params) return text;
+    
     return text.replace(/{(\d+)}/g, (match, index) => {
         const position = parseInt(index);
-        return position < replacements.length ? replacements[position] : match;
+        return position < Object.keys(params).length ? params[position].toString() : match;
     });
 }
 
 // Helper function to translate a key (not reactive, use with caution)
-export function t(key: string, replacements: string[] = []): string {
+export const t: TranslationFunction = (key: string, params?: TranslationParams): string => {
     const currentLang = get(languageStore);
     const translation = translations[currentLang]?.[key] || key;
-    return processTranslation(translation, replacements);
-}
+    return processTranslation(translation, params);
+};
 
 // Create a derived store for reactive translations in components
-export function translate(key: string, replacements: string[] = []) {
+export const translate: ReactiveTranslationFunction = (key: string, params?: TranslationParams) => {
     return derived(languageStore, ($language) => {
         const translation = translations[$language]?.[key] || key;
-        return processTranslation(translation, replacements);
+        return processTranslation(translation, params);
     });
-} 
+}; 

@@ -1,5 +1,6 @@
 import { Readable, Writable } from 'svelte/store';
 import type { OmekaItem, VisualizationData } from './OmekaItem';
+import type { Language, TranslationStore, TranslationFunction, ReactiveTranslationFunction, TranslationKeys, TranslationParams } from './translations';
 
 // Extend the global declarations
 declare global {
@@ -40,6 +41,10 @@ declare module 'svelte' {
   interface ComponentProps {
     // Add any global component props here
   }
+
+  interface ComponentEvents {
+    languageChange: CustomEvent<Language>;
+  }
 }
 
 // Add proper typing for store values
@@ -54,12 +59,7 @@ declare module '../stores/itemsStore' {
   };
 }
 
+// Add type declarations for translation store
 declare module '../stores/translationStore' {
-  export const language: {
-    subscribe: (callback: (value: string) => void) => () => void;
-    toggleLanguage: () => void;
-  };
-  
-  export function t(key: string, params?: string[]): string;
-  export function translate(key: string, params?: string[]): Readable<string>;
+  export type { Language, TranslationStore, TranslationFunction, ReactiveTranslationFunction, TranslationKeys, TranslationParams };
 } 

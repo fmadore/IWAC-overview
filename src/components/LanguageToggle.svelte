@@ -1,5 +1,6 @@
 <script lang="ts">
     import { languageStore, translate } from '../stores/translationStore';
+    import type { TranslationFunction } from '../types/translations';
 
     // Create a derived store for the toggle button text
     const toggleText = translate('ui.toggle_language');

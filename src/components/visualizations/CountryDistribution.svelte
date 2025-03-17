@@ -103,7 +103,7 @@
         // Format the number with spaces as thousands separator
         const formattedCount = formatNumber(count);
         // Use the current language's translation with the formatted count
-        return t('viz.distribution_items', [formattedCount]);
+        return t('viz.distribution_items', { '0': formattedCount });
     }
     
     // IMPORTANT - Replace the reactive declaration for titleHtml with a function call

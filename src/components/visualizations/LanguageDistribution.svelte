@@ -80,7 +80,10 @@
     const filterByCountryText = translate('viz.filter_by_country');
     const filterByTypeText = translate('viz.filter_by_type');
     const noDataText = translate('viz.no_data');
-    const showingItemsText = translate('viz.showing_items');
+    const showingItemsText = translate('viz.showing_items', {
+        '0': formatNumber(totalItems),
+        '1': formatNumber(languageCounts.length)
+    });
     const countText = translate('viz.items');
     const percentageText = translate('viz.percent_of_total');
 
@@ -95,7 +98,7 @@
         // Format the number with spaces as thousands separator
         const formattedCount = formatNumber(count);
         // Use the current language's translation with the formatted count
-        return t('viz.language_distribution_items', [formattedCount]);
+        return t('viz.language_distribution_items', { '0': formattedCount });
     }
     
     // Function to update the title HTML based on current data
@@ -472,7 +475,7 @@
             
             <div class="summary">
                 {#if languageCounts.length > 0}
-                    <span>{t('viz.showing_items', [formatNumber(totalItems), languageCounts.length.toString()])}</span>
+                    <span>{t('viz.showing_items', { '0': formatNumber(totalItems), '1': languageCounts.length.toString() })}</span>
                 {/if}
             </div>
         </div>
