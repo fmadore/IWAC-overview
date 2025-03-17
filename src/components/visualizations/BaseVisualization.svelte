@@ -90,7 +90,7 @@
 >
     <VisualizationHeader
         title={computedTitle}
-        {description}
+        description={description}
         {descriptionTranslationKey}
         bind:showDescription
         {descriptionId}

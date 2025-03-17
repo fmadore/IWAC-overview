@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { t } from '../../stores/translationStore';
+    import { t, translate } from '../../stores/translationStore';
     import { slide } from 'svelte/transition';
     
     // Title props
@@ -14,8 +14,11 @@
     // Style props
     export let className: string = '';
 
-    // Computed description - use translated description if key provided
-    $: computedDescription = descriptionTranslationKey ? t(descriptionTranslationKey) : description;
+    // Create reactive translations
+    $: hideInfoText = translate('ui.hide_info');
+    $: showInfoText = translate('ui.show_info');
+    $: visualizationDescriptionText = translate('ui.visualization_description');
+    $: descriptionText = descriptionTranslationKey ? translate(descriptionTranslationKey) : undefined;
 
     // Toggle description visibility
     function toggleDescription() {
@@ -34,7 +37,7 @@
                 aria-controls={descriptionId}
             >
                 <span class="info-icon">ℹ️</span>
-                <span class="sr-only">{showDescription ? t('ui.hide_info') : t('ui.show_info')}</span>
+                <span class="sr-only">{showDescription ? $hideInfoText : $showInfoText}</span>
             </button>
         {/if}
     </div>
@@ -45,9 +48,9 @@
             class="description"
             transition:slide={{ duration: 200 }}
             role="region"
-            aria-label={t('ui.visualization_description')}
+            aria-label={$visualizationDescriptionText}
         >
-            <p>{computedDescription}</p>
+            <p>{descriptionTranslationKey ? $descriptionText : description}</p>
         </div>
     {/if}
 </div>
