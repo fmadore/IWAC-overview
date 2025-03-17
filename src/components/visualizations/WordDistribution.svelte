@@ -9,6 +9,7 @@
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
+    import { useDataProcessing } from '../../hooks/useDataProcessing';
 
     const COMPONENT_ID = 'WordDistribution';
     let isMounted = false;
@@ -64,6 +65,15 @@
     const percentOfTotalText = translate('viz.percent_of_total');
     const itemSetSummaryText = translate('viz.item_set_summary');
 
+    // Initialize data processing hook
+    const { filterItems, groupAndCount, groupHierarchically } = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['word_count', 'country'],
+        calculatePercentages: true,
+        sortByCount: true,
+        sortDescending: true
+    });
+
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
         // Use locale-specific formatting
@@ -99,15 +109,24 @@
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return { name: 'root', children: [] };
         
-        // Filter items - only include those with word_count greater than 0
-        // AND with a valid country value (not null, undefined, or empty string)
-        const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
+        // Create filter function for the data processing hook
+        const filterFn = (item: OmekaItem) => {
             // Must have word_count field and it must be greater than 0
             if (item.word_count === undefined || item.word_count === 0) return false;
             // Must have a valid country value
             if (!item.country) return false;
             return true;
+        };
+
+        // Initialize data processing with the filter
+        const { filterItems: processWithFilter } = useDataProcessing({
+            filterMissingValues: true,
+            requiredFields: ['word_count', 'country'],
+            filterFn
         });
+
+        // Filter items
+        const filteredItems = processWithFilter($itemsStore.items);
         
         // Update total counts
         totalItems = filteredItems.length;
@@ -116,71 +135,43 @@
         // Update title HTML
         updateTitleHtml();
         
-        // Group by country, then by item_set_title
-        // No need for 'Unknown' fallback since we've filtered out items without country
-        const countryGroups = d3.group(filteredItems, d => d.country as string);
-        
-        // Create hierarchy
+        // Group items hierarchically by country and item_set_title
+        const hierarchicalData = groupHierarchically(
+            filteredItems,
+            [
+                item => item.country || 'Unknown', // Add fallback for undefined
+                item => item.item_set_title || 'No Set'
+            ]
+        );
+
+        // Convert hierarchical data to the required format
         const root: WordHierarchyNode = {
             name: 'Word Distribution',
-            children: []
+            children: (hierarchicalData.children || []).map(country => ({
+                name: country.name,
+                children: (country.children || []).map(set => ({
+                    name: set.name,
+                    value: set.value,
+                    wordCount: set.value,
+                    itemCount: set.itemCount
+                })),
+                wordCount: country.value,
+                itemCount: country.itemCount
+            }))
         };
-        
-        // Process each country
-        countryGroups.forEach((countryItems, country) => {
-            // Group items by item_set_title
-            const setGroups = d3.group(countryItems, d => d.item_set_title || 'No Set');
-            
-            // Calculate total word count for this country
-            const countryWordCount = countryItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
-            
-            // Skip countries with no word count
-            if (countryWordCount <= 0) return;
-            
-            // Create country node
-            const countryNode: WordHierarchyNode = {
-                name: country,
-                children: [],
-                wordCount: 0,
-                itemCount: countryItems.length
-            };
-            
-            // Process each item set
-            setGroups.forEach((setItems, setTitle) => {
-                // Calculate total word count for this set
-                const setWordCount = setItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
-                
-                // Skip item sets with no word count
-                if (setWordCount <= 0) return;
-                
-                // Create set node with value representing word count
-                const setNode: WordHierarchyNode = {
-                    name: setTitle,
-                    value: setWordCount, // for treemap size
-                    wordCount: setWordCount,
-                    itemCount: setItems.length
-                };
-                
-                // Add to country's children
-                countryNode.children!.push(setNode);
-                
-                // Add to country's word count
-                if (countryNode.wordCount !== undefined) {
-                    countryNode.wordCount += setWordCount;
-                } else {
-                    countryNode.wordCount = setWordCount;
+
+        // Ensure children array exists before sorting
+        if (root.children) {
+            // Sort countries by word count descending
+            root.children.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
+
+            // Sort item sets within each country by word count descending
+            root.children.forEach(country => {
+                if (country.children) {
+                    country.children.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
                 }
             });
-            
-            // Sort item sets by word count descending
-            countryNode.children!.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
-            
-            // Add country to root
-            root.children!.push(countryNode);
-        });
-        
-        // Sort countries by word count descending
-        root.children!.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
+        }
         
         return root;
     }
@@ -189,25 +180,7 @@
     function zoomToNode(node: d3.HierarchyNode<WordHierarchyNode> | null) {
         zoomedNode = node;
         
-        // When zooming to a node, ensure it has proper hierarchy data
         if (zoomedNode) {
-            // Check if the node has children, if not, create a new hierarchy from its data
-            if (!zoomedNode.children || zoomedNode.children.length === 0) {
-                // Process only this node's data to ensure proper structure
-                const nodeData = {
-                    name: zoomedNode.data.name,
-                    children: zoomedNode.data.children || [],
-                    wordCount: zoomedNode.data.wordCount,
-                    itemCount: zoomedNode.data.itemCount
-                };
-                
-                // If there are no children in the original data, no need to zoom
-                if (!nodeData.children || nodeData.children.length === 0) {
-                    console.warn('Cannot zoom to node without children');
-                    return;
-                }
-            }
-            
             // Update summary statistics for the zoomed node
             totalItems = zoomedNode.data.itemCount || 0;
             totalWordCount = zoomedNode.data.wordCount || 0;
@@ -217,14 +190,10 @@
         } else {
             // Reset to global statistics when zooming out
             if ($itemsStore.items && $itemsStore.items.length > 0) {
-                // Recalculate total counts from all items with word count > 0
-                // AND with a valid country value
-                const filteredItems = $itemsStore.items.filter((item: OmekaItem) => {
-                    if (item.word_count === undefined || item.word_count === 0) return false;
-                    // Must have a valid country value
-                    if (!item.country) return false;
-                    return true;
-                });
+                // Use filterItems from the hook to get filtered items
+                const filteredItems = filterItems($itemsStore.items).filter(item => 
+                    item.word_count !== undefined && item.word_count > 0 && item.country
+                );
                 
                 totalItems = filteredItems.length;
                 totalWordCount = filteredItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
