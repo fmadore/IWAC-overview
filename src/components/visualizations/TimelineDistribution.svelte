@@ -132,7 +132,10 @@
     $: $languageStore, updateTitleHtml();
 
     // Initialize visualization when data changes
-    $: if (isMounted && $itemsStore.items && container) {
+    $: if (isMounted && $itemsStore.items && container && resizeHook) {
+        const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+        width = newWidth;
+        height = newHeight;
         updateVisualization();
     }
 
