@@ -99,25 +99,18 @@
     }
     
     // Function to get the title with current count and proper formatting
-    function getTitle(count: number): string {
-        // Format the number with spaces as thousands separator
-        const formattedCount = formatNumber(count);
-        // Use the current language's translation with the formatted count
-        return t('viz.distribution_items', { '0': formattedCount });
-    }
-    
-    // IMPORTANT - Replace the reactive declaration for titleHtml with a function call
-    // Instead, compute titleHtml directly inside a function
     function updateTitleHtml() {
         if (!isMounted) return;
         
         try {
             if (totalItems > 0) {
-                titleHtml = getTitle(totalItems);
+                // Format the number with spaces as thousands separator
+                const formattedCount = formatNumber(totalItems);
+                // Use the current language's translation with the formatted count
+                titleHtml = t('viz.distribution_items', { '0': formattedCount });
             } else {
                 titleHtml = t('viz.country_distribution_title');
             }
-            console.log("Title HTML updated:", titleHtml);
         } catch (error) {
             console.error("Error updating title HTML:", error);
             // Set a fallback title
@@ -1093,13 +1086,11 @@
 </script>
 
 <div class="country-distribution-container">
-    <!-- Using BaseVisualization with our enhanced header -->
     <BaseVisualization
-        title=""
-        translationKey="" 
-        description="This visualization shows the distribution of items by country and sub-collection. You can click on any country block to zoom in and see its sub-collections. The size of each block represents the number of items in that country or sub-collection."
-        descriptionTranslationKey={countryDescriptionKey}
         titleHtml={titleHtml}
+        descriptionTranslationKey="viz.country_distribution_description"
+        theme="default"
+        className="country-distribution"
     >
         <div class="chart-container" bind:this={container}>
             {#if $itemsStore.loading}

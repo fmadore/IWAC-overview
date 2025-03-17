@@ -10,19 +10,79 @@
 - Standardize the component API (props, events, methods)
 
 **Implementation steps:**
-1. Refine the BaseVisualization component to handle more common functionality 
+1. ✅ Refine the BaseVisualization component to handle more common functionality:
+   - ✅ Standardize title and description handling
+     - Added computed title logic that prioritizes titleHtml
+     - Improved translation key handling
+     - Added proper TypeScript types
+   - ✅ Improve accessibility support
+     - Replaced aria-description with standard aria-describedby
+     - Added unique ID generation for descriptions
+     - Added proper ARIA relationships between elements
+   - ✅ Clean up props organization
+     - Grouped related props with comments
+     - Made all props optional with defaults
+     - Added proper TypeScript types
+   
+   Implementation example:
+   ```svelte
+   <script lang="ts">
+   // Title props
+   export let title: string = '';
+   export let translationKey: string = '';
+   export let titleHtml: string = '';
+
+   // Description props
+   export let description: string = '';
+   export let descriptionTranslationKey: string = '';
+   export let showDescription: boolean = false;
+
+   // Accessibility props
+   export let ariaLabel: string = '';
+
+   // Generate unique IDs for accessibility
+   const descriptionId = `viz-desc-${Math.random().toString(36).slice(2, 11)}`;
+
+   // Computed values
+   $: computedTitle = titleHtml || (translationKey ? t(translationKey) : title);
+   $: computedDescription = descriptionTranslationKey ? t(descriptionTranslationKey) : description;
+   $: hasDescription = Boolean(description || descriptionTranslationKey);
+   ```
+
+   Next steps for BaseVisualization:
+   - [ ] Improve resize observer handling with debouncing
+   - [ ] Add better TypeScript types for themes
+   - [ ] Improve loading/error state handling
+   - [ ] Add better event handling for visualization state changes
+
 2. Create visualization-specific hooks:
    - ✅ useTooltip - Completed
-   - ✅ useD3Resize - Completed with proper TypeScript support, debouncing, and cleanup. Successfully implemented across all visualization components.
-   - ✅ useDataProcessing - Completed with comprehensive data processing utilities including filtering, grouping, and time-based processing. Successfully implemented in CountryDistribution, IndexDistribution, and LanguageDistribution.
-3. Update each visualization component to leverage the shared code
-   - ✅ IndexDistribution - Updated to use useTooltip, useD3Resize, and useDataProcessing
-   - ✅ LanguageDistribution - Updated to use useTooltip, useD3Resize, and useDataProcessing
-   - ✅ CountryDistribution - Updated to use useTooltip, useD3Resize, and useDataProcessing
-   - ✅ TimelineDistribution - Updated to use useTooltip, useD3Resize, and useDataProcessing
-   - ✅ TypeDistribution - Updated to use useTooltip, useD3Resize, and useDataProcessing
-   - ✅ WordDistribution - Updated to use useTooltip, useD3Resize, and useDataProcessing
-4. Document the component API for consistency
+   - ✅ useD3Resize - Completed with proper TypeScript support, debouncing, and cleanup
+   - ✅ useDataProcessing - Completed with comprehensive data processing utilities
+
+3. Update each visualization component to leverage the shared code:
+   - [ ] Update all visualizations to use new BaseVisualization props:
+     - [ ] CountryDistribution - Fix title translation parameters
+     - [ ] IndexDistribution - Update to use titleHtml and new translation format
+     - [ ] LanguageDistribution - Update to use titleHtml and new translation format
+     - [ ] TimelineDistribution - Update to use titleHtml and new translation format
+     - [ ] TypeDistribution - Update to use titleHtml and new translation format
+     - [ ] WordDistribution - Update to use titleHtml and new translation format
+   - [ ] Standardize translation parameter format across all visualizations:
+     - Replace `{ count: value }` with `{ '0': value }` format
+     - Ensure consistent translation key usage
+     - Remove direct string translations in favor of translation keys
+   - [ ] Clean up visualization props:
+     - Remove unused props
+     - Use consistent theme and className props
+     - Remove redundant ARIA attributes now handled by BaseVisualization
+   - [ ] Update error handling and loading states to match BaseVisualization pattern
+
+4. Document the component API:
+   - [ ] Create comprehensive API documentation
+   - [ ] Add usage examples
+   - [ ] Document event handling
+   - [ ] Document theming options
 
 ## 2. Consolidate D3.js Integration
 
@@ -241,3 +301,126 @@
 4. Add inline code examples
 
 This roadmap organizes refactoring efforts from most critical to least critical, focusing on improving maintainability and modularity. Each step builds upon the previous ones, creating a systematic approach to enhancing the application's architecture.
+
+## Implementation Guide for BaseVisualization Improvements
+
+1. **Title and Description Handling**
+   ```typescript
+   // In BaseVisualization.svelte
+   interface TitleProps {
+     title: string;
+     translationKey: string;
+     titleHtml: string;
+   }
+
+   interface DescriptionProps {
+     description: string;
+     descriptionTranslationKey: string;
+     showDescription: boolean;
+   }
+   ```
+
+2. **Accessibility Support**
+   ```typescript
+   // In BaseVisualization.svelte
+   interface AccessibilityProps {
+     ariaLabel: string;
+   }
+
+   // Generate unique IDs
+   const generateUniqueId = (prefix: string) => 
+     `${prefix}-${Math.random().toString(36).slice(2, 11)}`;
+   ```
+
+3. **Theme Handling**
+   ```typescript
+   // In BaseVisualization.svelte
+   type ThemeType = 'default' | 'light' | 'dark' | 'custom';
+
+   interface ThemeProps {
+     theme: ThemeType;
+     customBackground?: string;
+     customTextColor?: string;
+   }
+   ```
+
+4. **Component Usage Example**
+   ```svelte
+   <BaseVisualization
+     title="My Visualization"
+     translationKey="viz.my_visualization"
+     description="Description of my visualization"
+     descriptionTranslationKey="viz.my_visualization_description"
+     theme="light"
+   >
+     <!-- Visualization content -->
+   </BaseVisualization>
+   ```
+
+5. **Event Handling**
+   ```typescript
+   // In BaseVisualization.svelte
+   interface VisualizationEvents {
+     resize: { width: number; height: number };
+     // Add more events as needed
+   }
+
+   const dispatch = createEventDispatcher<VisualizationEvents>();
+   ```
+
+This implementation guide provides a clear path for other developers to understand and extend the BaseVisualization component while maintaining consistency across the application.
+
+## Implementation Guide for Visualization Updates
+
+1. **Title and Translation Updates**
+   ```svelte
+   <!-- Before -->
+   <BaseVisualization
+     title=""
+     translationKey="" 
+     description="Direct description text"
+     descriptionTranslationKey={someKey}
+   >
+
+   <!-- After -->
+   <BaseVisualization
+     titleHtml={titleHtml}
+     descriptionTranslationKey="viz.component_description"
+     theme="default"
+     className="component-name"
+   >
+   ```
+
+2. **Title Translation Format**
+   ```typescript
+   // Before
+   titleHtml = t('viz.distribution_items', { count: formattedCount });
+
+   // After
+   titleHtml = t('viz.distribution_items', { '0': formattedCount });
+   ```
+
+3. **Component Cleanup Checklist**
+   - [ ] Remove direct title/description text
+   - [ ] Use proper translation keys
+   - [ ] Use titleHtml for formatted titles
+   - [ ] Add proper theme and className props
+   - [ ] Remove redundant ARIA attributes
+   - [ ] Clean up console.log statements
+   - [ ] Use proper error handling pattern
+   - [ ] Update loading state handling
+
+4. **Translation Key Standards**
+   ```typescript
+   // Component-specific keys
+   const descriptionKey = 'viz.component_name_description';
+   const titleKey = 'viz.component_name_title';
+   const itemsKey = 'viz.component_name_items';
+
+   // Shared keys
+   const loadingText = translate('ui.loading');
+   const errorText = translate('ui.error');
+   const noDataText = translate('viz.no_data');
+   ```
+
+This update provides a clear path for updating all visualization components to match the new BaseVisualization standards and ensures consistency across the application.

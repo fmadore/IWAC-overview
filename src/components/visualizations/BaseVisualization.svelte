@@ -4,23 +4,29 @@
     import VisualizationHeader from './VisualizationHeader.svelte';
     import { onMount, createEventDispatcher, onDestroy } from 'svelte';
 
-    export let title: string;
+    // Title props - make title handling more consistent
+    export let title: string = '';
     export let translationKey: string = '';
+    export let titleHtml: string = '';
+
+    // Description props
     export let description: string = '';
     export let descriptionTranslationKey: string = '';
     export let showDescription: boolean = false;
-    
-    // New prop for handling HTML content in titles
-    export let titleHtml: string = '';
 
-    // Add a role and aria-label for better accessibility
+    // Accessibility props
     export let ariaLabel: string = '';
+    
+    // Generate unique IDs for accessibility
+    const descriptionId = `viz-desc-${Math.random().toString(36).slice(2, 11)}`;
     
     // Add container reference for resize handling
     export let enableResizeObserver: boolean = true;
     let contentContainer: HTMLElement;
     let resizeObserver: ResizeObserver;
-    const dispatch = createEventDispatcher();
+    const dispatch = createEventDispatcher<{
+        resize: { width: number; height: number };
+    }>();
     
     // Theme and style customization
     export let theme: 'default' | 'light' | 'dark' | 'custom' = 'default';
@@ -37,6 +43,18 @@
         ${customBackground ? `background: ${customBackground};` : ''}
         ${customTextColor ? `color: ${customTextColor};` : ''}
     `;
+
+    // Computed title - prioritize titleHtml over translated title
+    $: computedTitle = titleHtml || (translationKey ? t(translationKey) : title);
+    
+    // Computed description - use translated description if key provided
+    $: computedDescription = descriptionTranslationKey ? t(descriptionTranslationKey) : description;
+    
+    // Computed aria label - use title if not explicitly provided
+    $: computedAriaLabel = ariaLabel || computedTitle;
+    
+    // Computed aria-describedby - only set if we have a description
+    $: hasDescription = Boolean(description || descriptionTranslationKey);
     
     // Setup resize observer
     onMount(() => {
@@ -64,14 +82,19 @@
     // as these are handled by the child visualization components
 </script>
 
-<div class="visualization-wrapper {theme} {className}" role="region" aria-label={ariaLabel || title}>
+<div 
+    class="visualization-wrapper {theme} {className}" 
+    role="region" 
+    aria-label={computedAriaLabel}
+    aria-describedby={hasDescription ? descriptionId : undefined}
+>
     <VisualizationHeader
-        {title}
-        {translationKey}
+        title={computedTitle}
         {description}
         {descriptionTranslationKey}
-        bind:showDescription={showDescription}
-        {titleHtml}
+        bind:showDescription
+        {descriptionId}
+        className="visualization-header"
     />
     
     <div class="visualization-content" role="presentation" bind:this={contentContainer}>
@@ -95,6 +118,7 @@
         width: 100%;
         display: flex;
         flex-direction: column;
+        position: relative;
     }
     
     .visualization-content {
@@ -102,6 +126,13 @@
         flex: 1;
         display: flex;
         flex-direction: column;
+        position: relative;
+        z-index: 1;
+    }
+    
+    :global(.visualization-header) {
+        position: relative;
+        z-index: 2;
     }
     
     .empty-visualization {
