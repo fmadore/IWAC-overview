@@ -7,6 +7,7 @@
     import { t, translate, languageStore, translations } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
+    import { useD3Resize } from '../../hooks/useD3Resize';
 
     // Define interfaces for data structures
     interface CategoryCount {
@@ -20,16 +21,20 @@
     let categoryCounts: CategoryCount[] = [];
     let totalItems: number = 0;
     let maxCount: number = 0;
+    let isMounted = false;
     
     // Visualization variables
-    let width = 0;
-    let height = 0;
     let container: HTMLDivElement;
     let currentLang: 'en' | 'fr' = 'en';
     let titleHtml = '';
+    let width = 0;
+    let height = 0;
 
     // Initialize tooltip hook
     const { showTooltip, hideTooltip } = useTooltip();
+
+    // Initialize resize hook after container is bound
+    let resizeHook: ReturnType<typeof useD3Resize>;
 
     // Define translation keys
     const indexDescriptionKey = 'viz.index_distribution_description';
@@ -61,22 +66,12 @@
     }
 
     // Call this function initially and whenever totalItems or language changes
-    $: {
+    $: if (isMounted) {
         updateTitleHtml();
     }
     
     // Subscribe to language changes
-    languageStore.subscribe(value => {
-        currentLang = value;
-        
-        // Force refresh the title when language changes
-        updateTitleHtml();
-        
-        // Refresh visualization if data is available
-        if ($itemsStore.items && $itemsStore.items.length > 0 && container) {
-            createBarChart();
-        }
-    });
+    let languageUnsubscribe: () => void;
 
     // Process data to get index items by category
     function processData() {
@@ -167,11 +162,6 @@
             // Remove previous content
             d3.select(container).select('svg').remove();
             d3.select(container).select('.no-data').remove();
-            
-            // Get container dimensions
-            const rect = container.getBoundingClientRect();
-            width = rect.width;
-            height = rect.height - 40; // Leave space for title
             
             // Set margins
             const margin = { top: 20, right: 30, bottom: 120, left: 60 };
@@ -295,59 +285,80 @@
     }
     
     // Update visualization when data changes
-    $: if ($itemsStore.items && container) {
+    $: if ($itemsStore.items && container && isMounted) {
         createBarChart();
     }
 
+    let initializationPromise: Promise<void>;
+
     onMount(() => {
-        let resizeObserver: ResizeObserver | undefined;
-        
-        // Initialize component
-        const initialize = async () => {
+        // Set mounted flag first
+        isMounted = true;
+
+        // Create initialization promise
+        initializationPromise = (async () => {
             try {
-                // Wait for component to mount
+                // Wait for the next tick to ensure container is bound
                 await tick();
                 
+                // Double check container after tick
                 if (!container) {
-                    console.error('Container element not found');
+                    console.error('Container element not found in onMount');
                     return;
                 }
+
+                // Initialize resize hook
+                resizeHook = useD3Resize({
+                    container,
+                    onResize: () => {
+                        if (isMounted && container) {
+                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            width = newWidth;
+                            height = newHeight;
+                            createBarChart();
+                        }
+                    }
+                });
                 
-                // Create visualization
+                // Subscribe to language changes
+                languageUnsubscribe = languageStore.subscribe(value => {
+                    currentLang = value;
+                    
+                    if (isMounted && container) {
+                        updateTitleHtml();
+                        
+                        if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            createBarChart();
+                        }
+                    }
+                });
+                
+                // Initialize data
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
                     createBarChart();
                 } else {
                     // Load items if not already loaded
                     itemsStore.loadItems();
                 }
-                
-                // Add resize observer
-                resizeObserver = new ResizeObserver(() => {
-                    if (container) {
-                        createBarChart();
-                    }
-                });
-                
-                resizeObserver.observe(container);
-            } catch (e) {
-                console.error('Error in initialization:', e);
+            } catch (error) {
+                console.error('Error during initialization:', error);
             }
-        };
-        
-        // Start initialization
-        initialize();
-        
+        })();
+
         // Return cleanup function
         return () => {
             try {
-                // Safely disconnect observer
-                if (resizeObserver) {
-                    resizeObserver.disconnect();
+                isMounted = false;
+                
+                if (resizeHook) {
+                    resizeHook.cleanup();
                 }
                 
-                // Clean up any D3 selections to prevent memory leaks
+                if (languageUnsubscribe) {
+                    languageUnsubscribe();
+                }
+                
                 if (container) {
-                    // Remove any SVG, divs or other elements D3 might have created
                     d3.select(container).selectAll('*').remove();
                 }
             } catch (e) {
