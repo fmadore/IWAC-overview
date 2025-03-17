@@ -240,7 +240,7 @@
                 .attr('x', d => xScale(d.category) || 0)
                 .attr('y', d => yScale(d.count))
                 .attr('width', xScale.bandwidth())
-                .attr('height', d => chartHeight - yScale(d.count))
+                .attr('height', d => Math.max(0, chartHeight - yScale(d.count))) // Ensure height is not negative
                 .attr('fill', (d, i) => colorScale(d.category))
                 .attr('rx', 3) // Rounded corners
                 .attr('ry', 3)
