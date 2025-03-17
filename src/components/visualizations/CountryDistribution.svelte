@@ -9,6 +9,7 @@
     import { subcollectionCategories, subcollectionMapping, getCategoryForSubcollection, getTranslatedCategoryName } from '../../types/SubcollectionCategories';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
+    import { useDataProcessing } from '../../hooks/useDataProcessing';
 
     // Move all the interface definitions to the top
     interface Item {
@@ -81,6 +82,15 @@
     
     // Store unsubscribe functions
     let languageUnsubscribe: () => void;
+    
+    // Initialize data processing hook
+    const { filterItems, groupHierarchically } = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['country'],
+        calculatePercentages: true,
+        sortByCount: true,
+        sortDescending: true
+    });
     
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -252,21 +262,24 @@
 
     // Function to process data into hierarchical structure
     function processData(items: Item[]): HierarchyDatum {
-        // Filter out items without a country value first
-        const validItems = items.filter(item => item.country && item.country.trim() !== '');
+        // Filter items with valid country values
+        const validItems = filterItems(items as unknown as OmekaItem[]);
         
-        // Group by country first
-        const countryGroups = d3.group(validItems, (d: Item) => d.country);
+        // Group items hierarchically by country and item_set_title
+        const hierarchicalData = groupHierarchically(
+            validItems as unknown as OmekaItem[],
+            [
+                item => item.country || '',
+                item => item.item_set_title || $noSetText
+            ]
+        );
         
-        // Create hierarchical structure
+        // Transform the hierarchical data to match our component's needs
         const root: HierarchyDatum = {
             name: "root",
-            children: Array.from(countryGroups, ([country, countryItems]) => {
+            children: hierarchicalData.children.map(countryNode => {
                 // Translate country name
-                const translatedCountry = t(`country.${country}`) || country;
-                
-                // Group by item_set_title within each country
-                const itemSetGroups = d3.group(countryItems, (d: Item) => d.item_set_title || $noSetText);
+                const translatedCountry = t(`country.${countryNode.name}`) || countryNode.name;
                 
                 // Group item sets by category
                 const categoryMap = new Map<string, HierarchyDatum>();
@@ -284,29 +297,32 @@
                 });
                 
                 // Then assign each item set to its category
-                itemSetGroups.forEach((setItems, itemSetName) => {
-                    const categoryId = subcollectionMapping[itemSetName] || 'other';
-                    const category = categoryMap.get(categoryId);
-                    
-                    if (category && category.children) {
-                        // Create item set node
-                        const itemSetNode: HierarchyDatum = {
-                            name: itemSetName,
-                            value: setItems.length,
-                            itemCount: setItems.length,
-                            originalName: itemSetName,
-                            categoryId: categoryId
-                        };
+                if (countryNode.children) {
+                    countryNode.children.forEach(itemSetNode => {
+                        const itemSetName = itemSetNode.name;
+                        const categoryId = subcollectionMapping[itemSetName] || 'other';
+                        const category = categoryMap.get(categoryId);
                         
-                        // Add to category's children
-                        category.children.push(itemSetNode);
-                        
-                        // Update category's item count
-                        if (category.itemCount !== undefined) {
-                            category.itemCount += setItems.length;
+                        if (category && category.children) {
+                            // Create item set node
+                            const itemSetData: HierarchyDatum = {
+                                name: itemSetName,
+                                value: itemSetNode.value,
+                                itemCount: itemSetNode.value,
+                                originalName: itemSetName,
+                                categoryId: categoryId
+                            };
+                            
+                            // Add to category's children
+                            category.children.push(itemSetData);
+                            
+                            // Update category's item count
+                            if (category.itemCount !== undefined) {
+                                category.itemCount += itemSetNode.value;
+                            }
                         }
-                    }
-                });
+                    });
+                }
                 
                 // Filter out empty categories
                 const nonEmptyCategories = Array.from(categoryMap.values())
@@ -325,15 +341,15 @@
                 return {
                     name: translatedCountry,
                     children: nonEmptyCategories,
-                    itemCount: countryItems.length,
-                    originalName: country // Store original country name for data lookups
+                    itemCount: countryNode.value,
+                    originalName: countryNode.name
                 };
             })
         };
 
         // Update statistics
         totalItems = validItems.length;
-        countryCount = countryGroups.size;
+        countryCount = hierarchicalData.children.length;
         categoryCount = Object.keys(subcollectionCategories).length;
         
         // Count total subcollections across all countries and categories
@@ -346,7 +362,7 @@
             });
         });
         
-        // Important: Update the title HTML whenever the data changes
+        // Update the title HTML
         updateTitleHtml();
         
         console.log("Data processed, total items:", totalItems);

@@ -142,11 +142,76 @@ Creates a resize handler for D3.js visualizations.
 - `dimensions`: Object containing both width and height
 - `updateDimensions`: Function to manually trigger a resize update
 
+### useDataProcessing
+
+The `useDataProcessing` hook provides standardized data processing utilities for visualizations, including filtering, grouping, and time-based data processing.
+
+#### Usage
+
+```typescript
+import { useDataProcessing } from '../hooks/useDataProcessing';
+
+// In your component
+const { filterItems, groupAndCount, groupHierarchically, processTimeData } = useDataProcessing({
+  // Optional configuration
+  filterMissingValues: true,
+  requiredFields: ['country', 'language'],
+  calculatePercentages: true,
+  sortByCount: true,
+  sortDescending: true
+});
+
+// Filter items
+const filteredItems = filterItems(items);
+
+// Group and count items by a key
+const languageCounts = groupAndCount(
+  items,
+  item => item.language || 'Unknown'
+);
+
+// Group items hierarchically (e.g., by country then language)
+const hierarchicalData = groupHierarchically(
+  items,
+  [item => item.country, item => item.language]
+);
+
+// Process time-based data
+const monthlyData = processTimeData(
+  items,
+  'created_date',
+  {
+    startDate: new Date('2024-01-01'),
+    includeCumulative: true
+  }
+);
+```
+
+#### API
+
+##### useDataProcessing(options)
+
+Creates a data processing instance with the specified options.
+
+**Parameters:**
+- `options`: Configuration options for data processing
+  - `filterMissingValues`: Whether to filter out items with missing values (default: true)
+  - `requiredFields`: Fields to check for missing values (default: [])
+  - `filterFn`: Custom filter function to apply to items
+  - `calculatePercentages`: Whether to calculate percentages (default: true)
+  - `sortByCount`: Whether to sort results by count (default: true)
+  - `sortDescending`: Whether to sort in descending order (default: true)
+
+**Returns:**
+- `filterItems(items)`: Filters items based on the provided options
+- `groupAndCount(items, keyFn, totalItems?)`: Groups items by a key and counts them
+- `groupHierarchically(items, keyFns, totalItems?)`: Groups items by multiple keys hierarchically
+- `processTimeData(items, dateField, options?)`: Processes time-based data with monthly aggregation
+
 ## Planned Hooks
 
 Future hooks to be implemented:
 
-1. `useDataProcessing`: Common data processing logic for visualizations
-2. `useLegend`: Create and manage legends for visualizations
-3. `useAxis`: Create and manage D3.js axes
-4. `useZoom`: Handle zoom behavior in visualizations 
+1. `useLegend`: Create and manage legends for visualizations
+2. `useAxis`: Create and manage D3.js axes
+3. `useZoom`: Handle zoom behavior in visualizations 
