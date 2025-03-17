@@ -8,13 +8,13 @@
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
+    import { useD3Resize } from '../../hooks/useD3Resize';
 
     const COMPONENT_ID = 'TypeDistribution';
     let isMounted = false;
     let unsubscribeItems: () => void;
     let unsubscribeLanguage: () => void;
     let currentLang: 'en' | 'fr' = 'en';
-    let resizeObserver: ResizeObserver | null = null;
 
     // Data interfaces
     interface TypeYearData {
@@ -54,6 +54,9 @@
         defaultWidth: 250,
         defaultHeight: 150
     });
+
+    // Initialize resize hook after container is bound
+    let resizeHook: ReturnType<typeof useD3Resize>;
 
     // Create reactive translations
     const noDataText = translate('viz.no_data');
@@ -805,102 +808,100 @@
     onMount(() => {
         isMounted = true;
         trackMount(COMPONENT_ID);
-        logDebug(COMPONENT_ID, 'Component mounted');
-        
-        let mounted = true; // Local variable to track mounting status within async operations
-        
-        tick().then(() => {
-            if (!mounted || !isMounted || !container) {
-                console.error('Container element not found in onMount or component unmounted');
-                return;
-            }
-            
-            // Subscribe to the items store - using the local mounted variable
-            unsubscribeItems = itemsStore.subscribe(store => {
-                if (mounted && isMounted) {
-                    handleItemsChange(store.items);
-                }
-            });
-            
-            // Subscribe to the language store - using the local mounted variable
-            unsubscribeLanguage = languageStore.subscribe(value => {
-                if (!mounted || !isMounted) return;
+
+        // Create initialization promise
+        const initPromise = (async () => {
+            try {
+                // Wait for the next tick to ensure container is bound
+                await tick();
                 
-                currentLang = value;
-                if (mounted && isMounted && container && document.body.contains(container)) {
-                    // Update country facets to get translated labels
+                // Double check container after tick
+                if (!container) {
+                    console.error('Container element not found in onMount');
+                    return;
+                }
+
+                // Initialize resize hook
+                resizeHook = useD3Resize({
+                    container,
+                    onResize: () => {
+                        if (isMounted && container) {
+                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            width = newWidth;
+                            height = newHeight;
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Subscribe to language changes
+                unsubscribeLanguage = languageStore.subscribe(value => {
+                    if (!isMounted) return;
+                    currentLang = value;
+                    
+                    if (container) {
+                        updateTitleHtml();
+                        
+                        if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Subscribe to items store
+                unsubscribeItems = itemsStore.subscribe(value => {
+                    if (!isMounted) return;
+                    
+                    if (value?.items && value.items.length > 0) {
+                        // Generate year range and country facets
+                        generateYearRange();
+                        generateCountryFacets();
+                        
+                        // Update visualization
+                        if (container) {
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Initial data load if needed
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    generateYearRange();
                     generateCountryFacets();
-                    
-                    // Update title with new language
-                    updateTitleHtml();
-                    
-                    // Update visualization
                     updateVisualization();
+                } else {
+                    itemsStore.loadItems();
                 }
-            });
-            
-            // Generate facets and create visualization if data is available
-            if (mounted && isMounted && $itemsStore.items && $itemsStore.items.length > 0) {
-                generateCountryFacets();
-                generateYearRange();
-                updateVisualization();
-            } else if (mounted && isMounted) {
-                // Load items if not already loaded
-                itemsStore.loadItems();
+            } catch (error) {
+                console.error('Error during initialization:', error);
             }
-            
-            // Add resize observer
-            resizeObserver = new ResizeObserver(() => {
-                if (!mounted || !isMounted) return;
-                
-                if (mounted && isMounted && container && document.body.contains(container)) {
-                    updateVisualization();
-                }
-            });
-            
-            if (resizeObserver && container) {
-                resizeObserver.observe(container);
-            }
-        });
-        
+        })();
+
         // Return cleanup function
         return () => {
-            // Mark as unmounted immediately to prevent any new operations
-            mounted = false;
             isMounted = false;
-            
             trackUnmount(COMPONENT_ID);
-            logDebug(COMPONENT_ID, 'Component cleanup started');
             
-            // Clean up resize observer
-            if (resizeObserver) {
-                try {
-                    resizeObserver.disconnect();
-                    logDebug(COMPONENT_ID, 'Resize observer disconnected');
-                } catch (e) {
-                    console.error('Error disconnecting resize observer:', e);
-                }
-                resizeObserver = null;
+            if (resizeHook) {
+                resizeHook.cleanup();
             }
             
-            // Clean up store subscriptions
             if (unsubscribeItems) {
                 unsubscribeItems();
                 unsubscribeItems = null as unknown as () => void;
-                logDebug(COMPONENT_ID, 'Unsubscribed from items store');
             }
             
-            // Clean up language subscription
             if (unsubscribeLanguage) {
                 unsubscribeLanguage();
                 unsubscribeLanguage = null as unknown as () => void;
-                logDebug(COMPONENT_ID, 'Unsubscribed from language store');
             }
             
-            logDebug(COMPONENT_ID, 'Component cleanup completed');
+            if (container) {
+                d3.select(container).selectAll('*').remove();
+            }
         };
     });
-    
+
     onDestroy(() => {
         // This is a backup in case the cleanup function in onMount doesn't run
         isMounted = false;
@@ -915,16 +916,6 @@
         if (unsubscribeLanguage) {
             unsubscribeLanguage();
             unsubscribeLanguage = null as unknown as () => void;
-        }
-        
-        // Clean up resize observer
-        if (resizeObserver) {
-            try {
-                resizeObserver.disconnect();
-            } catch (e) {
-                console.error('Error disconnecting resize observer:', e);
-            }
-            resizeObserver = null;
         }
         
         logDebug(COMPONENT_ID, 'Component destroyed');
