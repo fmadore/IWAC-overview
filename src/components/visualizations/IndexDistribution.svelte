@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, tick } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
@@ -275,7 +275,7 @@
     }
     
     // Update visualization when data changes
-    $: if ($itemsStore.items && container && isMounted) {
+    $: if (isMounted && $itemsStore.items && container) {
         createBarChart();
     }
 
@@ -356,6 +356,27 @@
                 console.error('Error during cleanup:', e);
             }
         };
+    });
+
+    // Add onDestroy to ensure cleanup
+    onDestroy(() => {
+        try {
+            isMounted = false;
+            
+            if (resizeHook) {
+                resizeHook.cleanup();
+            }
+            
+            if (languageUnsubscribe) {
+                languageUnsubscribe();
+            }
+            
+            if (container) {
+                d3.select(container).selectAll('*').remove();
+            }
+        } catch (e) {
+            console.error('Error during cleanup:', e);
+        }
     });
 </script>
 

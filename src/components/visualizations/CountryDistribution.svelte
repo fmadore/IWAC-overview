@@ -83,7 +83,7 @@
     // Store unsubscribe functions
     let languageUnsubscribe: () => void;
     
-    // Initialize data processing hook
+    // Initialize data processing hook with custom filter function
     const { filterItems, groupHierarchically } = useDataProcessing({
         filterMissingValues: true,
         requiredFields: ['country'],
@@ -262,12 +262,9 @@
 
     // Function to process data into hierarchical structure
     function processData(items: Item[]): HierarchyDatum {
-        // Filter items with valid country values
-        const validItems = filterItems(items as unknown as OmekaItem[]);
-        
-        // Group items hierarchically by country and item_set_title
+        // Filter and group items hierarchically
         const hierarchicalData = groupHierarchically(
-            validItems as unknown as OmekaItem[],
+            items as unknown as OmekaItem[],
             [
                 item => item.country || '',
                 item => item.item_set_title || $noSetText
@@ -284,7 +281,7 @@
                 // Group item sets by category
                 const categoryMap = new Map<string, HierarchyDatum>();
                 
-                // First, create category nodes for this country
+                // Create category nodes
                 Object.values(subcollectionCategories).forEach(category => {
                     categoryMap.set(category.id, {
                         name: getTranslatedCategoryName(category.id, currentLang),
@@ -296,42 +293,31 @@
                     });
                 });
                 
-                // Then assign each item set to its category
+                // Assign item sets to categories
                 if (countryNode.children) {
                     countryNode.children.forEach(itemSetNode => {
-                        const itemSetName = itemSetNode.name;
-                        const categoryId = subcollectionMapping[itemSetName] || 'other';
+                        const categoryId = subcollectionMapping[itemSetNode.name] || 'other';
                         const category = categoryMap.get(categoryId);
                         
-                        if (category && category.children) {
-                            // Create item set node
-                            const itemSetData: HierarchyDatum = {
-                                name: itemSetName,
+                        if (category?.children) {
+                            category.children.push({
+                                name: itemSetNode.name,
                                 value: itemSetNode.value,
                                 itemCount: itemSetNode.value,
-                                originalName: itemSetName,
-                                categoryId: categoryId
-                            };
-                            
-                            // Add to category's children
-                            category.children.push(itemSetData);
-                            
-                            // Update category's item count
-                            if (category.itemCount !== undefined) {
-                                category.itemCount += itemSetNode.value;
-                            }
+                                originalName: itemSetNode.name,
+                                categoryId
+                            });
+                            category.itemCount = (category.itemCount || 0) + itemSetNode.value;
                         }
                     });
                 }
                 
-                // Filter out empty categories
+                // Filter and sort categories
                 const nonEmptyCategories = Array.from(categoryMap.values())
-                    .filter(category => category.children && category.children.length > 0);
+                    .filter(category => category.children && category.children.length > 0)
+                    .sort((a, b) => (b.itemCount || 0) - (a.itemCount || 0));
                 
-                // Sort categories by item count
-                nonEmptyCategories.sort((a, b) => (b.itemCount || 0) - (a.itemCount || 0));
-                
-                // Sort item sets within each category by item count
+                // Sort item sets within categories
                 nonEmptyCategories.forEach(category => {
                     if (category.children) {
                         category.children.sort((a, b) => (b.itemCount || 0) - (a.itemCount || 0));
@@ -348,25 +334,25 @@
         };
 
         // Update statistics
-        totalItems = validItems.length;
+        totalItems = hierarchicalData.children.reduce((sum, country) => sum + country.value, 0);
         countryCount = hierarchicalData.children.length;
         categoryCount = Object.keys(subcollectionCategories).length;
         
         // Count total subcollections across all countries and categories
         subCollectionCount = 0;
-        root.children?.forEach(country => {
-            country.children?.forEach(category => {
-                if (category.children) {
-                    subCollectionCount += category.children.length;
+        if (root.children) {
+            root.children.forEach(country => {
+                if (country.children) {
+                    country.children.forEach(category => {
+                        if (category.children) {
+                            subCollectionCount += category.children.length;
+                        }
+                    });
                 }
             });
-        });
+        }
         
-        // Update the title HTML
         updateTitleHtml();
-        
-        console.log("Data processed, total items:", totalItems);
-
         return root;
     }
 
