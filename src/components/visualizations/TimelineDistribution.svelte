@@ -615,10 +615,8 @@
     }
     
     // Make sure facet options update when language changes
-    $: if ($languageStore) {
-        if ($itemsStore.items && $itemsStore.items.length > 0) {
-            generateFacetOptions();
-        }
+    $: if (isMounted && $languageStore && $itemsStore.items && $itemsStore.items.length > 0) {
+        generateFacetOptions();
     }
 
     // Process data based on current filters and generate timeline data
