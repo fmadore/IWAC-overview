@@ -58,6 +58,8 @@
     
     // Update title HTML when needed
     function updateTitleHtml() {
+        if (!isMounted) return;
+        
         if (totalItems > 0) {
             titleHtml = getTitle(totalItems);
         } else {
@@ -65,11 +67,6 @@
         }
     }
 
-    // Call this function initially and whenever totalItems or language changes
-    $: if (isMounted) {
-        updateTitleHtml();
-    }
-    
     // Subscribe to language changes
     let languageUnsubscribe: () => void;
 
@@ -124,6 +121,8 @@
 
     // Show tooltip with category information
     function handleShowTooltip(event: MouseEvent, d: CategoryCount) {
+        if (!isMounted) return;
+        
         const content = createGridTooltipContent(
             d.category,
             [
@@ -137,9 +136,9 @@
 
     // Create bar chart visualization
     function createBarChart() {
+        if (!isMounted || !container) return;
+        
         try {
-            if (!container) return;
-            
             // Process data with current filters
             const data = processData();
             if (!data || data.length === 0) {
@@ -248,6 +247,7 @@
                 .style('stroke', 'white')
                 .style('stroke-width', 1)
                 .on('mouseenter', function(event, d) {
+                    if (!isMounted) return;
                     // Highlight bar on hover
                     d3.select(this)
                         .transition()
@@ -256,9 +256,11 @@
                     handleShowTooltip(event, d);
                 })
                 .on('mousemove', function(event, d) {
+                    if (!isMounted) return;
                     handleShowTooltip(event, d);
                 })
                 .on('mouseleave', function(event, d) {
+                    if (!isMounted) return;
                     // Restore original color
                     d3.select(this)
                         .transition()
@@ -322,9 +324,10 @@
                 
                 // Subscribe to language changes
                 languageUnsubscribe = languageStore.subscribe(value => {
+                    if (!isMounted) return;
                     currentLang = value;
                     
-                    if (isMounted && container) {
+                    if (container) {
                         updateTitleHtml();
                         
                         if ($itemsStore.items && $itemsStore.items.length > 0) {

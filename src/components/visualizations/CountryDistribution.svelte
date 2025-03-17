@@ -79,6 +79,9 @@
     let width = 0;
     let height = 0;
     
+    // Store unsubscribe functions
+    let languageUnsubscribe: () => void;
+    
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
         // Use locale-specific formatting - in French/many European countries spaces are used
@@ -96,6 +99,8 @@
     // IMPORTANT - Replace the reactive declaration for titleHtml with a function call
     // Instead, compute titleHtml directly inside a function
     function updateTitleHtml() {
+        if (!isMounted) return;
+        
         try {
             if (totalItems > 0) {
                 titleHtml = getTitle(totalItems);
@@ -110,18 +115,140 @@
         }
     }
 
-    // Call this function initially and whenever totalItems or language changes
-    $: if (isMounted) {
-        updateTitleHtml();
+    // React to changes in the itemsStore
+    $: if (isMounted && $itemsStore.items && $itemsStore.items.length > 0 && !totalItems) {
+        // Force a reprocess of data when items change
+        hierarchyData = processData($itemsStore.items as Item[]);
     }
 
-    // Direct subscription to log title changes for debugging
-    $: if (isMounted && titleHtml) {
-        console.log("Title HTML updated:", titleHtml);
+    // Track if component is mounted
+    let isMounted = false;
+
+    // Initialize visualization when data changes
+    $: if (isMounted && $itemsStore.items && container) {
+        updateVisualization();
     }
-    
-    // Store unsubscribe functions
-    let languageUnsubscribe: () => void;
+
+    let initializationPromise: Promise<void>;
+
+    onMount(() => {
+        // Set mounted flag first
+        isMounted = true;
+
+        // Create initialization promise
+        initializationPromise = (async () => {
+            try {
+                // Wait for the next tick to ensure container is bound
+                await tick();
+                
+                // Double check container after tick
+                if (!container) {
+                    console.error('Container element not found in onMount');
+                    return;
+                }
+
+                // Initialize resize hook
+                resizeHook = useD3Resize({
+                    container,
+                    onResize: () => {
+                        if (isMounted && container) {
+                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            width = newWidth;
+                            height = newHeight;
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Subscribe to language changes
+                languageUnsubscribe = languageStore.subscribe(value => {
+                    if (!isMounted) return;
+                    console.log("Language changed to:", value);
+                    currentLang = value;
+                    
+                    if (container) {
+                        updateTitleHtml();
+                        
+                        if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            const currentZoomedNode = zoomedNode;
+                            const currentZoomedCountry = currentZoomedNode?.data.originalName;
+                            
+                            zoomedNode = null;
+                            hierarchyData = processData($itemsStore.items as Item[]);
+                            
+                            if (currentZoomedNode && currentZoomedCountry) {
+                                const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
+                                const matchingNode = newRoot.children?.find(node => 
+                                    node.data.originalName === currentZoomedCountry
+                                );
+                                
+                                if (matchingNode) {
+                                    zoomToNode(matchingNode);
+                                    return;
+                                }
+                            }
+                            
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Initialize data
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    hierarchyData = processData($itemsStore.items as Item[]);
+                    
+                    if (hierarchyData.children && hierarchyData.children.length > 0) {
+                        const colorScale = d3.scaleOrdinal<string>()
+                            .domain(hierarchyData.children.map(d => d.originalName || d.name))
+                            .range(d3.schemeCategory10);
+                            
+                        hierarchyData.children.forEach(country => {
+                            const originalName = country.originalName || country.name;
+                            if (!countryColors.has(originalName)) {
+                                countryColors.set(originalName, colorScale(originalName));
+                            }
+                        });
+                    }
+                    
+                    // Get initial dimensions
+                    const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
+                    width = initialWidth;
+                    height = initialHeight;
+                    
+                    // Wait for next tick before updating visualization
+                    await tick();
+                    if (container) {
+                        updateVisualization();
+                    }
+                } else {
+                    itemsStore.loadItems();
+                }
+            } catch (error) {
+                console.error('Error during initialization:', error);
+            }
+        })();
+
+        // Return cleanup function
+        return () => {
+            try {
+                isMounted = false;
+                
+                if (resizeHook) {
+                    resizeHook.cleanup();
+                }
+                
+                if (languageUnsubscribe) {
+                    languageUnsubscribe();
+                }
+                
+                if (container) {
+                    d3.select(container).selectAll('*').remove();
+                }
+            } catch (e) {
+                console.error('Error during cleanup:', e);
+            }
+        };
+    });
 
     // Function to process data into hierarchical structure
     function processData(items: Item[]): HierarchyDatum {
@@ -961,140 +1088,6 @@
             console.error('Error showing tooltip:', e);
         }
     }
-
-    // React to changes in the itemsStore
-    $: if ($itemsStore.items && $itemsStore.items.length > 0 && !totalItems) {
-        // Force a reprocess of data when items change
-        hierarchyData = processData($itemsStore.items as Item[]);
-    }
-
-    // Track if component is mounted
-    let isMounted = false;
-
-    // Initialize visualization when data changes
-    $: if ($itemsStore.items && container && isMounted) {
-        updateVisualization();
-    }
-
-    let initializationPromise: Promise<void>;
-
-    onMount(() => {
-        // Set mounted flag first
-        isMounted = true;
-
-        // Create initialization promise
-        initializationPromise = (async () => {
-            try {
-                // Wait for the next tick to ensure container is bound
-                await tick();
-                
-                // Double check container after tick
-                if (!container) {
-                    console.error('Container element not found in onMount');
-                    return;
-                }
-
-                // Initialize resize hook
-                resizeHook = useD3Resize({
-                    container,
-                    onResize: () => {
-                        if (isMounted && container) {
-                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
-                            width = newWidth;
-                            height = newHeight;
-                            updateVisualization();
-                        }
-                    }
-                });
-                
-                // Subscribe to language changes
-                languageUnsubscribe = languageStore.subscribe(value => {
-                    console.log("Language changed to:", value);
-                    currentLang = value;
-                    
-                    if (isMounted && container) {
-                        updateTitleHtml();
-                        
-                        if ($itemsStore.items && $itemsStore.items.length > 0) {
-                            const currentZoomedNode = zoomedNode;
-                            const currentZoomedCountry = currentZoomedNode?.data.originalName;
-                            
-                            zoomedNode = null;
-                            hierarchyData = processData($itemsStore.items as Item[]);
-                            
-                            if (currentZoomedNode && currentZoomedCountry) {
-                                const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
-                                const matchingNode = newRoot.children?.find(node => 
-                                    node.data.originalName === currentZoomedCountry
-                                );
-                                
-                                if (matchingNode) {
-                                    zoomToNode(matchingNode);
-                                    return;
-                                }
-                            }
-                            
-                            updateVisualization();
-                        }
-                    }
-                });
-                
-                // Initialize data
-                if ($itemsStore.items && $itemsStore.items.length > 0) {
-                    hierarchyData = processData($itemsStore.items as Item[]);
-                    
-                    if (hierarchyData.children && hierarchyData.children.length > 0) {
-                        const colorScale = d3.scaleOrdinal<string>()
-                            .domain(hierarchyData.children.map(d => d.originalName || d.name))
-                            .range(d3.schemeCategory10);
-                            
-                        hierarchyData.children.forEach(country => {
-                            const originalName = country.originalName || country.name;
-                            if (!countryColors.has(originalName)) {
-                                countryColors.set(originalName, colorScale(originalName));
-                            }
-                        });
-                    }
-                    
-                    // Get initial dimensions
-                    const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
-                    width = initialWidth;
-                    height = initialHeight;
-                    
-                    // Wait for next tick before updating visualization
-                    await tick();
-                    if (container) {
-                        updateVisualization();
-                    }
-                } else {
-                    itemsStore.loadItems();
-                }
-            } catch (error) {
-                console.error('Error during initialization:', error);
-            }
-        })();
-
-        // Return cleanup function
-        return () => {
-            try {
-                isMounted = false;
-                
-                if (resizeHook) {
-                    resizeHook.cleanup();
-                }
-                
-                if (languageUnsubscribe) {
-                    languageUnsubscribe();
-                }
-                
-                if (container) {
-                    d3.select(container).selectAll('*').remove();
-                }
-            } catch (e) {
-                console.error('Error during cleanup:', e);
-            }
-        };
-    });
 </script>
 
 <div class="country-distribution-container">
