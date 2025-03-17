@@ -7,6 +7,7 @@
     import type { OmekaItem } from '../../types/OmekaItem';
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
+    import { useD3Resize } from '../../hooks/useD3Resize';
 
     // Define interfaces for data structures
     interface MonthlyData {
@@ -51,6 +52,15 @@
         defaultWidth: 200,
         defaultHeight: 100
     });
+
+    // Initialize resize hook after container is bound
+    let resizeHook: ReturnType<typeof useD3Resize>;
+    
+    // Store unsubscribe functions
+    let languageUnsubscribe: () => void;
+    
+    // Track if component is mounted
+    let isMounted = false;
 
     // Format date strings
     const monthFormat = d3.timeFormat('%Y-%m');
@@ -121,176 +131,103 @@
     // Update title when language changes
     $: $languageStore, updateTitleHtml();
 
-    // Subscribe to language changes to update the chart
-    languageStore.subscribe(value => {
-        console.log("[TimelineDistribution] Language changed to:", value);
-        currentLang = value;
-        
-        // Update facet options when language changes
-        generateFacetOptions();
-        
-        // Refresh the chart to update all translated elements
-        if (container && $itemsStore.items && $itemsStore.items.length > 0) {
-            createTimeline();
-        }
+    // Initialize visualization when data changes
+    $: if (isMounted && $itemsStore.items && container) {
+        updateVisualization();
+    }
+
+    let initializationPromise: Promise<void>;
+
+    onMount(() => {
+        // Set mounted flag first
+        isMounted = true;
+
+        // Create initialization promise
+        initializationPromise = (async () => {
+            try {
+                // Wait for the next tick to ensure container is bound
+                await tick();
+                
+                // Double check container after tick
+                if (!container) {
+                    console.error('[TimelineDistribution] Container element not found in onMount');
+                    return;
+                }
+
+                // Initialize resize hook
+                resizeHook = useD3Resize({
+                    container,
+                    onResize: () => {
+                        if (isMounted && container) {
+                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            width = newWidth;
+                            height = newHeight;
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Subscribe to language changes
+                languageUnsubscribe = languageStore.subscribe(value => {
+                    if (!isMounted) return;
+                    console.log("[TimelineDistribution] Language changed to:", value);
+                    currentLang = value;
+                    
+                    if (container) {
+                        updateTitleHtml();
+                        
+                        if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Initialize data
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    // Get initial dimensions
+                    const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
+                    width = initialWidth;
+                    height = initialHeight;
+                    
+                    // Wait for next tick before updating visualization
+                    await tick();
+                    if (container) {
+                        updateVisualization();
+                    }
+                } else {
+                    itemsStore.loadItems();
+                }
+            } catch (error) {
+                console.error('Error during initialization:', error);
+            }
+        })();
+
+        // Return cleanup function
+        return () => {
+            try {
+                isMounted = false;
+                
+                if (resizeHook) {
+                    resizeHook.cleanup();
+                }
+                
+                if (languageUnsubscribe) {
+                    languageUnsubscribe();
+                }
+                
+                if (container) {
+                    d3.select(container).selectAll('*').remove();
+                }
+            } catch (e) {
+                console.error('Error during cleanup:', e);
+            }
+        };
     });
 
-    // Process data based on current filters and generate timeline data
-    function processData() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) return [];
-        
-        // Define the start date (April 1, 2024)
-        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
-        
-        // First, calculate the starting total from items before April 2024
-        let startingTotal = 0;
-        
-        // Apply country and type filters consistently
-        const filterItem = (item: OmekaItem) => {
-            if (!item.created_date) return false;
-            
-            // Apply country filter if not 'all'
-            if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
-            
-            // Apply type filter if not 'all'
-            if (selectedType !== 'all' && item.type !== selectedType) return false;
-            
-            return true;
-        };
-        
-        // Calculate items from before April 2024 (our starting total)
-        const beforeAprilItems = $itemsStore.items.filter(item => {
-            if (!filterItem(item)) return false;
-            
-            // Add null check for created_date
-            if (!item.created_date) return false;
-            
-            const itemDate = new Date(item.created_date);
-            return itemDate < startDate;
-        });
-        
-        startingTotal = beforeAprilItems.length;
-        
-        // Filter items for April 2024 and onwards (for monthly visualization)
-        let filteredItems = $itemsStore.items.filter(item => {
-            if (!filterItem(item)) return false;
-            
-            // Only include items from April 2024 onwards in the monthly breakdown
-            // Add null check for created_date
-            if (!item.created_date) return false;
-            
-            const itemDate = new Date(item.created_date);
-            return itemDate >= startDate;
-        });
-        
-        // Total items is the sum of starting total and filtered items
-        totalItems = startingTotal + filteredItems.length;
-        
-        if (filteredItems.length === 0) return [];
-        
-        // Extract the month from created_date and count occurrences
-        const monthCounts = new Map<string, number>();
-        
-        filteredItems.forEach(item => {
-            // Parse the date and extract the month
-            // We've already filtered out items without created_date, but add an assertion for TypeScript
-            const date = new Date(item.created_date!);
-            const month = monthFormat(date);
-            
-            // Increment the count for this month
-            monthCounts.set(month, (monthCounts.get(month) || 0) + 1);
-        });
-        
-        // Convert to array and sort chronologically
-        const monthsArray = Array.from(monthCounts.entries())
-            .map(([month, count]) => {
-                // Convert YYYY-MM to Date object (first day of month)
-                const [year, monthNum] = month.split('-').map(Number);
-                const date = new Date(year, monthNum - 1, 1); // JS months are 0-indexed
-                
-                return {
-                    date,
-                    month,
-                    monthFormatted: displayFormat(date),
-                    count,
-                    total: 0, // Will calculate cumulative total next
-                    percentage: 0 // Will calculate percentage next
-                };
-            })
-            .sort((a, b) => a.date.getTime() - b.date.getTime());
-        
-        // Calculate cumulative totals and percentages
-        // Start with the initial total from before April 2024
-        let runningTotal = startingTotal;
-        monthsArray.forEach(month => {
-            runningTotal += month.count;
-            month.total = runningTotal;
-            // Calculate percentage based on the count relative to all items added since April
-            month.percentage = (month.count / filteredItems.length) * 100;
-        });
-        
-        // Calculate max values for scaling
-        maxMonthlyCount = d3.max(monthsArray, d => d.count) || 0;
-        maxTotalCount = d3.max(monthsArray, d => d.total) || 0;
-        
-        return monthsArray;
-    }
-    
-    // Generate facet options
-    function generateFacetOptions() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) return;
-        
-        // Define the start date (April 1, 2024)
-        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
-        
-        // Get only items with created_date and after April 2024
-        const itemsWithDate = $itemsStore.items.filter(item => {
-            if (!item.created_date) return false;
-            const itemDate = new Date(item.created_date);
-            return itemDate >= startDate;
-        });
-        
-        // Generate country options
-        const countries = d3.rollup(
-            itemsWithDate,
-            v => v.length,
-            d => d.country || "Unknown"
-        );
-        
-        countryOptions = [
-            { value: 'all', label: t('country.all'), count: itemsWithDate.length },
-            ...Array.from(countries, ([country, count]) => ({
-                value: country,
-                // Use translation for country name if available
-                label: t(`country.${country}`),
-                count
-            })).filter(option => option.value !== "Unknown") // Remove Unknown option
-            .sort((a, b) => b.count - a.count)
-        ];
-        
-        // Generate type options
-        const types = d3.rollup(
-            itemsWithDate,
-            v => v.length,
-            d => d.type || "Unknown"
-        );
-        
-        typeOptions = [
-            { value: 'all', label: t('type.all'), count: itemsWithDate.length },
-            ...Array.from(types, ([type, count]) => ({
-                value: type,
-                // Use translation for the type label if available
-                label: t(`type.${type}`),
-                count
-            })).filter(option => option.value !== "Unknown") // Remove Unknown option
-            .sort((a, b) => b.count - a.count)
-        ];
-    }
-
     // Create timeline visualization
-    function createTimeline() {
+    function updateVisualization() {
         if (!container) {
-            console.error('[TimelineDistribution] Container element not found in createTimeline');
+            console.error('[TimelineDistribution] Container element not found in updateVisualization');
             return;
         }
         
@@ -316,12 +253,6 @@
         // Remove previous content
         d3.select(container).select('svg').remove();
         d3.select(container).select('.no-data').remove();
-        
-        // Get container dimensions
-        const rect = container.getBoundingClientRect();
-        width = rect.width;
-        // Increase the height for less cramped charts
-        height = rect.height - 50; // Reduced from -100 to -50 to give more height
         
         // Create SVG container
         const svg = d3.select(container)
@@ -670,69 +601,174 @@
     function handleCountryChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedCountry = select.value;
-        createTimeline();
+        updateVisualization();
     }
     
     // Handle type filter change
     function handleTypeChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedType = select.value;
-        createTimeline();
+        updateVisualization();
     }
     
-    // Update visualization when data changes or filters change
-    $: if ($itemsStore.items && container) {
-        generateFacetOptions();
-        createTimeline();
+    // Make sure facet options update when language changes
+    $: if ($languageStore) {
+        if ($itemsStore.items && $itemsStore.items.length > 0) {
+            generateFacetOptions();
+        }
     }
 
-    onMount(() => {
-        console.log('[TimelineDistribution] Component mounted');
+    // Process data based on current filters and generate timeline data
+    function processData() {
+        if (!$itemsStore.items || $itemsStore.items.length === 0) return [];
         
-        // Setup function to initialize the component
-        const setup = async () => {
-            await tick();
+        // Define the start date (April 1, 2024)
+        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
+        
+        // First, calculate the starting total from items before April 2024
+        let startingTotal = 0;
+        
+        // Apply country and type filters consistently
+        const filterItem = (item: OmekaItem) => {
+            if (!item.created_date) return false;
             
-            // Wait for items to load if needed
-            if (!$itemsStore.items || $itemsStore.items.length === 0) {
-                console.log('[TimelineDistribution] No items loaded, waiting for data');
-                await itemsStore.loadItems();
-            }
+            // Apply country filter if not 'all'
+            if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
             
-            // Wait for another tick to ensure container is bound
-            await tick();
+            // Apply type filter if not 'all'
+            if (selectedType !== 'all' && item.type !== selectedType) return false;
             
-            if (!container) {
-                console.error('[TimelineDistribution] Container element not found after waiting');
-                return;
-            }
-            
-            console.log('[TimelineDistribution] Container found, generating visualization');
-            
-            // Generate facet options and create visualization
-            generateFacetOptions();
-            createTimeline();
+            return true;
         };
         
-        // Call setup function
-        setup();
-        
-        // Add resize observer
-        const resizeObserver = new ResizeObserver(() => {
-            if (container) {
-                createTimeline();
-            }
+        // Calculate items from before April 2024 (our starting total)
+        const beforeAprilItems = $itemsStore.items.filter(item => {
+            if (!filterItem(item)) return false;
+            
+            // Add null check for created_date
+            if (!item.created_date) return false;
+            
+            const itemDate = new Date(item.created_date);
+            return itemDate < startDate;
         });
         
-        if (container) {
-            resizeObserver.observe(container);
-        }
+        startingTotal = beforeAprilItems.length;
         
-        // Return cleanup function directly (not from an async function)
-        return () => {
-            resizeObserver.disconnect();
-        };
-    });
+        // Filter items for April 2024 and onwards (for monthly visualization)
+        let filteredItems = $itemsStore.items.filter(item => {
+            if (!filterItem(item)) return false;
+            
+            // Only include items from April 2024 onwards in the monthly breakdown
+            // Add null check for created_date
+            if (!item.created_date) return false;
+            
+            const itemDate = new Date(item.created_date);
+            return itemDate >= startDate;
+        });
+        
+        // Total items is the sum of starting total and filtered items
+        totalItems = startingTotal + filteredItems.length;
+        
+        if (filteredItems.length === 0) return [];
+        
+        // Extract the month from created_date and count occurrences
+        const monthCounts = new Map<string, number>();
+        
+        filteredItems.forEach(item => {
+            // Parse the date and extract the month
+            // We've already filtered out items without created_date, but add an assertion for TypeScript
+            const date = new Date(item.created_date!);
+            const month = monthFormat(date);
+            
+            // Increment the count for this month
+            monthCounts.set(month, (monthCounts.get(month) || 0) + 1);
+        });
+        
+        // Convert to array and sort chronologically
+        const monthsArray = Array.from(monthCounts.entries())
+            .map(([month, count]) => {
+                // Convert YYYY-MM to Date object (first day of month)
+                const [year, monthNum] = month.split('-').map(Number);
+                const date = new Date(year, monthNum - 1, 1); // JS months are 0-indexed
+                
+                return {
+                    date,
+                    month,
+                    monthFormatted: displayFormat(date),
+                    count,
+                    total: 0, // Will calculate cumulative total next
+                    percentage: 0 // Will calculate percentage next
+                };
+            })
+            .sort((a, b) => a.date.getTime() - b.date.getTime());
+        
+        // Calculate cumulative totals and percentages
+        // Start with the initial total from before April 2024
+        let runningTotal = startingTotal;
+        monthsArray.forEach(month => {
+            runningTotal += month.count;
+            month.total = runningTotal;
+            // Calculate percentage based on the count relative to all items added since April
+            month.percentage = (month.count / filteredItems.length) * 100;
+        });
+        
+        // Calculate max values for scaling
+        maxMonthlyCount = d3.max(monthsArray, d => d.count) || 0;
+        maxTotalCount = d3.max(monthsArray, d => d.total) || 0;
+        
+        return monthsArray;
+    }
+    
+    // Generate facet options
+    function generateFacetOptions() {
+        if (!$itemsStore.items || $itemsStore.items.length === 0) return;
+        
+        // Define the start date (April 1, 2024)
+        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
+        
+        // Get only items with created_date and after April 2024
+        const itemsWithDate = $itemsStore.items.filter(item => {
+            if (!item.created_date) return false;
+            const itemDate = new Date(item.created_date);
+            return itemDate >= startDate;
+        });
+        
+        // Generate country options
+        const countries = d3.rollup(
+            itemsWithDate,
+            v => v.length,
+            d => d.country || "Unknown"
+        );
+        
+        countryOptions = [
+            { value: 'all', label: t('country.all'), count: itemsWithDate.length },
+            ...Array.from(countries, ([country, count]) => ({
+                value: country,
+                // Use translation for country name if available
+                label: t(`country.${country}`),
+                count
+            })).filter(option => option.value !== "Unknown") // Remove Unknown option
+            .sort((a, b) => b.count - a.count)
+        ];
+        
+        // Generate type options
+        const types = d3.rollup(
+            itemsWithDate,
+            v => v.length,
+            d => d.type || "Unknown"
+        );
+        
+        typeOptions = [
+            { value: 'all', label: t('type.all'), count: itemsWithDate.length },
+            ...Array.from(types, ([type, count]) => ({
+                value: type,
+                // Use translation for the type label if available
+                label: t(`type.${type}`),
+                count
+            })).filter(option => option.value !== "Unknown") // Remove Unknown option
+            .sort((a, b) => b.count - a.count)
+        ];
+    }
 </script>
 
 <div class="timeline-visualization-container">

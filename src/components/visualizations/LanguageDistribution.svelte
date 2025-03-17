@@ -7,6 +7,7 @@
     import type { OmekaItem } from '../../types/OmekaItem';
     import BaseVisualization from './BaseVisualization.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
+    import { useD3Resize } from '../../hooks/useD3Resize';
 
     // Define interfaces for data structures
     interface LanguageCount {
@@ -41,6 +42,15 @@
 
     // Initialize tooltip hook
     const { showTooltip, hideTooltip } = useTooltip();
+    
+    // Initialize resize hook after container is bound
+    let resizeHook: ReturnType<typeof useD3Resize>;
+    
+    // Store unsubscribe functions
+    let languageUnsubscribe: () => void;
+    
+    // Track if component is mounted
+    let isMounted = false;
 
     // Color scale for pie segments
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
@@ -84,26 +94,97 @@
         updateTitleHtml();
     }
     
-    // Subscribe to language changes
-    languageStore.subscribe(value => {
-        console.log("Language changed to:", value);
-        currentLang = value;
-        
-        // Force refresh the title when language changes
-        updateTitleHtml();
-        
-        // Refresh facet options to update translated country names
-        generateFacetOptions();
-        
-        // Refresh the legend if it exists
-        if (legend && languageCounts.length > 0) {
-            updateLegend(languageCounts);
-        }
-        
-        // Refresh the chart to update all translated elements
-        if (container) {
-            createPieChart();
-        }
+    // Initialize visualization when data changes
+    $: if (isMounted && $itemsStore.items && container) {
+        updateVisualization();
+    }
+
+    let initializationPromise: Promise<void>;
+
+    onMount(() => {
+        // Set mounted flag first
+        isMounted = true;
+
+        // Create initialization promise
+        initializationPromise = (async () => {
+            try {
+                // Wait for the next tick to ensure container is bound
+                await tick();
+                
+                // Double check container after tick
+                if (!container) {
+                    console.error('Container element not found in onMount');
+                    return;
+                }
+
+                // Initialize resize hook
+                resizeHook = useD3Resize({
+                    container,
+                    onResize: () => {
+                        if (isMounted && container) {
+                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            width = newWidth;
+                            height = newHeight;
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Subscribe to language changes
+                languageUnsubscribe = languageStore.subscribe(value => {
+                    if (!isMounted) return;
+                    console.log("Language changed to:", value);
+                    currentLang = value;
+                    
+                    if (container) {
+                        updateTitleHtml();
+                        
+                        if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Initialize data
+                if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    // Get initial dimensions
+                    const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
+                    width = initialWidth;
+                    height = initialHeight;
+                    
+                    // Wait for next tick before updating visualization
+                    await tick();
+                    if (container) {
+                        updateVisualization();
+                    }
+                } else {
+                    itemsStore.loadItems();
+                }
+            } catch (error) {
+                console.error('Error during initialization:', error);
+            }
+        })();
+
+        // Return cleanup function
+        return () => {
+            try {
+                isMounted = false;
+                
+                if (resizeHook) {
+                    resizeHook.cleanup();
+                }
+                
+                if (languageUnsubscribe) {
+                    languageUnsubscribe();
+                }
+                
+                if (container) {
+                    d3.select(container).selectAll('*').remove();
+                }
+            } catch (e) {
+                console.error('Error during cleanup:', e);
+            }
+        };
     });
 
     // Process data based on current filters
@@ -260,7 +341,7 @@
     }
 
     // Create pie chart visualization
-    function createPieChart() {
+    function updateVisualization() {
         if (!container) return;
         
         // Process data
@@ -274,11 +355,6 @@
         
         // Clear previous chart
         d3.select(container).select('svg').remove();
-        
-        // Get container dimensions
-        const rect = container.getBoundingClientRect();
-        width = rect.width;
-        height = rect.height;
         
         // Set margins
         const margin = { top: 20, right: 20, bottom: 20, left: 20 };
@@ -347,20 +423,14 @@
     function handleCountryChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedCountry = select.value;
-        createPieChart();
+        updateVisualization();
     }
     
     // Handle type filter change
     function handleTypeChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedType = select.value;
-        createPieChart();
-    }
-    
-    // Update visualization when data changes or filters change
-    $: if ($itemsStore.items && container) {
-        generateFacetOptions();
-        createPieChart();
+        updateVisualization();
     }
     
     // Make sure facet options update when language changes
@@ -369,39 +439,6 @@
             generateFacetOptions();
         }
     }
-
-    onMount(async () => {
-        // Wait for component to mount
-        await tick();
-        
-        if (!container) {
-            console.error('Container element not found');
-            return;
-        }
-        
-        // Generate facet options and create visualization
-        generateFacetOptions();
-        createPieChart();
-        
-        // Set up resize observer for responsive behavior
-        const resizeObserver = new ResizeObserver(() => {
-            if (container) {
-                createPieChart();
-            }
-        });
-        
-        resizeObserver.observe(container);
-        
-        // Return cleanup function
-        return () => {
-            resizeObserver.disconnect();
-            
-            // Clean up legend
-            if (legend && document.body.contains(legend)) {
-                document.body.removeChild(legend);
-            }
-        };
-    });
 </script>
 
 <div class="language-visualization-container">
