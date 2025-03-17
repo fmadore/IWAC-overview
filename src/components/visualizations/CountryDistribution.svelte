@@ -8,6 +8,7 @@
     import BaseVisualization from './BaseVisualization.svelte';
     import { subcollectionCategories, subcollectionMapping, getCategoryForSubcollection, getTranslatedCategoryName } from '../../types/SubcollectionCategories';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
+    import { useD3Resize } from '../../hooks/useD3Resize';
 
     // Move all the interface definitions to the top
     interface Item {
@@ -27,8 +28,6 @@
     }
 
     // Initialize essential variables first
-    let width = 0;
-    let height = 0;
     let container: HTMLDivElement;
     let hierarchyData: HierarchyDatum = { name: 'root', children: [] };
     let root: d3.HierarchyNode<HierarchyDatum> | null = null;
@@ -43,7 +42,6 @@
     let zoomedNode: d3.HierarchyRectangularNode<HierarchyDatum> | null = null;
     let searchQuery = '';
     let showLabels = true;
-    let resizeObserver: ResizeObserver | null = null;
     
     // Store country colors to maintain consistency when zooming
     let countryColors: Map<string, string> = new Map();
@@ -75,6 +73,11 @@
         maxWidth: '250px',
         whiteSpace: 'nowrap'
     });
+    
+    // Initialize resize hook after container is bound
+    let resizeHook: ReturnType<typeof useD3Resize>;
+    let width = 0;
+    let height = 0;
     
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -304,6 +307,9 @@
                 return;
             }
             
+            // Set margins first - reduce top margin to decrease space
+            const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+            
             // Get fresh data if not zoomed
             if (!zoomedNode) {
                 hierarchyData = processData($itemsStore.items as Item[]);
@@ -327,13 +333,7 @@
             d3.select(container).select('svg').remove();
             d3.select(container).select('.no-data').remove();
             
-            // Get container dimensions
-            const rect = container.getBoundingClientRect();
-            width = rect.width;
-            height = rect.height;
-            
-            // Set margins - reduce top margin to decrease space
-            const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+            // Use local width and height variables
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
             
@@ -976,69 +976,78 @@
         updateVisualization();
     }
 
+    let initializationPromise: Promise<void>;
+
     onMount(() => {
-        try {
-            // Set mounted flag
-            isMounted = true;
-            
-            // Subscribe to language changes - do this inside onMount
-            languageUnsubscribe = languageStore.subscribe(value => {
-                console.log("Language changed to:", value);
-                currentLang = value;
+        // Set mounted flag first
+        isMounted = true;
+
+        // Create initialization promise
+        initializationPromise = (async () => {
+            try {
+                // Wait for the next tick to ensure container is bound
+                await tick();
                 
-                // Force refresh the title when language changes
-                updateTitleHtml();
-                
-                // Reprocess data with translated country names when language changes
-                if ($itemsStore.items && $itemsStore.items.length > 0) {
-                    // Store the current zoom state
-                    const currentZoomedNode = zoomedNode;
-                    const currentZoomedCountry = currentZoomedNode?.data.originalName;
-                    
-                    // Reset zoom state temporarily
-                    zoomedNode = null;
-                    
-                    // Reprocess data with new translations
-                    hierarchyData = processData($itemsStore.items as Item[]);
-                    
-                    // Restore zoom state if needed
-                    if (currentZoomedNode && currentZoomedCountry) {
-                        // Find the node with the same original country name
-                        const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
-                        const matchingNode = newRoot.children?.find(node => 
-                            node.data.originalName === currentZoomedCountry
-                        );
-                        
-                        if (matchingNode) {
-                            zoomToNode(matchingNode);
-                            return; // updateVisualization is called in zoomToNode
-                        }
-                    }
-                    
-                    // Update visualization with new translations
-                    updateVisualization();
-                }
-            });
-            
-            // Wait for component to render
-            tick().then(() => {
+                // Double check container after tick
                 if (!container) {
                     console.error('Container element not found in onMount');
                     return;
                 }
+
+                // Initialize resize hook
+                resizeHook = useD3Resize({
+                    container,
+                    onResize: () => {
+                        if (isMounted && container) {
+                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            width = newWidth;
+                            height = newHeight;
+                            updateVisualization();
+                        }
+                    }
+                });
+                
+                // Subscribe to language changes
+                languageUnsubscribe = languageStore.subscribe(value => {
+                    console.log("Language changed to:", value);
+                    currentLang = value;
+                    
+                    if (isMounted && container) {
+                        updateTitleHtml();
+                        
+                        if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            const currentZoomedNode = zoomedNode;
+                            const currentZoomedCountry = currentZoomedNode?.data.originalName;
+                            
+                            zoomedNode = null;
+                            hierarchyData = processData($itemsStore.items as Item[]);
+                            
+                            if (currentZoomedNode && currentZoomedCountry) {
+                                const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
+                                const matchingNode = newRoot.children?.find(node => 
+                                    node.data.originalName === currentZoomedCountry
+                                );
+                                
+                                if (matchingNode) {
+                                    zoomToNode(matchingNode);
+                                    return;
+                                }
+                            }
+                            
+                            updateVisualization();
+                        }
+                    }
+                });
                 
                 // Initialize data
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
-                    // Process data and update visualization
                     hierarchyData = processData($itemsStore.items as Item[]);
                     
-                    // Initialize country colors map
                     if (hierarchyData.children && hierarchyData.children.length > 0) {
                         const colorScale = d3.scaleOrdinal<string>()
                             .domain(hierarchyData.children.map(d => d.originalName || d.name))
                             .range(d3.schemeCategory10);
                             
-                        // Pre-populate the country colors map
                         hierarchyData.children.forEach(country => {
                             const originalName = country.originalName || country.name;
                             if (!countryColors.has(originalName)) {
@@ -1047,58 +1056,44 @@
                         });
                     }
                     
-                    updateVisualization();
-                } else {
-                    // Load items if not already loaded
-                    itemsStore.loadItems();
-                }
-                
-                // Add resize observer only after container is available
-                resizeObserver = new ResizeObserver(() => {
+                    // Get initial dimensions
+                    const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
+                    width = initialWidth;
+                    height = initialHeight;
+                    
+                    // Wait for next tick before updating visualization
+                    await tick();
                     if (container) {
                         updateVisualization();
                     }
-                });
+                } else {
+                    itemsStore.loadItems();
+                }
+            } catch (error) {
+                console.error('Error during initialization:', error);
+            }
+        })();
+
+        // Return cleanup function
+        return () => {
+            try {
+                isMounted = false;
+                
+                if (resizeHook) {
+                    resizeHook.cleanup();
+                }
+                
+                if (languageUnsubscribe) {
+                    languageUnsubscribe();
+                }
                 
                 if (container) {
-                    resizeObserver.observe(container);
-                } else {
-                    console.error('Container element not available for ResizeObserver');
+                    d3.select(container).selectAll('*').remove();
                 }
-            });
-            
-            // Return cleanup function
-            return () => {
-                try {
-                    // Set mounted flag to false
-                    isMounted = false;
-                    
-                    // Unsubscribe from language store
-                    if (languageUnsubscribe) {
-                        languageUnsubscribe();
-                    }
-                    
-                    // Safely disconnect observer if it exists
-                    if (resizeObserver) {
-                        resizeObserver.disconnect();
-                    }
-                    
-                    // Clean up D3 selections to prevent memory leaks
-                    if (container) {
-                        d3.select(container).selectAll('*').remove();
-                    }
-                    
-                    // The tooltip cleanup is now handled by the useTooltip hook's onDestroy
-                } catch (e) {
-                    console.error('Error during cleanup:', e);
-                }
-            };
-        } catch (error) {
-            console.error('Error in onMount:', error);
-            return () => {
-                isMounted = false;
-            }; // Return empty cleanup function in case of error
-        }
+            } catch (e) {
+                console.error('Error during cleanup:', e);
+            }
+        };
     });
 </script>
 

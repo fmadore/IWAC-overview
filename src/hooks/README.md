@@ -91,12 +91,62 @@ Helper function to create a grid-style tooltip content.
 **Returns:**
 - Formatted HTML string for the tooltip
 
+### useD3Resize
+
+The `useD3Resize` hook provides standardized resize handling for D3.js visualizations, with built-in debouncing and cleanup.
+
+#### Usage
+
+```typescript
+import { useD3Resize } from '../hooks/useD3Resize';
+
+// In your component
+let container: HTMLDivElement;
+
+// Initialize the resize hook
+const { width, height, dimensions, updateDimensions } = useD3Resize({
+  container,
+  onResize: () => {
+    // Update your visualization with new dimensions
+    updateVisualization();
+  },
+  // Optional: customize debounce behavior
+  debounce: true,
+  debounceDelay: 100
+});
+
+// Use the dimensions in your visualization
+function updateVisualization() {
+  const { width, height } = dimensions;
+  // Update your D3 visualization with new dimensions
+  // ...
+}
+```
+
+#### API
+
+##### useD3Resize(options)
+
+Creates a resize handler for D3.js visualizations.
+
+**Parameters:**
+- `options`: Configuration options for the resize handler
+  - `container`: The container element to observe for size changes
+  - `onResize`: Callback function to be called when the container size changes
+  - `debounce`: Whether to debounce the resize callback (default: true)
+  - `debounceDelay`: Debounce delay in milliseconds (default: 100)
+
+**Returns:**
+- `width`: The current width of the container
+- `height`: The current height of the container
+- `dimensions`: Object containing both width and height
+- `updateDimensions`: Function to manually trigger a resize update
+
 ## Planned Hooks
 
 Future hooks to be implemented:
 
-1. `useD3Resize`: Handle responsive D3.js visualizations
-2. `useDataProcessing`: Common data processing logic for visualizations
-3. `useLegend`: Create and manage legends for visualizations
-4. `useAxis`: Create and manage D3.js axes
-5. `useZoom`: Handle zoom behavior in visualizations 
+1. `useDataProcessing`: Common data processing logic for visualizations
+2. `useLegend`: Create and manage legends for visualizations
+3. `useAxis`: Create and manage D3.js axes
+4. `useZoom`: Handle zoom behavior in visualizations 
