@@ -56,7 +56,7 @@
   }));
 
   // Update tab labels when language changes
-  $: if ($languageStore) {
+  $: if ($languageStore && isMounted) {
     tabLabels = tabs.map(tab => ({
       ...tab,
       translatedLabel: t(tab.label)
@@ -245,37 +245,18 @@
         if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
           const style = document.createElement('style');
           style.textContent = '.tabs-container { scrollbar-width: none; }';
+          style.setAttribute('data-firefox-scrollbar', 'true');
           document.head.appendChild(style);
         }
         
         // Add scroll listener to toggle indicator
-        tabsContainer.addEventListener('scroll', () => {
-          // Check if we're at the end of the scroll
-          const isAtEnd = tabsContainer.scrollLeft + tabsContainer.clientWidth >= tabsContainer.scrollWidth - 5;
-          // Check if we're at the beginning of the scroll
-          const isAtStart = tabsContainer.scrollLeft <= 5;
-          
-          if (isAtEnd) {
-            tabsContainer.classList.remove('tab-scroll-active');
-          } else {
-            tabsContainer.classList.add('tab-scroll-active');
-          }
-          
-          if (isAtStart) {
-            tabsContainer.classList.remove('tab-scroll-not-at-start');
-          } else {
-            tabsContainer.classList.add('tab-scroll-not-at-start');
-          }
-        });
+        tabsContainer.addEventListener('scroll', handleScroll);
         
         // Trigger initial scroll check
         tabsContainer.dispatchEvent(new Event('scroll'));
         
         // Add window resize listener
-        window.addEventListener('resize', () => {
-          checkTabsOverflow();
-          scrollToActiveTab();
-        });
+        window.addEventListener('resize', handleResize);
         
         // Scroll to active tab
         setTimeout(() => {
@@ -296,8 +277,19 @@
       trackUnmount(COMPONENT_ID);
       logDebug(COMPONENT_ID, 'Component unmounted');
       
+      // Clean up all event listeners
+      if (tabsContainer) {
+        // Remove scroll listener
+        tabsContainer.removeEventListener('scroll', handleScroll);
+        // Remove the Firefox-specific style if added
+        const firefoxStyle = document.querySelector('style[data-firefox-scrollbar]');
+        if (firefoxStyle) {
+          firefoxStyle.remove();
+        }
+      }
+      
       // Remove window resize listener
-      window.removeEventListener('resize', checkTabsOverflow);
+      window.removeEventListener('resize', handleResize);
     } catch (e) {
       console.error('[App] Error in onDestroy:', e);
     }
@@ -317,6 +309,34 @@
       checkTabsOverflow();
     }, 50);
   });
+
+  // Handle tab scroll events
+  function handleScroll() {
+    if (!tabsContainer) return;
+    
+    // Check if we're at the end of the scroll
+    const isAtEnd = tabsContainer.scrollLeft + tabsContainer.clientWidth >= tabsContainer.scrollWidth - 5;
+    // Check if we're at the beginning of the scroll
+    const isAtStart = tabsContainer.scrollLeft <= 5;
+    
+    if (isAtEnd) {
+      tabsContainer.classList.remove('tab-scroll-active');
+    } else {
+      tabsContainer.classList.add('tab-scroll-active');
+    }
+    
+    if (isAtStart) {
+      tabsContainer.classList.remove('tab-scroll-not-at-start');
+    } else {
+      tabsContainer.classList.add('tab-scroll-not-at-start');
+    }
+  }
+  
+  // Handle window resize events
+  function handleResize() {
+    checkTabsOverflow();
+    scrollToActiveTab();
+  }
 </script>
 
 <TranslationContext>
