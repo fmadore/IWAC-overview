@@ -297,6 +297,7 @@
   .tab-item {
     border-bottom: var(--border-width-normal) solid transparent;
     transition: all var(--transition-fast) var(--ease-out);
+    cursor: pointer;
   }
 
   .tab-item:hover {
