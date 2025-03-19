@@ -52,7 +52,7 @@ Utility classes are small, single-purpose classes that can be composed together 
 <!-- Example of using utility classes -->
 <div class="flex items-center justify-between p-md bg-primary text-white rounded shadow">
   <h2 class="text-lg font-bold">Title</h2>
-  <button class="bg-accent text-white p-sm rounded">Button</button>
+  <button class="bg-accent text-white p-sm rounded cursor-pointer">Button</button>
 </div>
 ```
 
@@ -65,6 +65,9 @@ The utilities follow these naming patterns:
 - **Typography**: `.text-{size}`, `.font-{weight}`, `.text-{alignment}`
 - **Layout**: `.flex`, `.grid`, `.items-{position}`, `.justify-{position}`
 - **Borders**: `.border-{width}`, `.rounded-{size}`, `.shadow-{size}`
+- **Cursor**: `.cursor-{type}` (auto, pointer, text, etc.)
+- **List Style**: `.list-style-{type}` (none, etc.)
+- **Z-index**: `.z-{level}` (base, above, dropdown, popover, etc.)
 
 ## Best Practices
 
@@ -73,6 +76,32 @@ The utilities follow these naming patterns:
 3. **Limit custom CSS** - Only create custom CSS for complex components that cannot be easily created with utilities
 4. **Dark Mode** - Use the theme variables with CSS variables for easier theme switching
 5. **Responsive Design** - Rely on the utility classes for consistent responsive layouts
+6. **Accessibility** - Use proper semantic markup and utility classes to enhance accessibility
+7. **Document usage** - Include comments in components that list which utility classes are being used
+
+## Interactive Elements
+
+For interactive elements, we provide several utility classes to enhance usability:
+
+- **Cursor utilities**: Use `.cursor-pointer` for clickable elements, `.cursor-text` for text inputs, etc.
+- **Z-index system**: Structured z-index utilities from `.z-below` (-1) to `.z-tooltip` (1070)
+- **Transition utilities**: Simple transitions for hover/focus states
+
+Example for a button:
+```html
+<button class="bg-primary text-white p-sm rounded cursor-pointer transition hover:bg-primary-dark">
+  Click me
+</button>
+```
+
+## Working with Popups and Tooltips
+
+For elements like popups, tooltips, and dropdown menus:
+
+- Use `.absolute` with `.top-100` and appropriate directional classes
+- Apply `.z-popover` or `.z-dropdown` to ensure proper stacking
+- Add a proper border with `.border`, `.border-solid`, and `.border-default`
+- Apply `.shadow` or `.shadow-lg` for depth
 
 ## Contributing
 

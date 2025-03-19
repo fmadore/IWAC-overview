@@ -155,12 +155,22 @@
                     container,
                     onResize: () => {
                         if (isMounted && container) {
+                            // Get the latest dimensions from the resize hook
                             const { width: newWidth, height: newHeight } = resizeHook.dimensions;
                             width = newWidth;
                             height = newHeight;
-                            updateVisualization();
+                            
+                            // Debug the new dimensions
+                            console.log(`Resizing to ${width}x${height}`);
+                            
+                            // Force the visualization to redraw with new dimensions
+                            if (width > 0 && height > 0) {
+                                updateVisualization();
+                            }
                         }
-                    }
+                    },
+                    // Use shorter debounce delay for smoother resizing
+                    debounceDelay: 50
                 });
                 
                 // Subscribe to language changes
@@ -446,7 +456,7 @@
                     .style('left', '50%')
                     .style('transform', 'translate(-50%, -50%)')
                     .style('text-align', 'center')
-                    .style('color', 'var(--text-color-secondary)')
+                    .style('color', 'var(--color-text-secondary)')
                     .text($noDataText);
                 return;
             }
@@ -455,15 +465,18 @@
             d3.select(container).select('svg').remove();
             d3.select(container).select('.no-data').remove();
             
-            // Use local width and height variables
-            const chartWidth = width - margin.left - margin.right;
-            const chartHeight = height - margin.top - margin.bottom;
+            // Get the latest container dimensions
+            const containerRect = container.getBoundingClientRect();
+            const chartWidth = containerRect.width - margin.left - margin.right;
+            const chartHeight = containerRect.height - margin.top - margin.bottom;
             
-            // Create SVG
+            // Create responsive SVG with viewBox
             const svg = d3.select(container)
                 .append('svg')
-                .attr('width', width)
-                .attr('height', height);
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .attr('viewBox', `0 0 ${containerRect.width} ${containerRect.height}`)
+                .attr('preserveAspectRatio', 'xMidYMid meet');
             
             // Create chart group directly
             const chart = svg.append('g')
@@ -472,16 +485,15 @@
             // If zoomed in, add a button to zoom out but outside the title area
             if (zoomedNode) {
                 const button = chart.append('g')
-                    .attr('class', 'zoom-out-button')
+                    .attr('class', 'zoom-out-button cursor-pointer')
                     .attr('transform', `translate(0, 0)`)
-                    .style('cursor', 'pointer')
                     .on('click', () => zoomToNode(null));
                     
                 button.append('rect')
                     .attr('width', 100)
                     .attr('height', 20)
                     .attr('rx', 4)
-                    .attr('fill', 'var(--primary-color)')
+                    .attr('fill', 'var(--color-primary)')
                     .attr('opacity', 0.8);
                     
                 button.append('text')
@@ -639,7 +651,7 @@
                         .attr('stroke', 'white')
                         .attr('stroke-width', 1.5)
                         .style('opacity', 0.8)
-                        .style('cursor', 'pointer')
+                        .attr('class', 'cursor-pointer')
                         .on('click', (event, d) => {
                             // When clicking on a category in the country view, zoom to the country
                             zoomToNode(countryNode);
@@ -723,7 +735,7 @@
                         .attr('height', 20)
                         .attr('fill', countryColor)
                         .attr('opacity', 0.9)
-                        .style('cursor', 'pointer')
+                        .attr('class', 'cursor-pointer')
                         .on('click', (event) => {
                             zoomToNode(countryNode);
                         });
@@ -792,7 +804,7 @@
                     .attr('stroke', 'white')
                     .attr('stroke-width', 1.5)
                     .style('opacity', 0.8)
-                    .style('cursor', 'pointer')
+                    .attr('class', 'cursor-pointer')
                     .on('click', (event, d) => {
                         zoomToNode(d);
                     })
@@ -872,11 +884,11 @@
                     })
                     .attr('stroke', 'white')
                     .attr('stroke-width', 0.5)
-                    .style('cursor', 'pointer')
+                    .attr('class', 'cursor-pointer')
                     .on('mouseover', function(event, d) {
                         // Highlight on hover
                         d3.select(this)
-                            .attr('stroke', 'var(--primary-color)')
+                            .attr('stroke', 'var(--color-primary)')
                             .attr('stroke-width', 2);
                         
                         // Show tooltip
@@ -901,7 +913,7 @@
                     .attr('x', 3)
                     .attr('y', 13)
                     .attr('font-size', 'var(--font-size-xs)')
-                    .attr('fill', 'var(--text-color-primary)')
+                    .attr('fill', 'var(--color-text-primary)')
                     .style('pointer-events', 'none')
                     .each(function(d) {
                         const self = d3.select(this);
@@ -980,11 +992,11 @@
                     </div>
                     <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
                         <span>${$itemsText}:</span>
-                        <span style="text-align:right;font-weight:bold">${countryItems}</span>
+                        <span class="text-right font-medium">${countryItems}</span>
                         <span>${$categoriesText}:</span>
-                        <span style="text-align:right">${categories}</span>
+                        <span class="text-right">${categories}</span>
                         <span>${$percentTotalText}:</span>
-                        <span style="text-align:right">${percentOfTotal}</span>
+                        <span class="text-right">${percentOfTotal}</span>
                     </div>
                     <div style="margin-top:4px;font-style:italic;font-size:10px;">
                         ${$clickZoomInText}
@@ -1013,13 +1025,13 @@
                     </div>
                     <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
                         <span>${$itemsText}:</span>
-                        <span style="text-align:right;font-weight:bold">${categoryItems}</span>
+                        <span class="text-right font-medium">${categoryItems}</span>
                         <span>${$subCollectionsText}:</span>
-                        <span style="text-align:right">${subcollections}</span>
+                        <span class="text-right">${subcollections}</span>
                         <span>${$percentParentText}:</span>
-                        <span style="text-align:right">${percentOfCountry}</span>
+                        <span class="text-right">${percentOfCountry}</span>
                         <span>${$percentTotalText}:</span>
-                        <span style="text-align:right">${percentOfTotal}</span>
+                        <span class="text-right">${percentOfTotal}</span>
                     </div>
                     <div style="margin-top:4px;font-style:italic;font-size:10px;">
                         ${$clickZoomInText}
@@ -1067,13 +1079,13 @@
                     </div>
                     <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
                         <span>${$itemsText}:</span>
-                        <span style="text-align:right;font-weight:bold">${itemCount}</span>
+                        <span class="text-right font-medium">${itemCount}</span>
                         ${category ? `<span>% of ${category}:</span>
-                        <span style="text-align:right">${percentOfCategory}</span>` : ''}
+                        <span class="text-right">${percentOfCategory}</span>` : ''}
                         ${country ? `<span>${$percentParentText}:</span>
-                        <span style="text-align:right">${percentOfCountry}</span>` : ''}
+                        <span class="text-right">${percentOfCountry}</span>` : ''}
                         <span>${$percentTotalText}:</span>
-                        <span style="text-align:right">${percentOfTotal}</span>
+                        <span class="text-right">${percentOfTotal}</span>
                     </div>
                 `;
                 
@@ -1085,39 +1097,39 @@
     }
 </script>
 
-<div class="country-distribution-container">
+<div class="flex flex-col gap-sm w-full h-full country-distribution-container">
     <BaseVisualization
         titleHtml={titleHtml}
         descriptionTranslationKey="viz.country_distribution_description"
         theme="default"
         className="country-distribution"
     >
-        <div class="chart-container" bind:this={container}>
+        <div class="chart-container relative flex-1" bind:this={container}>
             {#if $itemsStore.loading}
-                <div class="loading">{t('ui.loading')}</div>
+                <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
-                <div class="error">{$itemsStore.error}</div>
+                <div class="error absolute inset-center text-error">{$itemsStore.error}</div>
             {:else if !$itemsStore.items || $itemsStore.items.length === 0}
-                <div class="no-data">{$noDataText}</div>
+                <div class="no-data absolute inset-center text-secondary">{$noDataText}</div>
             {:else if !container}
-                <div class="loading">Initializing visualization...</div>
+                <div class="loading absolute inset-center text-secondary">Initializing visualization...</div>
             {/if}
         </div>
         
-        <div class="stats">
+        <div class="stats bg-card shadow rounded p-md">
             <div class="stat-summary">
-                <h3>{$summaryText}</h3>
-                <p>{$totalItemsText}: <strong>{formatNumber(totalItems)}</strong></p>
+                <h3 class="text-primary font-medium border-b pb-xs mb-sm">{$summaryText}</h3>
+                <p class="text-sm text-secondary mb-xs">{$totalItemsText}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
                 {#if !zoomedNode}
-                    <p>{$countriesText}: <strong>{formatNumber(countryCount)}</strong></p>
+                    <p class="text-sm text-secondary mb-xs">{$countriesText}: <strong class="font-medium">{formatNumber(countryCount)}</strong></p>
                 {/if}
-                <p>{$categoriesText}: <strong>{formatNumber(categoryCount)}</strong></p>
-                <p>{$subCollectionsText}: <strong>{formatNumber(subCollectionCount)}</strong></p>
+                <p class="text-sm text-secondary mb-xs">{$categoriesText}: <strong class="font-medium">{formatNumber(categoryCount)}</strong></p>
+                <p class="text-sm text-secondary mb-xs">{$subCollectionsText}: <strong class="font-medium">{formatNumber(subCollectionCount)}</strong></p>
                 {#if zoomedNode}
-                    <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
-                    <p>{$clickBackText}</p>
+                    <p class="text-sm text-secondary mb-xs">{$currentlyViewingText}: <strong class="font-medium">{zoomedNode.data.name}</strong></p>
+                    <p class="text-sm text-secondary mb-xs">{$clickBackText}</p>
                 {:else}
-                    <p>{$clickZoomInText}</p>
+                    <p class="text-sm text-secondary mb-xs">{$clickZoomInText}</p>
                 {/if}
             </div>
         </div>
@@ -1125,71 +1137,24 @@
 </div>
 
 <style>
-    .country-distribution-container {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-sm);
-    }
+    /* Only keep styles that can't be achieved with utility classes */
     
-    /* Override the visualization header margin to reduce space */
-    :global(.country-distribution-container .visualization-header) {
-        margin-bottom: var(--spacing-xs) !important;
-    }
-    
-    /* Override the title container padding to reduce space */
-    :global(.country-distribution-container .title-container) {
-        padding-bottom: 0 !important;
-    }
-    
+    /* Chart container minimum height */
     .chart-container {
-        flex: 1;
         min-height: 450px;
-        position: relative;
-        background: var(--color-bg-card);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-md);
-        margin-top: 0;
-        padding-top: 0;
+        overflow: hidden;
     }
     
-    .stats {
-        padding: var(--spacing-md);
-        background-color: var(--color-bg-card);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .stat-summary p {
-        margin: var(--spacing-xs) 0;
-        font-size: var(--font-size-sm);
-        color: var(--color-text-secondary);
-    }
-    
-    h3 {
-        margin-top: 0;
-        margin-bottom: var(--spacing-sm);
-        color: var(--color-text-primary);
-        font-size: var(--font-size-md);
-        border-bottom: var(--border-width-thin) solid var(--color-border);
-        padding-bottom: var(--spacing-xs);
-    }
-    
-    .loading, .error, .no-data {
-        position: absolute;
+    /* Center positioning utility */
+    :global(.inset-center) {
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        color: var(--color-text-secondary);
     }
     
-    .error {
-        color: var(--color-error);
-    }
-
+    /* Search highlight animation */
     :global(.search-highlight rect) {
-        stroke: #ff5500 !important;
+        stroke: var(--color-primary) !important;
         stroke-width: 2px !important;
         stroke-dasharray: 5, 2;
         animation: pulse 1.5s infinite;
