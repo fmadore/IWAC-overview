@@ -254,9 +254,8 @@
             // If zoomed in, add a button to zoom out
             if (zoomedNode) {
                 const button = svg.append('g')
-                    .attr('class', 'zoom-out-button')
+                    .attr('class', 'zoom-out-button cursor-pointer')
                     .attr('transform', `translate(${margin.left}, ${margin.top})`)
-                    .style('cursor', 'pointer')
                     .on('click', () => zoomToNode(null));
                     
                 button.append('rect')
@@ -412,8 +411,8 @@
                 })
                 .attr('stroke', 'white')
                 .attr('stroke-width', 2)
-                .style('opacity', 0.7)
-                .style('cursor', 'pointer')
+                .attr('opacity', 0.7)
+                .attr('class', 'cursor-pointer')
                 .on('click', (event, d) => {
                     zoomToNode(d);
                 })
@@ -436,7 +435,7 @@
                     // Otherwise show name with word count
                     return `${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`;
                 })
-                .style('pointer-events', 'none')
+                .attr('pointer-events', 'none')
                 .each(function(d) {
                     const self = d3.select(this);
                     const textLength = (this as SVGTextElement).getComputedTextLength();
@@ -503,7 +502,7 @@
                 })
                 .attr('stroke', 'white')
                 .attr('stroke-width', 0.5)
-                .style('cursor', 'pointer')
+                .attr('class', 'cursor-pointer')
                 .on('mouseover', function(event, d) {
                     // Highlight on hover
                     d3.select(this)
@@ -532,8 +531,8 @@
                 .attr('x', 3)
                 .attr('y', 13)
                 .attr('font-size', 'var(--font-size-xs)')
-                .attr('fill', 'var(--text-color-primary)')
-                .style('pointer-events', 'none')
+                .attr('fill', 'var(--color-text-primary)')
+                .attr('pointer-events', 'none')
                 .each(function(d) {
                     const self = d3.select(this);
                     const width = (d as any).x1 - (d as any).x0;
@@ -778,7 +777,7 @@
         {titleHtml}
         className="word-visualization-compact-header"
     >
-        <div class="flex-1 min-h-500 relative bg-card rounded-md shadow" bind:this={container}>
+        <div class="flex-1 min-h-500 relative bg-card rounded shadow" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -786,16 +785,16 @@
             {/if}
         </div>
         
-        <div class="p-md bg-card rounded-md shadow">
+        <div class="p-md bg-card rounded shadow mt-md">
             <div>
-                <h3 class="mt-0 mb-sm text-primary text-md border-b border-solid border-default pb-xs">{$summaryText}</h3>
-                <p class="my-xs text-sm text-secondary">{$totalItemsWithWordCountText}: <strong>{formatNumber(totalItems)}</strong></p>
-                <p class="my-xs text-sm text-secondary">{$totalWordsText}: <strong>{formatNumber(totalWordCount)}</strong></p>
+                <h3 class="mt-0 mb-sm text-primary text-md font-medium border-b border-solid border-default pb-xs">{$summaryText}</h3>
+                <p class="my-xs text-sm text-secondary">{$totalItemsWithWordCountText}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
+                <p class="my-xs text-sm text-secondary">{$totalWordsText}: <strong class="font-medium">{formatNumber(totalWordCount)}</strong></p>
                 {#if totalItems > 0}
-                    <p class="my-xs text-sm text-secondary">{$avgWordsPerItemText}: <strong>{formatNumber(Math.round(totalWordCount / totalItems))}</strong></p>
+                    <p class="my-xs text-sm text-secondary">{$avgWordsPerItemText}: <strong class="font-medium">{formatNumber(Math.round(totalWordCount / totalItems))}</strong></p>
                 {/if}
                 {#if zoomedNode}
-                    <p class="my-xs text-sm text-secondary">{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
+                    <p class="my-xs text-sm text-secondary">{$currentlyViewingText}: <strong class="font-medium">{zoomedNode.data.name}</strong></p>
                     <p class="my-xs text-sm text-secondary">{$clickBackText}</p>
                 {:else}
                     <p class="my-xs text-sm text-secondary">{$clickZoomInText}</p>

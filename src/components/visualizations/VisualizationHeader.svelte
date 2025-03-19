@@ -62,14 +62,18 @@
         <h2 class="m-0 text-lg text-primary flex-1">{@html title}</h2>
         {#if description || descriptionTranslationKey}
             <button 
-                class="info-button"
+                class="p-xs flex items-center justify-center rounded-full cursor-pointer bg-card border border-solid border-light info-button"
                 on:click={toggleDescription}
                 aria-expanded={showDescription}
                 aria-controls={descriptionId}
                 type="button"
                 bind:this={infoButton}
             >
-                <span class="info-icon">ℹ️</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
                 <span class="sr-only">{showDescription ? $hideInfoText : $showInfoText}</span>
             </button>
         {/if}
@@ -90,26 +94,9 @@
 </div>
 
 <style>
-    /* Custom styles that can't be replaced with utility classes */
-    
-    .info-button {
-        background: none;
-        border: none;
-        padding: var(--spacing-xs);
-        cursor: pointer;
-        border-radius: var(--radius-full);
-        transition: background-color var(--transition-fast);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
+    /* Only keep styles that can't be achieved with utility classes */
     .info-button:hover {
         background-color: var(--color-bg-hover);
-    }
-
-    .info-icon {
-        font-size: var(--font-size-md);
     }
     
     /* Add a stronger position for the description to prevent it from being hidden */
@@ -117,35 +104,4 @@
         display: block;
         z-index: 9999 !important;
     }
-
-    /* Utility classes used in this component:
-     * - mb-md: margin-bottom medium
-     * - relative: position relative
-     * - flex: display flex
-     * - items-center: align-items center
-     * - gap-sm: gap small
-     * - pb-sm: padding-bottom small
-     * - bg-page: background color page
-     * - z-above: z-index above
-     * - m-0: margin 0
-     * - text-lg: font-size large
-     * - text-primary: text color primary
-     * - flex-1: flex 1
-     * - absolute: position absolute
-     * - top-100: top 100%
-     * - left-0: left 0
-     * - right-0: right 0
-     * - bg-card: background color card
-     * - rounded: border-radius medium
-     * - p-md: padding medium
-     * - mt-xs: margin-top extra small
-     * - border: border width 1px
-     * - border-solid: border style solid
-     * - border-default: border color default
-     * - shadow-lg: larger box-shadow
-     * - z-popover: z-index for popover elements (higher than z-above)
-     * - text-secondary: text color secondary
-     * - text-sm: font-size small
-     * - sr-only: screen reader only text (for accessibility)
-     */
 </style> 

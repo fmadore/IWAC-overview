@@ -424,7 +424,7 @@
                 }))
             .selectAll('text')
             .attr('class', 'text-xs text-primary')
-            .style('text-anchor', 'end')
+            .attr('text-anchor', 'end')
             .attr('dx', '-.8em')
             .attr('dy', '.15em')
             .attr('transform', `rotate(${isMobile ? -45 : -30})`);
@@ -552,7 +552,7 @@
                 }))
             .selectAll('text')
             .attr('class', 'text-xs text-primary')
-            .style('text-anchor', 'end')
+            .attr('text-anchor', 'end')
             .attr('dx', '-.8em')
             .attr('dy', '.15em')
             .attr('transform', `rotate(${isMobile ? -45 : -30})`);
@@ -774,7 +774,7 @@
         <div class="flex flex-wrap gap-md p-md bg-card rounded-t border-b border-solid border-default filters">
             <div class="flex flex-col gap-xs filter-group">
                 <label for="country-filter" class="text-xs font-bold text-secondary">{$filterByCountryText}:</label>
-                <select id="country-filter" on:change={handleCountryChange} value={selectedCountry} class="p-xs p-sm rounded-sm border border-solid border-default bg-card text-primary text-sm">
+                <select id="country-filter" on:change={handleCountryChange} value={selectedCountry} class="p-xs px-sm rounded-sm border border-solid border-default bg-card text-primary text-sm">
                     {#each countryOptions as option}
                         <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
                     {/each}
@@ -783,7 +783,7 @@
             
             <div class="flex flex-col gap-xs filter-group">
                 <label for="type-filter" class="text-xs font-bold text-secondary">{$filterByTypeText}:</label>
-                <select id="type-filter" on:change={handleTypeChange} value={selectedType} class="p-xs p-sm rounded-sm border border-solid border-default bg-card text-primary text-sm">
+                <select id="type-filter" on:change={handleTypeChange} value={selectedType} class="p-xs px-sm rounded-sm border border-solid border-default bg-card text-primary text-sm">
                     {#each typeOptions as option}
                         <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
                     {/each}
@@ -798,7 +798,6 @@
         </div>
         
         <div class="flex-1 relative min-h-500 bg-card rounded-b p-md chart-container overflow-hidden"
-             style="height: 500px;" 
              bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
@@ -807,21 +806,21 @@
             {/if}
         </div>
         
-        <div class="grid grid-cols-2 gap-md p-md bg-card rounded shadow stats">
+        <div class="grid grid-cols-2 gap-md p-md bg-card rounded shadow mt-md stats">
             {#if timelineData.length > 0}
                 <div class="p-md stat-summary">
-                    <h3 class="m-0 mb-sm text-md text-primary border-b border-solid border-default pb-xs">{$summaryText}</h3>
-                    <p class="text-sm">{$totalItemsText}: <strong>{formatNumber(totalItems)}</strong></p>
-                    <p class="text-sm">{$timePeriodText}: <strong>{timelineData[0]?.monthFormatted || ''} to {timelineData[timelineData.length - 1]?.monthFormatted || ''}</strong></p>
-                    <p class="text-sm">{$avgMonthlyAdditionsText}: <strong>{formatNumber(Math.round(totalItems / (timelineData.length || 1)))}</strong></p>
+                    <h3 class="mt-0 mb-sm text-md text-primary border-b border-solid border-default pb-xs">{$summaryText}</h3>
+                    <p class="text-sm mb-xs">{$totalItemsText}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
+                    <p class="text-sm mb-xs">{$timePeriodText}: <strong class="font-medium">{timelineData[0]?.monthFormatted || ''} to {timelineData[timelineData.length - 1]?.monthFormatted || ''}</strong></p>
+                    <p class="text-sm">{$avgMonthlyAdditionsText}: <strong class="font-medium">{formatNumber(Math.round(totalItems / (timelineData.length || 1)))}</strong></p>
                 </div>
                 <div class="p-md peak-months">
-                    <h3 class="m-0 mb-sm text-md text-primary border-b border-solid border-default pb-xs">{$peakGrowthMonthsText}</h3>
+                    <h3 class="mt-0 mb-sm text-md text-primary border-b border-solid border-default pb-xs">{$peakGrowthMonthsText}</h3>
                     <ul class="list-style-none p-0 m-0">
                         {#each [...timelineData].sort((a, b) => b.count - a.count).slice(0, 3) as month}
                             <li class="flex justify-between mb-xs text-sm">
                                 <span class="text-primary">{month.monthFormatted}</span>
-                                <span class="text-secondary font-bold">{formatNumber(month.count)} {$itemsText} ({((month.count / (totalItems || 1)) * 100).toFixed(1)}%)</span>
+                                <span class="text-secondary font-medium">{formatNumber(month.count)} {$itemsText} ({((month.count / (totalItems || 1)) * 100).toFixed(1)}%)</span>
                             </li>
                         {/each}
                     </ul>
@@ -829,4 +828,28 @@
             {/if}
         </div>
     </BaseVisualization>
-</div> 
+</div>
+
+<style>
+    /* Only keep styles that can't be achieved with utility classes */
+    .filter-group {
+        min-width: 200px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .filters {
+            flex-direction: column;
+        }
+        
+        .summary {
+            margin-left: 0;
+            margin-top: var(--spacing-sm);
+            align-self: flex-start;
+        }
+        
+        .stats {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style> 
