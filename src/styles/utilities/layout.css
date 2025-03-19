@@ -33,6 +33,10 @@
 .cursor-grabbing { cursor: grabbing; }
 .cursor-help { cursor: help; }
 
+/* Pointer Events */
+.pointer-events-none { pointer-events: none; }
+.pointer-events-auto { pointer-events: auto; }
+
 /* Flexbox */
 .flex-row { flex-direction: row; }
 .flex-row-reverse { flex-direction: row-reverse; }

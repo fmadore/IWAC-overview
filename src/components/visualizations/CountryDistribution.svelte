@@ -450,13 +450,7 @@
             if (!hierarchyData.children || hierarchyData.children.length === 0) {
                 d3.select(container).select('svg').remove();
                 d3.select(container).append('div')
-                    .attr('class', 'no-data')
-                    .style('position', 'absolute')
-                    .style('top', '50%')
-                    .style('left', '50%')
-                    .style('transform', 'translate(-50%, -50%)')
-                    .style('text-align', 'center')
-                    .style('color', 'var(--color-text-secondary)')
+                    .attr('class', 'no-data absolute inset-center text-center text-secondary')
                     .text($noDataText);
                 return;
             }
@@ -650,7 +644,7 @@
                         })
                         .attr('stroke', 'white')
                         .attr('stroke-width', 1.5)
-                        .style('opacity', 0.8)
+                        .attr('opacity', 0.8)
                         .attr('class', 'cursor-pointer')
                         .on('click', (event, d) => {
                             // When clicking on a category in the country view, zoom to the country
@@ -674,6 +668,7 @@
                         .attr('font-size', 'var(--font-size-xs)')
                         .attr('font-weight', 'bold')
                         .attr('fill', 'white')
+                        .attr('class', 'pointer-events-none')
                         .text(d => {
                             const width = (d as any).x1 - (d as any).x0;
                             // If width is too small, just show the name without item count
@@ -681,7 +676,6 @@
                             // Otherwise show name with item count
                             return `${d.data.name} (${d.data.itemCount || 0})`;
                         })
-                        .style('pointer-events', 'none')
                         .each(function(d) {
                             const self = d3.select(this);
                             const textLength = (this as SVGTextElement).getComputedTextLength();
@@ -747,8 +741,8 @@
                         .attr('font-size', 'var(--font-size-sm)')
                         .attr('font-weight', 'bold')
                         .attr('fill', 'white')
-                        .text(`${countryName} (${countryNode.data.itemCount || 0} ${$itemsText})`)
-                        .style('pointer-events', 'none');
+                        .attr('class', 'pointer-events-none')
+                        .text(`${countryName} (${countryNode.data.itemCount || 0} ${$itemsText})`);
                 });
             } else if (isCategoryLevel) {
                 // When zoomed to a country, show its categories
@@ -803,7 +797,7 @@
                     })
                     .attr('stroke', 'white')
                     .attr('stroke-width', 1.5)
-                    .style('opacity', 0.8)
+                    .attr('opacity', 0.8)
                     .attr('class', 'cursor-pointer')
                     .on('click', (event, d) => {
                         zoomToNode(d);
@@ -826,8 +820,8 @@
                     .attr('font-size', 'var(--font-size-sm)')
                     .attr('font-weight', 'bold')
                     .attr('fill', 'white')
+                    .attr('class', 'pointer-events-none')
                     .text(d => `${d.data.name} (${d.data.itemCount || 0} ${$itemsText})`)
-                    .style('pointer-events', 'none')
                     .each(function(d) {
                         const self = d3.select(this);
                         const textLength = (this as SVGTextElement).getComputedTextLength();
@@ -914,7 +908,7 @@
                     .attr('y', 13)
                     .attr('font-size', 'var(--font-size-xs)')
                     .attr('fill', 'var(--color-text-primary)')
-                    .style('pointer-events', 'none')
+                    .attr('class', 'pointer-events-none')
                     .each(function(d) {
                         const self = d3.select(this);
                         const width = (d as any).x1 - (d as any).x0;
@@ -987,10 +981,10 @@
                 const percentOfTotal = totalItems > 0 ? ((countryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
                 
                 const content = `
-                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                    <div class="font-bold mb-xs pb-xs border-b border-white border-opacity-30">
                         ${countryName}
                     </div>
-                    <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
+                    <div class="grid grid-cols-2 gap-xs">
                         <span>${$itemsText}:</span>
                         <span class="text-right font-medium">${countryItems}</span>
                         <span>${$categoriesText}:</span>
@@ -998,7 +992,7 @@
                         <span>${$percentTotalText}:</span>
                         <span class="text-right">${percentOfTotal}</span>
                     </div>
-                    <div style="margin-top:4px;font-style:italic;font-size:10px;">
+                    <div class="mt-xs italic text-xs">
                         ${$clickZoomInText}
                     </div>
                 `;
@@ -1020,10 +1014,10 @@
                 const percentOfTotal = totalItems > 0 ? ((categoryItems / totalItems) * 100).toFixed(1) + '%' : 'N/A';
                 
                 const content = `
-                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                    <div class="font-bold mb-xs pb-xs border-b border-white border-opacity-30">
                         ${countryName} > ${categoryName}
                     </div>
-                    <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
+                    <div class="grid grid-cols-2 gap-xs">
                         <span>${$itemsText}:</span>
                         <span class="text-right font-medium">${categoryItems}</span>
                         <span>${$subCollectionsText}:</span>
@@ -1033,7 +1027,7 @@
                         <span>${$percentTotalText}:</span>
                         <span class="text-right">${percentOfTotal}</span>
                     </div>
-                    <div style="margin-top:4px;font-style:italic;font-size:10px;">
+                    <div class="mt-xs italic text-xs">
                         ${$clickZoomInText}
                     </div>
                 `;
@@ -1074,10 +1068,10 @@
                 const country = countryName ? countryName : null;
                 
                 const content = `
-                    <div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+                    <div class="font-bold mb-xs pb-xs border-b border-white border-opacity-30">
                         ${title}
                     </div>
-                    <div style="display:grid;grid-template-columns:auto auto;gap:4px;">
+                    <div class="grid grid-cols-2 gap-xs">
                         <span>${$itemsText}:</span>
                         <span class="text-right font-medium">${itemCount}</span>
                         ${category ? `<span>% of ${category}:</span>
@@ -1104,7 +1098,7 @@
         theme="default"
         className="country-distribution"
     >
-        <div class="chart-container relative flex-1" bind:this={container}>
+        <div class="chart-container relative flex-1 min-h-450 bg-card rounded p-md overflow-hidden" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -1139,30 +1133,16 @@
 <style>
     /* Only keep styles that can't be achieved with utility classes */
     
-    /* Chart container minimum height */
-    .chart-container {
-        min-height: 450px;
-        overflow: hidden;
+    @keyframes pulse {
+        0% { stroke-opacity: 0.6; }
+        50% { stroke-opacity: 1; }
+        100% { stroke-opacity: 0.6; }
     }
     
-    /* Center positioning utility */
-    :global(.inset-center) {
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-    }
-    
-    /* Search highlight animation */
     :global(.search-highlight rect) {
         stroke: var(--color-primary) !important;
         stroke-width: 2px !important;
         stroke-dasharray: 5, 2;
         animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-        0% { stroke-opacity: 0.6; }
-        50% { stroke-opacity: 1; }
-        100% { stroke-opacity: 0.6; }
     }
 </style> 
