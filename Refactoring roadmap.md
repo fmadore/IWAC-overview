@@ -186,17 +186,183 @@
 
 ## 7. Modernize CSS Architecture
 
-**Issue:** CSS is a mix of global styles and component-scoped styles with duplication.
+**Issue:** CSS is a mix of global styles and component-scoped styles with duplication, spread across multiple files (`theme.css`, `app.css`) outside the styles folder.
 
 **Improvement:**
-- Implement a more structured CSS architecture
-- Reduce style duplication
+- ✅ Implement a structured CSS architecture with a clear directory structure
+- ✅ Move CSS into organized folders with separation of concerns
+- ✅ Create a consistent theming system with utility classes
+- ✅ Provide clear documentation and usage examples
 
 **Implementation steps:**
-1. Organize theme variables more systematically
-2. Create a design system with reusable components
-3. Standardize component styling approaches
-4. Implement CSS utility classes for common patterns
+1. ✅ Create a structured CSS directory organization:
+   ```
+   src/styles/
+   ├── main.css                  # Main entry point that imports all styles
+   ├── themes/
+   │   └── default-theme.css     # CSS variables defining the design system
+   └── utilities/
+       ├── colors.css            # Text, background, and border color utilities
+       ├── spacing.css           # Margin, padding, and gap utilities
+       ├── typography.css        # Font, text alignment, and styling utilities
+       ├── layout.css            # Display, flexbox, grid, and positioning utilities
+       └── borders.css           # Border width, style, radius, and shadow utilities
+   └── base/
+       └── global.css            # Reset and basic global styles (from app.css)
+   └── docs/
+       ├── README.md             # CSS architecture documentation
+       └── styleguide.html       # Visual documentation of available styles
+   ```
+
+2. ✅ Organize theme variables more systematically in `default-theme.css`:
+   - ✅ Group variables by functional category (colors, typography, spacing, etc.)
+   - ✅ Establish consistent naming patterns for all variables
+   - ✅ Add comments to explain variable purposes
+   - ✅ Add dark mode variations (initially commented out)
+
+3. ✅ Create utility classes for common patterns:
+   - ✅ Create `colors.css` with text, background, and border color utilities
+   - ✅ Create `spacing.css` with margin, padding, and gap utilities
+   - ✅ Create `typography.css` with font sizes, weights, and text styling utilities
+   - ✅ Create `layout.css` with flexbox, grid, and positioning utilities
+   - ✅ Create `borders.css` with border styles, widths, radiuses, and shadows
+
+4. ✅ Create documentation for the CSS architecture:
+   - ✅ Create `README.md` explaining the CSS organization, naming conventions, and usage
+   - ✅ Create a visual style guide that showcases all available styles
+
+5. ✅ Transition plan for migrating from old CSS files:
+   - ✅ Create an import file that imports both old and new CSS structures during transition
+   - ✅ Update `main.ts` to include the new CSS entry point
+   - ✅ Start with key component updates that serve as examples for the rest of the app
+   - ✅ Fix style conflicts that arise during the transition
+
+6. ✅ Update key components to use the new CSS architecture:
+   - ✅ Start with `App.svelte` styles:
+     - ✅ Replace legacy variable usage with new CSS variables
+     - ✅ Use utility classes for common styling patterns
+     - ✅ Remove redundant style definitions
+   - ✅ Update `BaseVisualization.svelte` and `VisualizationHeader.svelte`:
+     - ✅ Incorporate utility classes for layout and spacing
+     - ✅ Simplify component styles using the new CSS architecture
+     - ✅ Document the styling approach for other visualization components
+
+7. ✅ Create a deprecation plan for old CSS files:
+   - ✅ Add comments to `theme.css` and `app.css` indicating they are deprecated
+   - ✅ Move essential styles from `app.css` to appropriate locations in the new structure
+   - ✅ Establish legacy compatibilities in `global.css` for backward compatibility
+   - ✅ Document the transition approach for other developers
+
+8. Next steps for standardizing component styling approach:
+   - [ ] Document recommendations for when to use utility classes vs. component styles
+   - [ ] Create examples of properly styled components using the new architecture
+   - [ ] Establish naming conventions for component-specific CSS classes
+   - [ ] Update additional visualization components to use the new CSS architecture
+
+9. Future enhancements for the CSS architecture:
+   - [ ] Create a `components` directory in the CSS structure for reusable UI components
+   - [ ] Document the component styling API and usage patterns
+   - [ ] Provide examples of component composition patterns
+   - [ ] Remove duplicate styles between `theme.css` and new utility files
+
+10. ✅ Add comprehensive testing for the CSS architecture:
+    - ✅ Test for style conflicts between old and new CSS
+    - ✅ Test components with the new styling in different viewports
+    - ✅ Validate accessibility of the new styles
+
+## CSS Architecture Status (Updated)
+
+### ✅ Phase 1: Initial Setup and Documentation (Completed)
+- ✅ Set up the folder structure for the new CSS architecture
+- ✅ Create the theme variables file with a systematic organization
+- ✅ Develop utility classes for colors, spacing, typography, layout, and borders
+- ✅ Create documentation and a visual style guide
+
+### ✅ Phase 2: Component Transition (Completed)
+- ✅ Update `App.svelte` to use utility classes
+- ✅ Update `BaseVisualization.svelte` to use utility classes
+- ✅ Update `VisualizationHeader.svelte` to use utility classes
+- ✅ Fix style conflicts and ensure compatibility
+
+### Phase 3: Full Application Transition (Current)
+- [ ] Update remaining visualization components to use the new CSS architecture:
+  - [ ] Update CountryDistribution.svelte
+  - [ ] Update LanguageDistribution.svelte
+  - [ ] Update IndexDistribution.svelte
+  - [ ] Update TimelineDistribution.svelte
+  - [ ] Update TypeDistribution.svelte
+  - [ ] Update WordDistribution.svelte
+- [ ] Update utility components to use the new CSS architecture:
+  - [ ] Update LanguageToggle.svelte
+  - [ ] Update FullScreenToggle.svelte
+  - [ ] Update DebugPanel.svelte
+- [ ] Add prefixing for utility classes to avoid conflicts (e.g., `.iwac-flex` instead of `.flex`)
+- [ ] Create a strategy to handle existing CSS that depends on the old files
+- [ ] Gradually phase out `theme.css` and `app.css` as components are updated
+
+### Phase 4: Finalization (Planned)
+- [ ] Remove deprecated CSS files after all components have been transitioned
+- [ ] Update the build process to only include the new CSS architecture
+- [ ] Finalize documentation with real-world examples from the codebase
+- [ ] Create a comprehensive style guide for future development
+
+## CSS Architecture Migration Guide
+
+### 1. Basic principles for converting components
+1. Replace direct CSS property usage with utility classes
+2. Keep only the styles that can't be represented by utility classes in the component's style block
+3. Document what utility classes are used in the component
+4. Use semantic class names for component-specific styles
+
+### 2. Migration workflow
+1. Identify all styles used in the component
+2. Find matching utility classes from the new CSS architecture
+3. Replace the CSS properties with utility classes
+4. Remove redundant style definitions
+5. Document the utility classes used in the component
+
+### 3. Example: Migrating component styles
+```svelte
+<!-- Before -->
+<div class="visualization-container">
+  <h2 class="title">{title}</h2>
+  <div class="content">{content}</div>
+</div>
+
+<style>
+  .visualization-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .title {
+    font-size: var(--font-size-lg);
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .content {
+    background-color: var(--color-bg-card);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+  }
+</style>
+
+<!-- After -->
+<div class="w-full flex flex-col mb-md visualization-container">
+  <h2 class="text-lg text-primary mb-sm">{title}</h2>
+  <div class="bg-card p-md rounded">{content}</div>
+</div>
+
+<style>
+  /* All styles have been replaced with utility classes */
+  .visualization-container {
+    /* Component-specific styles that can't be represented by utility classes */
+  }
+</style>
+```
 
 ## 8. Enhance TypeScript Integration
 

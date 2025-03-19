@@ -1,0 +1,40 @@
+/*
+ * Main.css - Main Stylesheet
+ *
+ * This is the main stylesheet that imports all theme variables and utility classes.
+ * It serves as the entry point for the application's CSS.
+ */
+
+/* Import all CSS files */
+/* Theme */
+@import './themes/default-theme.css';
+/* Base */
+@import './base/global.css';
+/* Utilities */
+@import './utilities/colors.css';
+@import './utilities/spacing.css';
+@import './utilities/typography.css';
+@import './utilities/layout.css';
+@import './utilities/borders.css';
+
+/* CSS Reset and base styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  line-height: 1.5;
+  /* Text size adjust properties removed due to conflicting browser compatibility requirements.
+     If needed, they can be selectively added for specific browser support targets. */
+  font-family: var(--font-family-base);
+  color: var(--color-text-primary);
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--color-bg-page);
+}
+
+/* Add any component styles below this line */ 

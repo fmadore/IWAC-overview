@@ -36,7 +36,7 @@
     export let padding: string = 'var(--spacing-md)';
     export let className: string = '';
     
-    // Computed styles
+    // Computed styles for custom styling that can't be done with utility classes
     $: containerStyle = `
         min-height: ${minHeight};
         padding: ${padding};
@@ -77,13 +77,10 @@
             resizeObserver.disconnect();
         }
     });
-    
-    // We no longer need container, SVG, width, height, or updateVisualization
-    // as these are handled by the child visualization components
 </script>
 
 <div 
-    class="visualization-wrapper {theme} {className}" 
+    class="w-full flex flex-col relative visualization-wrapper {theme} {className}" 
     role="region" 
     aria-label={computedAriaLabel}
     aria-describedby={hasDescription ? descriptionId : undefined}
@@ -94,19 +91,28 @@
         {descriptionTranslationKey}
         bind:showDescription
         {descriptionId}
-        className="visualization-header"
+        className="z-above"
     />
     
-    <div class="visualization-content" role="presentation" bind:this={contentContainer}>
+    <div class="w-full flex-1 flex flex-col relative z-base visualization-content" 
+         role="presentation" 
+         bind:this={contentContainer}
+    >
         <slot>
             <!-- Default content if no slot is provided -->
             <div class="empty-visualization" aria-live="polite" style={containerStyle}>
                 {#if $itemsStore.loading}
-                    <div class="loading">{t('ui.loading')}</div>
+                    <div class="text-center text-secondary">
+                        {t('ui.loading')}
+                    </div>
                 {:else if $itemsStore.error}
-                    <div class="error" role="alert">{$itemsStore.error}</div>
+                    <div class="text-center text-error" role="alert">
+                        {$itemsStore.error}
+                    </div>
                 {:else}
-                    <div class="no-content">{t('ui.no_visualization_content')}</div>
+                    <div class="text-center text-secondary">
+                        {t('ui.no_visualization_content')}
+                    </div>
                 {/if}
             </div>
         </slot>
@@ -114,61 +120,50 @@
 </div>
 
 <style>
-    .visualization-wrapper {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        position: relative;
-    }
-    
-    .visualization-content {
-        width: 100%;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        position: relative;
-        z-index: 1;
-    }
-    
-    :global(.visualization-header) {
-        position: relative;
-        z-index: 2;
-    }
+    /* 
+     * We keep only the styles that can't be replaced with utility classes
+     */
+    /* The base styles for these components are now handled by utility classes */
+    /* If component-specific styles are needed in the future, add them here */
     
     .empty-visualization {
         width: 100%;
         height: 400px;
         position: relative;
-        background: var(--card-background);
+        background: var(--color-bg-card);
         border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
+        box-shadow: var(--shadow-md);
         padding: var(--spacing-md);
         display: flex;
         align-items: center;
         justify-content: center;
     }
-
-    .loading, .error, .no-content {
-        color: var(--text-color-secondary);
-        text-align: center;
-    }
-
-    .error {
-        color: var(--error-color);
-    }
     
     /* Theme variations */
     .light {
-        --card-background: #ffffff;
-        --text-color-primary: #333333;
-        --text-color-secondary: #666666;
-        --error-color: #e53935;
+        --color-bg-card: #ffffff;
+        --color-text-primary: #333333;
+        --color-text-secondary: #666666;
+        --color-error: #e53935;
     }
     
     .dark {
-        --card-background: #2d2d2d;
-        --text-color-primary: #f5f5f5;
-        --text-color-secondary: #bbbbbb;
-        --error-color: #ff6b6b;
+        --color-bg-card: #2d2d2d;
+        --color-text-primary: #f5f5f5;
+        --color-text-secondary: #bbbbbb;
+        --color-error: #ff6b6b;
     }
+
+    /* Utility classes used in this component:
+     * - w-full: width 100%
+     * - flex: display flex
+     * - flex-col: flex-direction column
+     * - relative: position relative
+     * - z-above: z-index above
+     * - flex-1: flex 1
+     * - z-base: z-index base
+     * - text-center: text-align center
+     * - text-secondary: text color secondary
+     * - text-error: text color error
+     */
 </style> 

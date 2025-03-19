@@ -8,8 +8,8 @@
     "allowJs": true,
     "checkJs": true,
     "isolatedModules": true,
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
+    "noImplicitAny": true,
     "strictNullChecks": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
@@ -21,6 +21,7 @@
     "baseUrl": ".",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "paths": {
       "svelte": ["node_modules/svelte/types/runtime"],
       "svelte/*": ["node_modules/svelte/types/*"]

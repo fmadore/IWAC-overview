@@ -1,8 +1,8 @@
 /* 
- * DEPRECATED: This file is being phased out in favor of the new CSS architecture.
- * Please use src/styles/themes/default-theme.css for theme variables and 
- * src/styles/utilities/* for utility classes. This file is kept for backward compatibility
- * during the transition period.
+ * Default Theme - CSS Variables
+ *
+ * This file contains all the CSS variables used across the application.
+ * It defines the default theme for the application.
  */
 
 :root {
@@ -130,75 +130,6 @@
   --z-popover: 1060;
   --z-tooltip: 1070;
 }
-
-/* ======= UTILITY CLASSES ======= */
-
-/* Text Colors */
-.text-primary { color: var(--color-text-primary); }
-.text-secondary { color: var(--color-text-secondary); }
-.text-tertiary { color: var(--color-text-tertiary); }
-.text-light { color: var(--color-text-light); }
-.text-muted { color: var(--color-text-muted); }
-.text-brand { color: var(--color-primary); }
-.text-success { color: var(--color-success); }
-.text-error { color: var(--color-error); }
-.text-warning { color: var(--color-warning); }
-.text-info { color: var(--color-info); }
-
-/* Background Colors */
-.bg-page { background-color: var(--color-bg-page); }
-.bg-card { background-color: var(--color-bg-card); }
-.bg-card-alt { background-color: var(--color-bg-card-alt); }
-.bg-primary { background-color: var(--color-primary); }
-.bg-primary-light { background-color: var(--color-primary-light); }
-.bg-secondary { background-color: var(--color-secondary); }
-.bg-secondary-light { background-color: var(--color-secondary-light); }
-.bg-success-light { background-color: var(--color-success-light); }
-.bg-error-light { background-color: var(--color-error-light); }
-.bg-warning-light { background-color: var(--color-warning-light); }
-.bg-info-light { background-color: var(--color-info-light); }
-
-/* Spacing Utilities */
-.m-0 { margin: 0; }
-.p-0 { padding: 0; }
-.p-xs { padding: var(--spacing-xs); }
-.p-sm { padding: var(--spacing-sm); }
-.p-md { padding: var(--spacing-md); }
-.p-lg { padding: var(--spacing-lg); }
-.m-xs { margin: var(--spacing-xs); }
-.m-sm { margin: var(--spacing-sm); }
-.m-md { margin: var(--spacing-md); }
-.m-lg { margin: var(--spacing-lg); }
-
-/* Display Utilities */
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-center { justify-content: center; }
-.justify-between { justify-content: space-between; }
-.gap-xs { gap: var(--spacing-xs); }
-.gap-sm { gap: var(--spacing-sm); }
-.gap-md { gap: var(--spacing-md); }
-
-/* Typography Utilities */
-.font-bold { font-weight: var(--font-weight-bold); }
-.font-medium { font-weight: var(--font-weight-medium); }
-.font-normal { font-weight: var(--font-weight-normal); }
-.font-light { font-weight: var(--font-weight-light); }
-.text-xs { font-size: var(--font-size-xs); }
-.text-sm { font-size: var(--font-size-sm); }
-.text-md { font-size: var(--font-size-md); }
-.text-lg { font-size: var(--font-size-lg); }
-.text-xl { font-size: var(--font-size-xl); }
-
-/* Border Utilities */
-.border { border: var(--border-width-thin) solid var(--color-border); }
-.border-light { border: var(--border-width-thin) solid var(--color-border-light); }
-.border-primary { border: var(--border-width-thin) solid var(--color-primary); }
-.rounded-sm { border-radius: var(--radius-sm); }
-.rounded-md { border-radius: var(--radius-md); }
-.rounded-lg { border-radius: var(--radius-lg); }
-.rounded-full { border-radius: var(--radius-full); }
 
 /* ======= DARK MODE ======= */
 /* Dark mode is disabled for now. Uncomment this section when dark mode is implemented.
