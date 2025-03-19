@@ -305,9 +305,14 @@
   - [ ] Update TypeDistribution.svelte
   - ✅ Update WordDistribution.svelte
 - [ ] Update utility components to use the new CSS architecture:
-  - [ ] Update LanguageToggle.svelte
-  - [ ] Update FullScreenToggle.svelte
+  - ✅ Update LanguageToggle.svelte
+  - ✅ Update FullScreenToggle.svelte
   - [ ] Update DebugPanel.svelte
+- ✅ Improve mobile responsiveness:
+  - ✅ Add responsive sizing for buttons
+  - ✅ Ensure consistent styling between desktop and mobile
+  - ✅ Implement larger touch targets for mobile interfaces
+  - ✅ Add media queries for key interactive components
 - [ ] Add prefixing for utility classes to avoid conflicts (e.g., `.iwac-flex` instead of `.flex`)
 - [ ] Create a strategy to handle existing CSS that depends on the old files
 - [ ] Gradually phase out `theme.css` and `app.css` as components are updated
