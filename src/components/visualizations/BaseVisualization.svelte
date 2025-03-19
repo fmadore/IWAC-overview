@@ -121,17 +121,15 @@
 
 <style>
     /* 
-     * We keep only the styles that can't be replaced with utility classes
+     * We only include styles that can't be handled with utility classes.
+     * Most visualization styles should come from our CSS architecture.
      */
-    /* The base styles for these components are now handled by utility classes */
-    /* If component-specific styles are needed in the future, add them here */
-    
     .empty-visualization {
         width: 100%;
         height: 400px;
         position: relative;
         background: var(--color-bg-card);
-        border-radius: var(--border-radius-md);
+        border-radius: var(--radius-md);
         box-shadow: var(--shadow-md);
         padding: var(--spacing-md);
         display: flex;
@@ -153,17 +151,4 @@
         --color-text-secondary: #bbbbbb;
         --color-error: #ff6b6b;
     }
-
-    /* Utility classes used in this component:
-     * - w-full: width 100%
-     * - flex: display flex
-     * - flex-col: flex-direction column
-     * - relative: position relative
-     * - z-above: z-index above
-     * - flex-1: flex 1
-     * - z-base: z-index base
-     * - text-center: text-align center
-     * - text-secondary: text color secondary
-     * - text-error: text color error
-     */
 </style> 
