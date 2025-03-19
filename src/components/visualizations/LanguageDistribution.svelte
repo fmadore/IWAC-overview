@@ -359,18 +359,23 @@
                     ${topLanguages.map((d, i) => {
                         const languageName = t(`lang.${d.language}`) || d.language;
                         return `
-                            <div class="legend-color-mobile" style="background-color:${colorScale(d.language)}"></div>
+                            <div class="legend-color-mobile" data-color="${colorScale(d.language)}"></div>
                             <div class="legend-label-mobile">${languageName}</div>
                             <div class="legend-value-mobile">${formatNumber(d.count)}</div>
                         `;
                     }).join('')}
                     ${data.length > 6 ? `
-                        <div class="legend-color-mobile" style="background-color:#999"></div>
+                        <div class="legend-color-mobile" data-color="#999"></div>
                         <div class="legend-label-mobile">${t('viz.others')}</div>
                         <div class="legend-value-mobile">${formatNumber(totalOthers)}</div>
                     ` : ''}
                 </div>
             `;
+            
+            // Apply background colors using dataset
+            legend.querySelectorAll('.legend-color-mobile').forEach(el => {
+                (el as HTMLElement).style.backgroundColor = (el as HTMLElement).dataset.color || '';
+            });
         } else {
             // Desktop view with full legend
             legend.innerHTML = `
@@ -379,13 +384,18 @@
                     ${data.map((d, i) => {
                         const languageName = t(`lang.${d.language}`) || d.language;
                         return `
-                            <div class="legend-color" style="background-color:${colorScale(d.language)}"></div>
+                            <div class="legend-color" data-color="${colorScale(d.language)}"></div>
                             <div class="legend-label">${languageName}</div>
                             <div class="legend-value">${formatNumber(d.count)}</div>
                         `;
                     }).join('')}
                 </div>
             `;
+            
+            // Apply background colors using dataset
+            legend.querySelectorAll('.legend-color').forEach(el => {
+                (el as HTMLElement).style.backgroundColor = (el as HTMLElement).dataset.color || '';
+            });
         }
     }
 
@@ -539,7 +549,7 @@
             </div>
         </div>
         
-        <div class="flex-1 relative min-h-500 bg-card rounded-b shadow pie-container" bind:this={container}>
+        <div class="flex-1 relative min-h-500 bg-card rounded-b shadow overflow-hidden p-md pie-container" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
