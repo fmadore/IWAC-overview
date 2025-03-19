@@ -150,13 +150,19 @@
 - Establish a centralized error handling approach
 - Make error handling more user-friendly
 - ✅ Implement proper error handling in visualization components
+- ✅ Standardize loading, error, and no-data message handling
 
 **Implementation steps:**
 1. ✅ Implement comprehensive error handling in visualization components (demonstrated in CountryDistribution)
-2. Create an error handling service
-3. Standardize try/catch patterns in async operations
-4. Implement proper error boundaries in components
-5. Add user-friendly error messages and recovery options
+2. ✅ Standardize visualization status messages:
+   - ✅ Use consistent class names for status messages (e.g., 'absolute inset-center text-secondary z-50')
+   - ✅ Add proper z-index handling to prevent message overlapping
+   - ✅ Implement proper cleanup of previous messages
+   - ✅ Fix "No data available" message appearing alongside visualizations
+3. Create an error handling service
+4. Standardize try/catch patterns in async operations
+5. Implement proper error boundaries in components
+6. Add user-friendly error messages and recovery options
 
 ## 6. Extract and Standardize Data Processing Logic
 
@@ -297,12 +303,12 @@
   - ✅ Enhance tab navigation appearance and behavior
 - ✅ Document new utilities and their usage patterns in the README
 - ✅ Enforce style consistency across components
-- [ ] Update remaining visualization components to use the new CSS architecture:
+- ✅ Update remaining visualization components to use the new CSS architecture:
   - ✅ Update CountryDistribution.svelte
   - ✅ Update IndexDistribution.svelte
   - ✅ Update LanguageDistribution.svelte
   - ✅ Update TimelineDistribution.svelte
-  - [ ] Update TypeDistribution.svelte
+  - ✅ Update TypeDistribution.svelte
   - ✅ Update WordDistribution.svelte
 - [ ] Update utility components to use the new CSS architecture:
   - ✅ Update LanguageToggle.svelte
@@ -313,6 +319,11 @@
   - ✅ Ensure consistent styling between desktop and mobile
   - ✅ Implement larger touch targets for mobile interfaces
   - ✅ Add media queries for key interactive components
+- ✅ Fix D3.js visualization issues:
+  - ✅ Resolved overlapping "No data available" messages in visualizations
+  - ✅ Improved message removal/addition approach for consistency
+  - ✅ Added proper z-index handling for status messages
+  - ✅ Standardized class names for loading/error/no-data states
 - [ ] Add prefixing for utility classes to avoid conflicts (e.g., `.iwac-flex` instead of `.flex`)
 - [ ] Create a strategy to handle existing CSS that depends on the old files
 - [ ] Gradually phase out `theme.css` and `app.css` as components are updated
@@ -429,6 +440,44 @@ Key improvements:
 - Maintained visualization-specific styling needs through D3's style API
 - Created reusable utility classes for common visualization patterns
 - Simplified the component structure by removing redundant styling
+
+### 6. D3.js message handling improvements in TypeDistribution component
+The `TypeDistribution.svelte` component now properly handles status messages for D3.js visualizations:
+
+```javascript
+// Before - problematic message handling
+if (typeYearData.length === 0) {
+    d3.select(container).select('svg').remove();
+    d3.select(container).select('.no-data').remove();
+    d3.select(container).append('div')
+        .attr('class', 'absolute inset-center text-secondary')
+        .text($noDataText);
+    return;
+}
+
+// After - improved message handling
+// Remove previous visualization and no-data message
+d3.select(container).select('svg').remove();
+d3.select(container).selectAll('.absolute.inset-center').remove();
+
+if (typeYearData.length === 0) {
+    d3.select(container).append('div')
+        .attr('class', 'absolute inset-center text-secondary z-50')
+        .text($noDataText);
+    return;
+}
+```
+
+Key improvements:
+- Moved the removal of messages before the conditional check
+- Use `selectAll()` instead of `select()` to catch all status messages
+- Added proper z-index (`z-50`) to ensure messages appear on top
+- Used standard class combination for all message types
+- Added multiple checks throughout the component to prevent message overlap
+- Standardized the message removal approach across all states
+- Created a consistent approach that can be applied to all visualizations
+
+This approach resolves common issues with overlapping messages in D3.js visualizations and provides a pattern for other components to follow.
 
 ## 8. Enhance TypeScript Integration
 
