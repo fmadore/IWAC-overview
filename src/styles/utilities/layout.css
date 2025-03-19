@@ -186,4 +186,101 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* Legend positioning utilities */
+.legend-desktop {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin-right: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm);
+  max-height: 300px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.legend-mobile {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  max-height: 150px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* Legend content utilities */
+.legend-heading {
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.legend-heading-mobile {
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.legend-grid {
+  display: grid;
+  gap: var(--spacing-xs);
+  grid-template-columns: 20px auto 40px;
+}
+
+.legend-grid-mobile {
+  display: grid;
+  gap: var(--spacing-xs);
+  grid-template-columns: 12px auto 40px;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  margin-top: var(--spacing-2xs);
+}
+
+.legend-color-mobile {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-sm);
+}
+
+.legend-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.legend-label-mobile {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-primary);
+  font-size: 10px;
+}
+
+.legend-value {
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.legend-value-mobile {
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-size: 10px;
 } 

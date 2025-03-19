@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, tick } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import * as d3 from 'd3';
     import { itemsStore } from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
@@ -108,7 +108,6 @@
         } else {
             titleHtml = t('viz.language_distribution_title');
         }
-        console.log("Language Distribution Title updated:", titleHtml);
     }
 
     // Call this function whenever totalItems or language changes
@@ -155,7 +154,6 @@
                 // Subscribe to language changes
                 languageUnsubscribe = languageStore.subscribe(value => {
                     if (!isMounted) return;
-                    console.log("Language changed to:", value);
                     currentLang = value;
                     
                     if (container) {
@@ -209,6 +207,27 @@
         };
     });
 
+    // Add onDestroy to ensure cleanup
+    onDestroy(() => {
+        try {
+            isMounted = false;
+            
+            if (resizeHook) {
+                resizeHook.cleanup();
+            }
+            
+            if (languageUnsubscribe) {
+                languageUnsubscribe();
+            }
+            
+            if (container) {
+                d3.select(container).selectAll('*').remove();
+            }
+        } catch (e) {
+            console.error('Error during cleanup:', e);
+        }
+    });
+
     // Process data based on current filters
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
@@ -231,8 +250,6 @@
         
         // Update the title after the total items count has been updated
         updateTitleHtml();
-        
-        console.log(`Processed ${totalItems} items with language data`);
         
         return processedCounts;
     }
@@ -310,18 +327,15 @@
             legend.innerHTML = '';
         } else {
             legend = document.createElement('div');
-            legend.style.position = 'absolute';
-            legend.style.right = '20px';
-            legend.style.top = '20px';
-            legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-            legend.style.padding = '10px';
-            legend.style.borderRadius = '4px';
-            legend.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-            legend.style.maxHeight = '300px';
-            legend.style.overflowY = 'auto';
-            legend.style.color = 'var(--text-color-primary)';
-            legend.style.fontFamily = 'var(--font-family-primary)';
-            legend.style.fontSize = 'var(--font-size-sm)';
+            
+            // Position legend differently on mobile vs desktop
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                legend.className = 'legend-mobile';
+            } else {
+                legend.className = 'legend-desktop';
+            }
+            
             container.appendChild(legend);
         }
     }
@@ -330,19 +344,49 @@
     function updateLegend(data: LanguageCount[]) {
         if (!legend) return;
         
-        legend.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:8px;font-size:14px;color:var(--text-color-primary);">${t('viz.languages')} (${data.length})</div>
-            <div style="display:grid;grid-template-columns:20px auto 40px;gap:4px;font-size:12px;">
-                ${data.map((d, i) => {
-                    const languageName = t(`lang.${d.language}`) || d.language;
-                    return `
-                        <div style="width:12px;height:12px;background-color:${colorScale(d.language)};border-radius:2px;margin-top:2px;"></div>
-                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-color-primary);">${languageName}</div>
-                        <div style="text-align:right;color:var(--text-color-secondary);">${formatNumber(d.count)}</div>
-                    `;
-                }).join('')}
-            </div>
-        `;
+        const isMobile = window.innerWidth < 768;
+        
+        // Make the legend more compact on mobile
+        if (isMobile) {
+            // On mobile, show fewer items and make the legend more compact
+            const topLanguages = data.slice(0, 6); // Only show top 6 languages on mobile
+            const totalOthers = data.slice(6).reduce((sum, d) => sum + d.count, 0);
+            const othersPercentage = data.slice(6).reduce((sum, d) => sum + d.percentage, 0);
+            
+            legend.innerHTML = `
+                <div class="legend-heading-mobile">${t('viz.languages')} (${data.length})</div>
+                <div class="legend-grid-mobile">
+                    ${topLanguages.map((d, i) => {
+                        const languageName = t(`lang.${d.language}`) || d.language;
+                        return `
+                            <div class="legend-color-mobile" style="background-color:${colorScale(d.language)}"></div>
+                            <div class="legend-label-mobile">${languageName}</div>
+                            <div class="legend-value-mobile">${formatNumber(d.count)}</div>
+                        `;
+                    }).join('')}
+                    ${data.length > 6 ? `
+                        <div class="legend-color-mobile" style="background-color:#999"></div>
+                        <div class="legend-label-mobile">${t('viz.others')}</div>
+                        <div class="legend-value-mobile">${formatNumber(totalOthers)}</div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            // Desktop view with full legend
+            legend.innerHTML = `
+                <div class="legend-heading">${t('viz.languages')} (${data.length})</div>
+                <div class="legend-grid">
+                    ${data.map((d, i) => {
+                        const languageName = t(`lang.${d.language}`) || d.language;
+                        return `
+                            <div class="legend-color" style="background-color:${colorScale(d.language)}"></div>
+                            <div class="legend-label">${languageName}</div>
+                            <div class="legend-value">${formatNumber(d.count)}</div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
     }
 
     // Create pie chart visualization
@@ -361,19 +405,32 @@
         // Clear previous chart
         d3.select(container).select('svg').remove();
         
-        // Set margins
-        const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+        // Get current container dimensions
+        const containerRect = container.getBoundingClientRect();
+        width = containerRect.width;
+        height = containerRect.height;
+        
+        // Set margins - reduce margins on mobile
+        const isMobile = width < 768;
+        const margin = isMobile 
+            ? { top: 10, right: 10, bottom: 10, left: 10 }
+            : { top: 20, right: 20, bottom: 20, left: 20 };
+            
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
         
-        // Calculate radius
-        const radius = Math.min(chartWidth, chartHeight) / 2;
+        // Calculate radius - ensure it's not too large for container
+        const maxRadius = Math.min(chartWidth, chartHeight) / 2;
+        // For mobile, use a slightly smaller radius to ensure it fits
+        const radius = isMobile ? maxRadius * 0.9 : maxRadius;
         
-        // Create SVG
+        // Create SVG with responsive viewBox
         const svg = d3.select(container)
             .append('svg')
-            .attr('width', width)
-            .attr('height', height)
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet')
             .append('g')
             .attr('transform', `translate(${width / 2}, ${height / 2})`);
         
@@ -390,17 +447,18 @@
         // Create arc generator for hover effect
         const arcHover = d3.arc<d3.PieArcDatum<LanguageCount>>()
             .innerRadius(0)
-            .outerRadius(radius + 10);
+            .outerRadius(radius + (isMobile ? 5 : 10)); // Smaller hover effect on mobile
         
         // Create pie segments
         const segments = svg.selectAll('path')
             .data(pie(data))
             .enter()
             .append('path')
+            .attr('class', 'cursor-pointer')
             .attr('d', arc)
             .attr('fill', d => colorScale(d.data.language))
             .attr('stroke', 'white')
-            .attr('stroke-width', 2)
+            .attr('stroke-width', isMobile ? 1 : 2) // Thinner stroke on mobile
             .on('mouseenter', function(event, d) {
                 d3.select(this)
                     .transition()
@@ -419,7 +477,7 @@
                 hideTooltip();
             });
         
-        // Update the legend with current data
+        // Update the legend with current data - adjust position on mobile
         createLegend();
         updateLegend(data);
     }
@@ -446,148 +504,75 @@
     }
 </script>
 
-<div class="language-visualization-container">
+<div class="w-full h-full flex flex-col language-visualization-container">
     <BaseVisualization
-        title=""
-        translationKey=""
-        description=""
-        descriptionTranslationKey="viz.language_distribution_description"
         titleHtml={titleHtml}
+        descriptionTranslationKey="viz.language_distribution_description"
+        theme="default"
+        className="language-visualization"
     >
-        <div class="filters">
-            <div class="filter-group">
-                <label for="country-filter">{$filterByCountryText}:</label>
-                <select id="country-filter" on:change={handleCountryChange} bind:value={selectedCountry}>
+        <div class="flex flex-wrap gap-md p-md bg-card rounded-t border-b border-solid border-default filters">
+            <div class="flex flex-col gap-xs filter-group">
+                <label for="country-filter" class="text-xs font-bold text-secondary">{$filterByCountryText}:</label>
+                <select id="country-filter" on:change={handleCountryChange} bind:value={selectedCountry} 
+                        class="p-xs px-sm rounded-sm border border-solid border-default bg-card text-primary">
                     {#each countryOptions as option (option.value)}
                         <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
                     {/each}
                 </select>
             </div>
             
-            <div class="filter-group">
-                <label for="type-filter">{$filterByTypeText}:</label>
-                <select id="type-filter" on:change={handleTypeChange} bind:value={selectedType}>
+            <div class="flex flex-col gap-xs filter-group">
+                <label for="type-filter" class="text-xs font-bold text-secondary">{$filterByTypeText}:</label>
+                <select id="type-filter" on:change={handleTypeChange} bind:value={selectedType}
+                        class="p-xs px-sm rounded-sm border border-solid border-default bg-card text-primary">
                     {#each typeOptions as option (option.value)}
                         <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
                     {/each}
                 </select>
             </div>
             
-            <div class="summary">
+            <div class="ml-auto flex items-end text-sm text-secondary summary">
                 {#if languageCounts.length > 0}
                     <span>{t('viz.showing_items', { '0': formatNumber(totalItems), '1': languageCounts.length.toString() })}</span>
                 {/if}
             </div>
         </div>
         
-        <div class="pie-container" bind:this={container}>
+        <div class="flex-1 relative min-h-500 bg-card rounded-b shadow pie-container" bind:this={container}>
             {#if $itemsStore.loading}
-                <div class="loading">{t('ui.loading')}</div>
+                <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
-                <div class="error">{$itemsStore.error}</div>
+                <div class="absolute inset-center text-error">{$itemsStore.error}</div>
             {/if}
         </div>
         
-        <div class="stats">
+        <div class="p-md bg-card rounded shadow mt-md stats">
             <div class="stat-summary">
-                <h3>{t('viz.summary')}</h3>
-                <p>{t('viz.total_items')}: <strong>{totalItems}</strong></p>
-                <p>{t('viz.languages')}: <strong>{languageCounts.length}</strong></p>
+                <h3 class="mt-0 mb-sm text-primary text-md border-b pb-xs">{t('viz.summary')}</h3>
+                <p class="my-xs text-sm text-secondary">{t('viz.total_items')}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
+                <p class="my-xs text-sm text-secondary">{t('viz.languages')}: <strong class="font-medium">{formatNumber(languageCounts.length)}</strong></p>
             </div>
         </div>
     </BaseVisualization>
 </div>
 
 <style>
-    .language-visualization-container {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-md);
-    }
-    
-    .filters {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--spacing-md);
-        padding: var(--spacing-md);
-        background-color: var(--background-color);
-        border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
+    /* Only keep styles that can't be achieved with utility classes */
     .filter-group {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-xs);
-    }
-    
-    label {
-        font-size: var(--font-size-xs);
-        font-weight: bold;
-        color: var(--text-color-secondary);
-    }
-    
-    select {
-        padding: var(--spacing-xs) var(--spacing-sm);
-        border-radius: var(--border-radius-sm);
-        border: 1px solid var(--border-color);
-        background-color: var(--card-background);
-        color: var(--text-color-primary);
         min-width: 200px;
-        font-family: var(--font-family-primary);
-        font-size: var(--font-size-sm);
     }
     
-    .summary {
-        margin-left: auto;
-        display: flex;
-        align-items: flex-end;
-        font-size: var(--font-size-sm);
-        color: var(--text-color-secondary);
-    }
-    
-    .pie-container {
-        flex: 1;
-        min-height: 500px;
-        position: relative;
-        background: var(--card-background);
-        border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-    }
-    
-    .stats {
-        padding: var(--spacing-md);
-        background-color: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-    }
-    
-    .stat-summary p {
-        margin: var(--spacing-xs) 0;
-        font-size: var(--font-size-sm);
-        color: var(--text-color-secondary);
-    }
-    
-    h3 {
-        margin-top: 0;
-        margin-bottom: var(--spacing-sm);
-        color: var(--text-color-primary);
-        font-size: var(--font-size-md);
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: var(--spacing-xs);
-    }
-    
-    .loading, .error {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: var(--text-color-secondary);
-    }
-    
-    .error {
-        color: var(--error-color);
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .filters {
+            flex-direction: column;
+        }
+        
+        .summary {
+            margin-left: 0;
+            margin-top: var(--spacing-sm);
+            align-self: flex-start;
+        }
     }
 </style> 

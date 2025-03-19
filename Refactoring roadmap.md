@@ -64,7 +64,7 @@
    - [ ] Update all visualizations to use new BaseVisualization props:
      - ✅ CountryDistribution - Fixed title translation parameters
      - ✅ IndexDistribution - Updated to use titleHtml and new translation format
-     - [ ] LanguageDistribution - Update to use titleHtml and new translation format
+     - ✅ LanguageDistribution - Update to use titleHtml and new translation format
      - [ ] TimelineDistribution - Update to use titleHtml and new translation format
      - [ ] TypeDistribution - Update to use titleHtml and new translation format
      - [ ] WordDistribution - Update to use titleHtml and new translation format
@@ -256,6 +256,7 @@
 8. ✅ Move component-specific utility classes to global CSS files:
    - ✅ Moved `.inset-center` from IndexDistribution to layout.css
    - ✅ Added min-height utilities to spacing.css (min-h-350, min-h-400, etc.)
+   - ✅ Added legend positioning and styling utilities for D3 visualizations
    - ✅ Keep only component-specific responsive rules in component style blocks
 
 9. Next steps for standardizing component styling approach:
@@ -299,7 +300,7 @@
 - [ ] Update remaining visualization components to use the new CSS architecture:
   - ✅ Update CountryDistribution.svelte
   - ✅ Update IndexDistribution.svelte
-  - [ ] Update LanguageDistribution.svelte
+  - ✅ Update LanguageDistribution.svelte
   - [ ] Update TimelineDistribution.svelte
   - [ ] Update TypeDistribution.svelte
   - [ ] Update WordDistribution.svelte
