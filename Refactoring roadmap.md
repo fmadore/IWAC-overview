@@ -65,7 +65,7 @@
      - ✅ CountryDistribution - Fixed title translation parameters
      - ✅ IndexDistribution - Updated to use titleHtml and new translation format
      - ✅ LanguageDistribution - Update to use titleHtml and new translation format
-     - [ ] TimelineDistribution - Update to use titleHtml and new translation format
+     - ✅ TimelineDistribution - Update to use titleHtml and new translation format
      - [ ] TypeDistribution - Update to use titleHtml and new translation format
      - [ ] WordDistribution - Update to use titleHtml and new translation format
    - [ ] Standardize translation parameter format across all visualizations:
@@ -301,7 +301,7 @@
   - ✅ Update CountryDistribution.svelte
   - ✅ Update IndexDistribution.svelte
   - ✅ Update LanguageDistribution.svelte
-  - [ ] Update TimelineDistribution.svelte
+  - ✅ Update TimelineDistribution.svelte
   - [ ] Update TypeDistribution.svelte
   - [ ] Update WordDistribution.svelte
 - [ ] Update utility components to use the new CSS architecture:
