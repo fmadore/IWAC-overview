@@ -62,8 +62,8 @@
 
 3. Update each visualization component to leverage the shared code:
    - [ ] Update all visualizations to use new BaseVisualization props:
-     - [ ] CountryDistribution - Fix title translation parameters
-     - [ ] IndexDistribution - Update to use titleHtml and new translation format
+     - ✅ CountryDistribution - Fixed title translation parameters
+     - ✅ IndexDistribution - Updated to use titleHtml and new translation format
      - [ ] LanguageDistribution - Update to use titleHtml and new translation format
      - [ ] TimelineDistribution - Update to use titleHtml and new translation format
      - [ ] TypeDistribution - Update to use titleHtml and new translation format
@@ -204,7 +204,7 @@
    └── utilities/
        ├── colors.css            # Text, background, and border color utilities
        ├── spacing.css           # Margin, padding, and gap utilities
-       ├── typography.css        # Font, text alignment, and styling utilities
+       ├── typography.css        # Font, text, and styling utilities
        ├── layout.css            # Display, flexbox, grid, and positioning utilities
        └── borders.css           # Border width, style, radius, and shadow utilities
    └── base/
@@ -253,19 +253,24 @@
    - ✅ Establish legacy compatibilities in `global.css` for backward compatibility
    - ✅ Document the transition approach for other developers
 
-8. Next steps for standardizing component styling approach:
+8. ✅ Move component-specific utility classes to global CSS files:
+   - ✅ Moved `.inset-center` from IndexDistribution to layout.css
+   - ✅ Added min-height utilities to spacing.css (min-h-350, min-h-400, etc.)
+   - ✅ Keep only component-specific responsive rules in component style blocks
+
+9. Next steps for standardizing component styling approach:
    - [ ] Document recommendations for when to use utility classes vs. component styles
    - [ ] Create examples of properly styled components using the new architecture
    - [ ] Establish naming conventions for component-specific CSS classes
    - [ ] Update additional visualization components to use the new CSS architecture
 
-9. Future enhancements for the CSS architecture:
+10. Future enhancements for the CSS architecture:
    - [ ] Create a `components` directory in the CSS structure for reusable UI components
    - [ ] Document the component styling API and usage patterns
    - [ ] Provide examples of component composition patterns
    - [ ] Remove duplicate styles between `theme.css` and new utility files
 
-10. ✅ Add comprehensive testing for the CSS architecture:
+11. ✅ Add comprehensive testing for the CSS architecture:
     - ✅ Test for style conflicts between old and new CSS
     - ✅ Test components with the new styling in different viewports
     - ✅ Validate accessibility of the new styles
@@ -292,9 +297,9 @@
 - ✅ Document new utilities and their usage patterns in the README
 - ✅ Enforce style consistency across components
 - [ ] Update remaining visualization components to use the new CSS architecture:
-  - [ ] Update CountryDistribution.svelte
+  - ✅ Update CountryDistribution.svelte
+  - ✅ Update IndexDistribution.svelte
   - [ ] Update LanguageDistribution.svelte
-  - [ ] Update IndexDistribution.svelte
   - [ ] Update TimelineDistribution.svelte
   - [ ] Update TypeDistribution.svelte
   - [ ] Update WordDistribution.svelte
@@ -369,6 +374,55 @@
   }
 </style>
 ```
+
+### 4. Real-world example: CountryDistribution component
+The `CountryDistribution.svelte` component has been successfully migrated to the new CSS architecture. Key changes include:
+
+```svelte
+<!-- Before -->
+<div class="loading text-secondary">{t('ui.loading')}</div>
+
+<!-- After -->
+<div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
+```
+
+Notable improvements:
+- Created custom utility class `.inset-center` for absolute positioning in the center
+- Replaced direct CSS variable references in D3.js code with standardized variables
+- Removed inline styles in favor of utility classes (e.g., `style="text-align:right"` → `class="text-right"`)
+- Replaced inline cursor styles with `.cursor-pointer` utility class
+- Kept minimal component-specific styles that couldn't be represented by utilities
+
+For D3.js visualizations:
+```javascript
+// Before
+.style('cursor', 'pointer')
+
+// After
+.attr('class', 'cursor-pointer')
+```
+
+This approach results in more maintainable code with better separation of concerns and consistent styling across components.
+
+### 5. D3.js-specific updates: IndexDistribution component
+The `IndexDistribution.svelte` component shows how to properly update D3.js visualizations to use the new CSS architecture:
+
+```javascript
+// Before - using old CSS variables
+.style('fill', 'var(--text-color-primary)')
+.style('color', 'var(--text-color-secondary)')
+
+// After - using new standardized CSS variables
+.style('fill', 'var(--color-text-primary)')
+.style('color', 'var(--color-text-secondary)')
+```
+
+Key improvements:
+- Updated all CSS variable references to match the new architecture
+- Replaced direct DOM styling with utility classes where possible
+- Maintained visualization-specific styling needs through D3's style API
+- Created reusable utility classes for common visualization patterns
+- Simplified the component structure by removing redundant styling
 
 ## 8. Enhance TypeScript Integration
 

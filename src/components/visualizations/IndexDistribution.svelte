@@ -132,13 +132,7 @@
             if (!data || data.length === 0) {
                 d3.select(container).select('svg').remove();
                 d3.select(container).append('div')
-                    .attr('class', 'no-data')
-                    .style('position', 'absolute')
-                    .style('top', '50%')
-                    .style('left', '50%')
-                    .style('transform', 'translate(-50%, -50%)')
-                    .style('text-align', 'center')
-                    .style('color', 'var(--text-color-secondary)')
+                    .attr('class', 'no-data absolute inset-center text-secondary')
                     .text(t('viz.no_data'));
                 return;
             }
@@ -150,8 +144,15 @@
             d3.select(container).select('svg').remove();
             d3.select(container).select('.no-data').remove();
             
-            // Set margins
-            const margin = { top: 20, right: 30, bottom: 120, left: 60 };
+            // Check if mobile view (width < 768px)
+            const isMobile = width < 768;
+            const isExtraSmall = width < 480;
+            
+            // Set margins - adjust for mobile
+            const margin = isMobile 
+                ? { top: 20, right: 15, bottom: 140, left: 45 }
+                : { top: 20, right: 30, bottom: 120, left: 60 };
+            
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
             
@@ -170,7 +171,7 @@
             const xScale = d3.scaleBand()
                 .domain(data.map(d => d.category))
                 .range([0, chartWidth])
-                .padding(0.2);
+                .padding(isMobile ? 0.1 : 0.2); // Reduce padding on mobile
             
             const yScale = d3.scaleLinear()
                 .domain([0, maxCount * 1.1]) // Add 10% padding at top
@@ -183,57 +184,59 @@
                 .attr('transform', `translate(0, ${chartHeight})`)
                 .call(xAxis)
                 .selectAll('text')
-                .attr('transform', 'rotate(-45)')
+                .attr('transform', isMobile ? 'rotate(-70)' : 'rotate(-45)') // More rotation on mobile
                 .style('text-anchor', 'end')
-                .attr('dx', '-.8em')
-                .attr('dy', '.15em')
-                .style('font-size', 'var(--font-size-xs)')
-                .style('fill', 'var(--text-color-primary)');
+                .attr('dx', isMobile ? '-.8em' : '-.8em')
+                .attr('dy', isMobile ? '.15em' : '.15em')
+                .style('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
+                .style('fill', 'var(--color-text-primary)');
             
             // Create and append y-axis
-            const yAxis = d3.axisLeft(yScale).ticks(5);
+            const yAxis = d3.axisLeft(yScale).ticks(isMobile ? 3 : 5); // Fewer ticks on mobile
             chart.append('g')
                 .attr('class', 'y-axis')
                 .call(yAxis)
                 .selectAll('text')
-                .style('font-size', 'var(--font-size-xs)')
-                .style('fill', 'var(--text-color-primary)');
+                .style('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
+                .style('fill', 'var(--color-text-primary)');
             
-            // Add axis labels
-            chart.append('text')
-                .attr('class', 'x-axis-label')
-                .attr('text-anchor', 'middle')
-                .attr('x', chartWidth / 2)
-                .attr('y', chartHeight + margin.bottom - 10)
-                .style('font-size', 'var(--font-size-sm)')
-                .style('fill', 'var(--text-color-secondary)')
-                .text(t('viz.categories'));
-            
-            chart.append('text')
-                .attr('class', 'y-axis-label')
-                .attr('text-anchor', 'middle')
-                .attr('transform', `rotate(-90)`)
-                .attr('x', -chartHeight / 2)
-                .attr('y', -margin.left + 15)
-                .style('font-size', 'var(--font-size-sm)')
-                .style('fill', 'var(--text-color-secondary)')
-                .text(t('viz.number_of_items'));
+            // Add axis labels - hide on very small screens
+            if (width > 320) {
+                chart.append('text')
+                    .attr('class', 'x-axis-label')
+                    .attr('text-anchor', 'middle')
+                    .attr('x', chartWidth / 2)
+                    .attr('y', chartHeight + (isMobile ? margin.bottom - 5 : margin.bottom - 10))
+                    .style('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
+                    .style('fill', 'var(--color-text-secondary)')
+                    .text(t('viz.categories'));
+                
+                chart.append('text')
+                    .attr('class', 'y-axis-label')
+                    .attr('text-anchor', 'middle')
+                    .attr('transform', `rotate(-90)`)
+                    .attr('x', -chartHeight / 2)
+                    .attr('y', isMobile ? -margin.left + 12 : -margin.left + 15)
+                    .style('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
+                    .style('fill', 'var(--color-text-secondary)')
+                    .text(t('viz.number_of_items'));
+            }
             
             // Create and append bars
             chart.selectAll('.bar')
                 .data(data)
                 .enter()
                 .append('rect')
-                .attr('class', 'bar')
+                .attr('class', 'bar cursor-pointer')
                 .attr('x', d => xScale(d.category) || 0)
                 .attr('y', d => yScale(d.count))
                 .attr('width', xScale.bandwidth())
                 .attr('height', d => Math.max(0, chartHeight - yScale(d.count))) // Ensure height is not negative
                 .attr('fill', (d, i) => colorScale(d.category))
-                .attr('rx', 3) // Rounded corners
-                .attr('ry', 3)
+                .attr('rx', isMobile ? 2 : 3) // Smaller rounded corners on mobile
+                .attr('ry', isMobile ? 2 : 3)
                 .style('stroke', 'white')
-                .style('stroke-width', 1)
+                .style('stroke-width', isMobile ? 0.5 : 1) // Thinner stroke on mobile
                 .on('mouseenter', function(event, d) {
                     if (!isMounted) return;
                     // Highlight bar on hover
@@ -257,7 +260,7 @@
                     hideTooltip();
                 });
             
-            // Add value labels on top of bars
+            // Add value labels on top of bars - only if bar is large enough
             chart.selectAll('.bar-label')
                 .data(data)
                 .enter()
@@ -266,8 +269,13 @@
                 .attr('x', d => (xScale(d.category) || 0) + xScale.bandwidth() / 2)
                 .attr('y', d => yScale(d.count) - 5)
                 .attr('text-anchor', 'middle')
-                .style('font-size', 'var(--font-size-xs)')
-                .style('fill', 'var(--text-color-secondary)')
+                .style('font-size', isMobile ? '8px' : 'var(--font-size-xs)')
+                .style('fill', 'var(--color-text-secondary)')
+                .style('display', d => {
+                    // Hide labels on very small bars or on small screens
+                    const barHeight = chartHeight - yScale(d.count);
+                    return (barHeight < 15 && isMobile) ? 'none' : 'block';
+                })
                 .text(d => d.count);
         } catch (e) {
             console.error('Error creating bar chart:', e);
@@ -380,36 +388,35 @@
     });
 </script>
 
-<div class="index-visualization-container">
+<div class="w-full h-full flex flex-col index-visualization-container">
     <BaseVisualization
-        title=""
-        translationKey=""
-        description="This visualization shows the distribution of index items by category. The size of each bar represents the number of items in that category."
-        descriptionTranslationKey={indexDescriptionKey}
         titleHtml={titleHtml}
+        descriptionTranslationKey={indexDescriptionKey}
+        theme="default"
+        className="index-visualization"
     >
-        <div class="chart-container" bind:this={container}>
+        <div class="chart-container relative flex-1 bg-card rounded shadow min-h-400 mb-md" bind:this={container}>
             {#if $itemsStore.loading}
-                <div class="loading">{t('ui.loading')}</div>
+                <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
-                <div class="error">{$itemsStore.error}</div>
+                <div class="error absolute inset-center text-error">{$itemsStore.error}</div>
             {/if}
         </div>
         
-        <div class="stats">
+        <div class="grid grid-cols-2 gap-md p-md bg-card rounded shadow stats">
             {#if categoryCounts.length > 0}
-                <div class="stat-summary">
-                    <h3>{t('viz.summary')}</h3>
-                    <p>{t('viz.total_items')}: <strong>{formatNumber(totalItems)}</strong></p>
-                    <p>{t('viz.number_of_categories')}: <strong>{formatNumber(categoryCounts.length)}</strong></p>
+                <div class="p-md stat-summary">
+                    <h3 class="mt-0 mb-sm text-primary text-md border-b pb-xs">{t('viz.summary')}</h3>
+                    <p class="text-sm mb-xs">{t('viz.total_items')}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
+                    <p class="text-sm">{t('viz.number_of_categories')}: <strong class="font-medium">{formatNumber(categoryCounts.length)}</strong></p>
                 </div>
-                <div class="top-categories">
-                    <h3>{t('viz.top_categories')}</h3>
-                    <ul>
+                <div class="p-md top-categories">
+                    <h3 class="mt-0 mb-sm text-primary text-md border-b pb-xs">{t('viz.top_categories')}</h3>
+                    <ul class="list-style-none p-0 m-0">
                         {#each categoryCounts.slice(0, 5) as category}
-                            <li>
-                                <span class="category-name">{category.category}</span>
-                                <span class="category-count">{formatNumber(category.count)} {t('viz.items')} ({category.percentage.toFixed(1)}%)</span>
+                            <li class="flex justify-between mb-xs text-sm">
+                                <span class="text-primary category-name truncate mr-sm">{category.category}</span>
+                                <span class="text-secondary font-medium category-count whitespace-nowrap">{formatNumber(category.count)} {t('viz.items')} ({category.percentage.toFixed(1)}%)</span>
                             </li>
                         {/each}
                     </ul>
@@ -420,94 +427,34 @@
 </div>
 
 <style>
-    .index-visualization-container {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
+    /* Only keep styles that can't be achieved with utility classes */
     
-    /* Override the visualization header margin to reduce space */
-    :global(.index-visualization-container .visualization-header) {
-        margin-bottom: var(--spacing-xs) !important;
-    }
-    
-    /* Override the title container padding to reduce space */
-    :global(.index-visualization-container .title-container) {
-        padding-bottom: 0 !important;
-    }
-    
-    .chart-container {
-        flex: 1;
-        min-height: 500px;
-        position: relative;
-        background: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-        margin-bottom: var(--spacing-md);
-    }
-    
-    .stats {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--spacing-md);
-        padding: var(--spacing-md);
-        background-color: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-    }
-    
-    .stat-summary, .top-categories {
-        padding: var(--spacing-md);
-    }
-    
-    h3 {
-        margin-top: 0;
-        margin-bottom: var(--spacing-sm);
-        color: var(--text-color-primary);
-        font-size: var(--font-size-md);
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: var(--spacing-xs);
-    }
-    
-    ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    li {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: var(--spacing-xs);
-        font-size: var(--font-size-sm);
-    }
-    
-    .category-name {
-        color: var(--text-color-primary);
-    }
-    
-    .category-count {
-        color: var(--text-color-secondary);
-        font-weight: bold;
-    }
-    
-    .loading, .error {
-        position: absolute;
+    /* Center positioning utility */
+    :global(.inset-center) {
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        color: var(--text-color-secondary);
     }
     
-    .error {
-        color: var(--error-color);
+    /* Fixed height for chart container */
+    .min-h-400 {
+        min-height: 400px;
     }
     
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .stats {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr !important;
         }
+        
+        /* Ensure category names don't overflow on mobile */
+        .category-name {
+            max-width: 60%;
+        }
+    }
+
+    /* Extra small screens */
+    @media (max-width: 480px) {
+        /* These styles are still component-specific and not general utilities */
     }
 </style> 

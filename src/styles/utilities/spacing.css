@@ -176,4 +176,11 @@
 .gap-y-lg { row-gap: var(--spacing-lg); }
 .gap-y-xl { row-gap: var(--spacing-xl); }
 .gap-y-2xl { row-gap: var(--spacing-2xl); }
-.gap-y-3xl { row-gap: var(--spacing-3xl); } 
+.gap-y-3xl { row-gap: var(--spacing-3xl); }
+
+/* Sizing - Width and Height utilities */
+/* Fixed height utilities for visualizations */
+.min-h-350 { min-height: 350px; }
+.min-h-400 { min-height: 400px; }
+.min-h-450 { min-height: 450px; }
+.min-h-500 { min-height: 500px; } 
