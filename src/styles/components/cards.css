@@ -1,0 +1,81 @@
+/* 
+ * Cards.css - Card Component Styles
+ *
+ * This file contains specific styles for card components that 
+ * extend beyond what can be easily achieved with utility classes.
+ */
+
+/* Card base style */
+.card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* Card variants */
+.card-flat {
+  box-shadow: none;
+  border: var(--border-width-thin) solid var(--color-border);
+}
+
+.card-hover {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Card sections */
+.card-header {
+  padding: var(--spacing-md);
+  border-bottom: var(--border-width-thin) solid var(--color-border);
+}
+
+.card-body {
+  padding: var(--spacing-md);
+  flex: 1;
+}
+
+.card-footer {
+  padding: var(--spacing-md);
+  border-top: var(--border-width-thin) solid var(--color-border);
+}
+
+/* Card media */
+.card-media-top img {
+  width: 100%;
+  object-fit: cover;
+}
+
+.card-media-bottom img {
+  width: 100%;
+  object-fit: cover;
+}
+
+/* Card sizes */
+.card-sm {
+  max-width: 300px;
+}
+
+.card-md {
+  max-width: 450px;
+}
+
+.card-lg {
+  max-width: 600px;
+}
+
+/* Interactive cards */
+.card-interactive {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.card-interactive:hover {
+  background-color: var(--color-bg-hover);
+}

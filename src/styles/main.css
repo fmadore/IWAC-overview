@@ -27,7 +27,8 @@
 html {
   line-height: 1.5;
   /* Text size adjust properties removed due to conflicting browser compatibility requirements.
-     If needed, they can be selectively added for specific browser support targets. */
+     Different linters suggest contradictory approaches for this property.
+     If needed, specific browser adjustments can be added based on project requirements. */
   font-family: var(--font-family-base);
   color: var(--color-text-primary);
 }

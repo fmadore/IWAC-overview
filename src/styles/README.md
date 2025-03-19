@@ -15,21 +15,33 @@ The CSS architecture follows a utility-first approach with a focus on scalabilit
 ```
 src/styles/
 ├── main.css                  # Main entry point that imports all styles
+├── index.css                 # Alternative entry point with component imports
+├── base/
+│   ├── reset.css             # CSS reset and normalization
+│   ├── global.css            # Core global styles
+│   └── typography.css        # Base typography styles
 ├── themes/
 │   └── default-theme.css     # CSS variables defining the design system
-└── utilities/
-    ├── colors.css            # Text, background, and border color utilities
-    ├── spacing.css           # Margin, padding, and gap utilities
-    ├── typography.css        # Font, text alignment, and styling utilities
-    ├── layout.css            # Display, flexbox, grid, and positioning utilities
-    └── borders.css           # Border width, style, radius, and shadow utilities
+├── utilities/
+│   ├── colors.css            # Text, background, and border color utilities
+│   ├── spacing.css           # Margin, padding, and gap utilities
+│   ├── typography.css        # Font, text alignment, and styling utilities
+│   ├── layout.css            # Display, flexbox, grid, and positioning utilities
+│   └── borders.css           # Border width, style, radius, and shadow utilities
+└── components/
+    ├── buttons.css           # Button component styles
+    ├── cards.css             # Card component styles
+    ├── alerts.css            # Alert component styles
+    └── badges.css            # Badge component styles
 ```
 
 ## Usage
 
 ### Importing Styles
 
-All styles are imported through `main.css`, which should be imported in your main application file.
+You can import styles through either of the main entry points:
+- `main.css` - Imports theme variables, base styles and utility classes
+- `index.css` - Additionally imports component-specific styles
 
 ### Theme Variables
 
@@ -44,6 +56,16 @@ Theme variables are defined as CSS custom properties (variables) and are organiz
 }
 ```
 
+The theme includes variables for:
+- Colors (brand, background, text, borders, status)
+- Typography (font families, sizes, weights, line heights, letter spacing)
+- Spacing
+- Layout (container sizes)
+- Borders and radius
+- Shadows
+- Animations and transitions
+- Z-index layers
+
 ### Utility Classes
 
 Utility classes are small, single-purpose classes that can be composed together to create complex UI components. Apply these directly in your HTML.
@@ -53,6 +75,22 @@ Utility classes are small, single-purpose classes that can be composed together 
 <div class="flex items-center justify-between p-md bg-primary text-white rounded shadow">
   <h2 class="text-lg font-bold">Title</h2>
   <button class="bg-accent text-white p-sm rounded cursor-pointer">Button</button>
+</div>
+```
+
+### Component Classes
+
+For more complex UI elements, we provide component-specific classes that encapsulate multiple styles:
+
+```html
+<!-- Example of using component classes -->
+<button class="btn btn-primary">Primary Button</button>
+<div class="card card-hover">
+  <div class="card-header">Card Title</div>
+  <div class="card-body">Card content goes here</div>
+</div>
+<div class="alert alert-success">
+  <div class="alert-content">Success message</div>
 </div>
 ```
 
@@ -68,6 +106,12 @@ The utilities follow these naming patterns:
 - **Cursor**: `.cursor-{type}` (auto, pointer, text, etc.)
 - **List Style**: `.list-style-{type}` (none, etc.)
 - **Z-index**: `.z-{level}` (base, above, dropdown, popover, etc.)
+
+Components follow a more semantic naming approach:
+- `.btn` for buttons with modifiers like `.btn-primary`, `.btn-lg`
+- `.card` for cards with modifiers like `.card-hover`, `.card-flat`
+- `.alert` for alerts with modifiers like `.alert-success`, `.alert-sm`
+- `.badge` for badges with modifiers like `.badge-primary`, `.badge-outline`
 
 ## Best Practices
 
@@ -94,6 +138,38 @@ Example for a button:
 </button>
 ```
 
+## Component Usage
+
+The component CSS files provide pre-styled elements for common UI patterns:
+
+### Buttons
+Multiple button variants are available including:
+- `.btn-primary`, `.btn-secondary` - Colored buttons
+- `.btn-outline` - Bordered button with transparent background
+- `.btn-ghost` - Minimal button with no background or border
+- Size variations: `.btn-sm`, `.btn-lg`
+- Icon buttons: `.btn-icon`
+
+### Cards
+Cards for containing content with variants like:
+- `.card-flat` - Card with border instead of shadow
+- `.card-hover` - Card with hover animation
+- Sections: `.card-header`, `.card-body`, `.card-footer`
+- Sizes: `.card-sm`, `.card-md`, `.card-lg`
+
+### Alerts
+Notification elements with variants including:
+- `.alert-info`, `.alert-success`, `.alert-warning`, `.alert-error`
+- Sizes: `.alert-sm`, `.alert-lg`
+- With optional elements: `.alert-icon`, `.alert-title`, `.alert-close`
+
+### Badges
+Small labeling elements with:
+- Color variants: `.badge-primary`, `.badge-success`, etc.
+- Sizes: `.badge-sm`, `.badge-lg`
+- Shapes: `.badge-rounded`, `.badge-square`
+- Special types: `.badge-notification`, `.badge-status`
+
 ## Working with Popups and Tooltips
 
 For elements like popups, tooltips, and dropdown menus:
@@ -114,4 +190,4 @@ When extending this system:
 
 ## Examples
 
-Check the component examples to see how to effectively use the utility classes to build common UI elements. 
+For visual examples of the CSS system, see the style guide at `src/styles/docs/styleguide.html`. 

@@ -15,6 +15,9 @@
 @import './utilities/typography.css';
 
 /* Components */
+/* Note: The component files below need to be created if they don't exist yet.
+   These are placeholders for future component-specific styles that can't be 
+   easily achieved with utility classes alone. */
 @import './components/buttons.css';
 @import './components/cards.css';
 @import './components/alerts.css';
