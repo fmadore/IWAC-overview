@@ -222,20 +222,14 @@
             if (!hierarchyData.children || hierarchyData.children.length === 0) {
                 d3.select(container).select('svg').remove();
                 d3.select(container).append('div')
-                    .attr('class', 'no-data')
-                    .style('position', 'absolute')
-                    .style('top', '50%')
-                    .style('left', '50%')
-                    .style('transform', 'translate(-50%, -50%)')
-                    .style('text-align', 'center')
-                    .style('color', 'var(--text-color-secondary)')
+                    .attr('class', 'absolute inset-center text-secondary')
                     .text($noDataText);
                 return;
             }
             
             // Remove previous visualization and messages
             d3.select(container).select('svg').remove();
-            d3.select(container).select('.no-data').remove();
+            d3.select(container).select('.absolute').remove();
             
             // Get container dimensions
             const rect = container.getBoundingClientRect();
@@ -775,100 +769,38 @@
     });
 </script>
 
-<div class="word-distribution-container">
+<div class="w-full h-full flex flex-col gap-md">
     <BaseVisualization
         title=""
         translationKey=""
         description="This visualization shows the distribution of words across items by country and collection. The size of each block represents the word count in that country or collection."
         descriptionTranslationKey="viz.word_distribution_description"
         {titleHtml}
+        className="word-visualization-compact-header"
     >
-        <div class="chart-container" bind:this={container}>
+        <div class="flex-1 min-h-500 relative bg-card rounded-md shadow" bind:this={container}>
             {#if $itemsStore.loading}
-                <div class="loading">{t('ui.loading')}</div>
+                <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
-                <div class="error">{$itemsStore.error}</div>
+                <div class="absolute inset-center text-error">{$itemsStore.error}</div>
             {/if}
         </div>
         
-        <div class="stats">
-            <div class="stat-summary">
-                <h3>{$summaryText}</h3>
-                <p>{$totalItemsWithWordCountText}: <strong>{formatNumber(totalItems)}</strong></p>
-                <p>{$totalWordsText}: <strong>{formatNumber(totalWordCount)}</strong></p>
+        <div class="p-md bg-card rounded-md shadow">
+            <div>
+                <h3 class="mt-0 mb-sm text-primary text-md border-b border-solid border-default pb-xs">{$summaryText}</h3>
+                <p class="my-xs text-sm text-secondary">{$totalItemsWithWordCountText}: <strong>{formatNumber(totalItems)}</strong></p>
+                <p class="my-xs text-sm text-secondary">{$totalWordsText}: <strong>{formatNumber(totalWordCount)}</strong></p>
                 {#if totalItems > 0}
-                    <p>{$avgWordsPerItemText}: <strong>{formatNumber(Math.round(totalWordCount / totalItems))}</strong></p>
+                    <p class="my-xs text-sm text-secondary">{$avgWordsPerItemText}: <strong>{formatNumber(Math.round(totalWordCount / totalItems))}</strong></p>
                 {/if}
                 {#if zoomedNode}
-                    <p>{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
-                    <p>{$clickBackText}</p>
+                    <p class="my-xs text-sm text-secondary">{$currentlyViewingText}: <strong>{zoomedNode.data.name}</strong></p>
+                    <p class="my-xs text-sm text-secondary">{$clickBackText}</p>
                 {:else}
-                    <p>{$clickZoomInText}</p>
+                    <p class="my-xs text-sm text-secondary">{$clickZoomInText}</p>
                 {/if}
             </div>
         </div>
     </BaseVisualization>
-</div>
-
-<style>
-    .word-distribution-container {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-md);
-    }
-    
-    /* Override the visualization header margin to reduce space */
-    :global(.word-distribution-container .visualization-header) {
-        margin-bottom: var(--spacing-xs) !important;
-    }
-    
-    /* Override the title container padding to reduce space */
-    :global(.word-distribution-container .title-container) {
-        padding-bottom: 0 !important;
-    }
-    
-    .chart-container {
-        flex: 1;
-        min-height: 500px;
-        position: relative;
-        background: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-    }
-    
-    .stats {
-        padding: var(--spacing-md);
-        background-color: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-    }
-    
-    .stat-summary p {
-        margin: var(--spacing-xs) 0;
-        font-size: var(--font-size-sm);
-        color: var(--text-color-secondary);
-    }
-    
-    h3 {
-        margin-top: 0;
-        margin-bottom: var(--spacing-sm);
-        color: var(--text-color-primary);
-        font-size: var(--font-size-md);
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: var(--spacing-xs);
-    }
-    
-    .loading, .error {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: var(--text-color-secondary);
-    }
-    
-    .error {
-        color: var(--error-color);
-    }
-</style> 
+</div> 

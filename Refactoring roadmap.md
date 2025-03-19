@@ -303,7 +303,7 @@
   - ✅ Update LanguageDistribution.svelte
   - ✅ Update TimelineDistribution.svelte
   - [ ] Update TypeDistribution.svelte
-  - [ ] Update WordDistribution.svelte
+  - ✅ Update WordDistribution.svelte
 - [ ] Update utility components to use the new CSS architecture:
   - [ ] Update LanguageToggle.svelte
   - [ ] Update FullScreenToggle.svelte

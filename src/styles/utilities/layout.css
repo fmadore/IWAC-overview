@@ -407,6 +407,15 @@
   gap: var(--spacing-md);
 }
 
+/* Compact header variant for visualizations */
+:global(.word-visualization-compact-header .visualization-header) {
+  margin-bottom: var(--spacing-xs) !important;
+}
+
+:global(.word-visualization-compact-header .title-container) {
+  padding-bottom: 0 !important;
+}
+
 /* Visualization filter utilities */
 .filters-container {
   display: flex;
