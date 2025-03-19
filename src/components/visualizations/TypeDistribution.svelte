@@ -352,27 +352,19 @@
             // Process data based on current filters
             typeYearData = processData();
             
+            // Remove previous visualization and no-data message
+            d3.select(container).select('svg').remove();
+            d3.select(container).selectAll('.absolute.inset-center').remove();
+            
             if (typeYearData.length === 0) {
-                d3.select(container).select('svg').remove();
-                d3.select(container).select('.no-data').remove();
                 d3.select(container).append('div')
-                    .attr('class', 'no-data')
-                    .style('position', 'absolute')
-                    .style('top', '50%')
-                    .style('left', '50%')
-                    .style('transform', 'translate(-50%, -50%)')
-                    .style('text-align', 'center')
-                    .style('color', 'var(--text-color-secondary)')
+                    .attr('class', 'absolute inset-center text-secondary z-50')
                     .text($noDataText);
                 return;
             }
             
             // Check again if component is still mounted
             if (!isMounted || !document.body.contains(container)) return;
-            
-            // Remove previous visualization and no-data message
-            d3.select(container).select('svg').remove();
-            d3.select(container).select('.no-data').remove();
             
             // Set up dimensions
             const rect = container.getBoundingClientRect();
@@ -444,6 +436,15 @@
                 return result;
             }).sort((a, b) => a.year - b.year);
             
+            // If yearData is empty after filtering, show no data message
+            if (yearData.length === 0) {
+                d3.select(container).selectAll('.absolute.inset-center').remove();
+                d3.select(container).append('div')
+                    .attr('class', 'absolute inset-center text-secondary z-50')
+                    .text($noDataText);
+                return;
+            }
+            
             // Get only visible types for the chart
             const visibleTypes = types.filter(type => 
                 typeVisibility.find(t => t.type === type)?.visible ?? true
@@ -451,6 +452,15 @@
             
             // Check component is still mounted
             if (!isMounted || !document.body.contains(container)) return;
+            
+            // If no types are visible, show a message and return
+            if (visibleTypes.length === 0) {
+                d3.select(container).selectAll('.absolute.inset-center').remove();
+                d3.select(container).append('div')
+                    .attr('class', 'absolute inset-center text-secondary z-50')
+                    .text($noDataText);
+                return;
+            }
             
             // Create SVG
             const svg = d3.select(container)
@@ -509,12 +519,11 @@
                         .map(d => d.year.toString()))
                     .tickSizeOuter(0))
                 .selectAll('text')
-                .style('text-anchor', 'end')
+                .attr('text-anchor', 'end')
                 .attr('dx', '-.8em')
                 .attr('dy', '.15em')
-                .attr('transform', 'rotate(-45)') // Rotate labels for better readability
-                .style('font-size', 'var(--font-size-xs)')
-                .style('fill', 'var(--text-color-primary)');
+                .attr('transform', 'rotate(-45)')
+                .attr('class', 'text-xs text-primary');
             
             // Check component is still mounted
             if (!isMounted || !document.body.contains(container)) return;
@@ -523,16 +532,15 @@
             chart.append('g')
                 .call(d3.axisLeft(y).ticks(5))
                 .selectAll('text')
-                .style('font-size', 'var(--font-size-xs)')
-                .style('fill', 'var(--text-color-primary)');
+                .attr('class', 'text-xs text-primary');
             
             // Add axis labels
             chart.append('text')
                 .attr('text-anchor', 'middle')
                 .attr('x', chartWidth / 2)
                 .attr('y', chartHeight + 40)
-                .attr('fill', 'var(--text-color-secondary)')
-                .style('font-size', 'var(--font-size-sm)')
+                .attr('fill', 'var(--color-text-secondary)')
+                .attr('class', 'text-sm text-secondary')
                 .text($yearText);
             
             chart.append('text')
@@ -540,8 +548,8 @@
                 .attr('transform', 'rotate(-90)')
                 .attr('x', -chartHeight / 2)
                 .attr('y', -margin.left + 15)
-                .attr('fill', 'var(--text-color-secondary)')
-                .style('font-size', 'var(--font-size-sm)')
+                .attr('fill', 'var(--color-text-secondary)')
+                .attr('class', 'text-sm text-secondary')
                 .text($numberOfItemsText);
             
             // Check component is still mounted
@@ -594,7 +602,7 @@
                 .attr('y', -15)
                 .attr('font-size', 'var(--font-size-xs)')
                 .attr('font-weight', 'normal')
-                .attr('fill', 'var(--text-color-secondary)')
+                .attr('fill', 'var(--color-text-secondary)')
                 .text($toggleTypesText);
             
             // Create a container for the legend items
@@ -618,9 +626,8 @@
                 // Create a group for each legend item
                 const legendItem = legendItems.append('g')
                     .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`)
-                    .attr('class', 'legend-item')
-                    .attr('role', 'button')
-                    .style('cursor', 'pointer');
+                    .attr('class', 'legend-item cursor-pointer')
+                    .attr('role', 'button');
                 
                 // Add background for better click target
                 legendItem.append('rect')
@@ -628,8 +635,7 @@
                     .attr('y', -5)
                     .attr('width', legendItemWidth - 10)
                     .attr('height', 15)
-                    .attr('fill', 'transparent')
-                    .attr('class', 'legend-hitbox');
+                    .attr('fill', 'transparent');
                 
                 // Add color box - make it smaller
                 legendItem.append('rect')
@@ -661,8 +667,9 @@
                     .attr('x', 15) // Reduce spacing
                     .attr('y', 8) // Adjust vertical position
                     .attr('font-size', 'var(--font-size-xs)') // Make font smaller
-                    .attr('fill', 'var(--text-color-secondary)') // Make text less prominent
-                    .style('opacity', isVisible ? 1 : 0.5)
+                    .attr('fill', 'var(--color-text-secondary)') // Make text less prominent
+                    .attr('class', 'text-xs text-primary')
+                    .attr('opacity', isVisible ? 1 : 0.5)
                     .text(displayText);
                 
                 // Add strikethrough for hidden types
@@ -675,7 +682,7 @@
                             .attr('y1', 8)
                             .attr('x2', 15 + textWidth)
                             .attr('y2', 8)
-                            .attr('stroke', 'var(--text-color-secondary)')
+                            .attr('stroke', 'var(--color-text-secondary)')
                             .attr('stroke-width', 1)
                             .attr('opacity', 0.7);
                     }
@@ -687,19 +694,11 @@
                     
                     console.log(`Clicked on type: ${type}`);
                     d3.select(container).append('div')
-                        .attr('class', 'debug-message')
-                        .style('position', 'fixed')
-                        .style('bottom', '10px')
-                        .style('left', '10px')
-                        .style('background', 'rgba(0,0,0,0.7)')
-                        .style('color', 'white')
-                        .style('padding', '5px 10px')
-                        .style('border-radius', '4px')
-                        .style('z-index', 9999)
+                        .attr('class', 'fixed bottom-0 left-0 bg-black bg-opacity-70 text-white p-xs rounded z-50')
                         .text(`Toggled type: ${type}`)
                         .transition()
                         .duration(2000)
-                        .style('opacity', 0)
+                        .attr('opacity', 0)
                         .remove();
                     
                     const typeIndex = typeVisibility.findIndex(t => t.type === type);
@@ -735,11 +734,11 @@
                 // Add hover effects
                 legendItem.on('mouseenter', function() {
                     if (!isMounted) return;
-                    d3.select(this).select('text').style('font-weight', 'bold');
+                    d3.select(this).select('text').attr('font-weight', 'bold');
                     d3.select(this).select('.legend-hitbox').attr('fill', 'rgba(0,0,0,0.05)');
                 }).on('mouseleave', function() {
                     if (!isMounted) return;
-                    d3.select(this).select('text').style('font-weight', 'normal');
+                    d3.select(this).select('text').attr('font-weight', 'normal');
                     d3.select(this).select('.legend-hitbox').attr('fill', 'transparent');
                 });
             });
@@ -944,6 +943,7 @@
     description="This visualization shows the distribution of items by type over time. You can filter by country and year range to explore how different types of items have been published over time."
     descriptionTranslationKey="viz.type_distribution_description"
     titleHtml={titleHtml}
+    className="word-visualization-compact-header"
 >
     <div class="type-distribution-container">
         <!-- Countries section at the top -->
@@ -1011,9 +1011,9 @@
         <!-- Chart container below the controls -->
         <div class="chart-container" bind:this={container}>
             {#if $itemsStore.loading}
-                <div class="loading">{t('ui.loading')}</div>
+                <div class="absolute inset-center text-secondary z-50">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
-                <div class="error">{$itemsStore.error}</div>
+                <div class="absolute inset-center text-error z-50">{$itemsStore.error}</div>
             {/if}
         </div>
     </div>
@@ -1028,16 +1028,6 @@
         gap: var(--spacing-sm);
     }
     
-    /* Override the visualization header margin to reduce space */
-    :global(.type-distribution-container .visualization-header) {
-        margin-bottom: var(--spacing-xs) !important;
-    }
-    
-    /* Override the title container padding to reduce space */
-    :global(.type-distribution-container .title-container) {
-        padding-bottom: 0 !important;
-    }
-    
     /* Controls container for facets and year range */
     .controls-container {
         display: flex;
@@ -1048,9 +1038,9 @@
     /* Make the facets and year range side by side */
     .facets, .year-range {
         flex: 1;
-        background-color: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
+        background-color: var(--color-bg-card);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
         padding: var(--spacing-sm);
     }
     
@@ -1059,28 +1049,17 @@
         flex: 1;
         min-height: 550px;
         position: relative;
-        background: var(--card-background);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--card-shadow);
-    }
-    
-    /* Style for the legend - make it more compact */
-    :global(.legend-items) {
-        display: flex;
-        flex-wrap: wrap;
-    }
-    
-    /* Make legend items more compact */
-    :global(.legend-item) {
-        font-size: var(--font-size-xs);
+        background: var(--color-bg-card);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
     }
     
     h3 {
         margin-top: 0;
         margin-bottom: var(--spacing-xs);
-        color: var(--text-color-primary);
+        color: var(--color-text-primary);
         font-size: var(--font-size-md);
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border);
         padding-bottom: var(--spacing-xs);
     }
     
@@ -1104,36 +1083,36 @@
         align-items: center;
         padding: var(--spacing-xs) 0;
         cursor: pointer;
-        border-radius: var(--border-radius-sm);
+        border-radius: var(--radius-sm);
         transition: background-color var(--transition-fast);
         font-size: var(--font-size-sm);
     }
     
     .facet-option:hover {
-        background-color: var(--hover-color);
+        background-color: var(--color-bg-hover);
     }
     
     .facet-option.selected {
         font-weight: bold;
-        color: var(--primary-color);
+        color: var(--color-primary);
     }
     
     .facet-checkbox {
         width: 14px;
         height: 14px;
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius-sm);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
         margin-right: var(--spacing-sm);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--primary-color);
+        color: var(--color-primary);
         flex-shrink: 0;
     }
     
     .facet-option.selected .facet-checkbox {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
         color: white;
     }
     
@@ -1145,7 +1124,7 @@
     }
     
     .facet-count {
-        color: var(--text-color-secondary);
+        color: var(--color-text-secondary);
         font-size: var(--font-size-sm);
         margin-left: var(--spacing-xs);
     }
@@ -1159,7 +1138,7 @@
         justify-content: space-between;
         margin-bottom: var(--spacing-xs);
         font-size: var(--font-size-sm);
-        color: var(--text-color-secondary);
+        color: var(--color-text-secondary);
     }
     
     .slider-inputs {
@@ -1177,7 +1156,7 @@
         right: 0;
         top: 50%;
         transform: translateY(-50%);
-        background: var(--divider-color);
+        background: var(--color-border-light);
         outline: none;
     }
     
@@ -1187,7 +1166,7 @@
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background: var(--primary-color);
+        background: var(--color-primary);
         cursor: pointer;
         border: none;
     }
@@ -1198,23 +1177,12 @@
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background: var(--primary-color);
+        background: var(--color-primary);
         cursor: pointer;
         border: none;
     }
     
-    .loading, .error {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: var(--text-color-secondary);
-    }
-    
-    .error {
-        color: var(--error-color);
-    }
-    
+    /* Global styles for the chart elements */
     :global(.legend-item:hover) {
         filter: brightness(1.1);
     }
@@ -1229,5 +1197,14 @@
     
     :global(.legend-item line) {
         pointer-events: none;
+    }
+    
+    /* Add header compact styles */
+    :global(.type-distribution-container .visualization-header) {
+        margin-bottom: var(--spacing-xs) !important;
+    }
+    
+    :global(.type-distribution-container .title-container) {
+        padding-bottom: 0 !important;
     }
 </style> 
