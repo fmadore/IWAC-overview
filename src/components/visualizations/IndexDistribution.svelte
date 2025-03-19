@@ -185,11 +185,11 @@
                 .call(xAxis)
                 .selectAll('text')
                 .attr('transform', isMobile ? 'rotate(-70)' : 'rotate(-45)') // More rotation on mobile
-                .style('text-anchor', 'end')
+                .attr('text-anchor', 'end')
                 .attr('dx', isMobile ? '-.8em' : '-.8em')
                 .attr('dy', isMobile ? '.15em' : '.15em')
-                .style('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
-                .style('fill', 'var(--color-text-primary)');
+                .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
+                .attr('fill', 'var(--color-text-primary)');
             
             // Create and append y-axis
             const yAxis = d3.axisLeft(yScale).ticks(isMobile ? 3 : 5); // Fewer ticks on mobile
@@ -197,8 +197,8 @@
                 .attr('class', 'y-axis')
                 .call(yAxis)
                 .selectAll('text')
-                .style('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
-                .style('fill', 'var(--color-text-primary)');
+                .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
+                .attr('fill', 'var(--color-text-primary)');
             
             // Add axis labels - hide on very small screens
             if (width > 320) {
@@ -207,8 +207,8 @@
                     .attr('text-anchor', 'middle')
                     .attr('x', chartWidth / 2)
                     .attr('y', chartHeight + (isMobile ? margin.bottom - 5 : margin.bottom - 10))
-                    .style('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
-                    .style('fill', 'var(--color-text-secondary)')
+                    .attr('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
+                    .attr('fill', 'var(--color-text-secondary)')
                     .text(t('viz.categories'));
                 
                 chart.append('text')
@@ -217,8 +217,8 @@
                     .attr('transform', `rotate(-90)`)
                     .attr('x', -chartHeight / 2)
                     .attr('y', isMobile ? -margin.left + 12 : -margin.left + 15)
-                    .style('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
-                    .style('fill', 'var(--color-text-secondary)')
+                    .attr('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
+                    .attr('fill', 'var(--color-text-secondary)')
                     .text(t('viz.number_of_items'));
             }
             
@@ -235,8 +235,8 @@
                 .attr('fill', (d, i) => colorScale(d.category))
                 .attr('rx', isMobile ? 2 : 3) // Smaller rounded corners on mobile
                 .attr('ry', isMobile ? 2 : 3)
-                .style('stroke', 'white')
-                .style('stroke-width', isMobile ? 0.5 : 1) // Thinner stroke on mobile
+                .attr('stroke', 'white')
+                .attr('stroke-width', isMobile ? 0.5 : 1) // Thinner stroke on mobile
                 .on('mouseenter', function(event, d) {
                     if (!isMounted) return;
                     // Highlight bar on hover
@@ -269,9 +269,9 @@
                 .attr('x', d => (xScale(d.category) || 0) + xScale.bandwidth() / 2)
                 .attr('y', d => yScale(d.count) - 5)
                 .attr('text-anchor', 'middle')
-                .style('font-size', isMobile ? '8px' : 'var(--font-size-xs)')
-                .style('fill', 'var(--color-text-secondary)')
-                .style('display', d => {
+                .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)')
+                .attr('fill', 'var(--color-text-secondary)')
+                .attr('display', d => {
                     // Hide labels on very small bars or on small screens
                     const barHeight = chartHeight - yScale(d.count);
                     return (barHeight < 15 && isMobile) ? 'none' : 'block';
@@ -395,7 +395,7 @@
         theme="default"
         className="index-visualization"
     >
-        <div class="chart-container relative flex-1 bg-card rounded shadow min-h-400 mb-md" bind:this={container}>
+        <div class="chart-container relative flex-1 bg-card rounded p-md overflow-hidden min-h-400 mb-md" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -429,18 +429,6 @@
 <style>
     /* Only keep styles that can't be achieved with utility classes */
     
-    /* Center positioning utility */
-    :global(.inset-center) {
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-    }
-    
-    /* Fixed height for chart container */
-    .min-h-400 {
-        min-height: 400px;
-    }
-    
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .stats {
@@ -451,10 +439,5 @@
         .category-name {
             max-width: 60%;
         }
-    }
-
-    /* Extra small screens */
-    @media (max-width: 480px) {
-        /* These styles are still component-specific and not general utilities */
     }
 </style> 

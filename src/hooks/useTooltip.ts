@@ -238,17 +238,17 @@ export function createGridTooltipContent(
     rows: Array<{ label: string; value: string | number; }>
 ): string {
     const titleHtml = title ? 
-        `<div style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.3);padding-bottom:2px;">
+        `<div class="font-bold mb-xs pb-xs border-b border-white border-opacity-30">
             ${title}
         </div>` : '';
     
     const rowsHtml = rows.map(row => 
-        `<span>${row.label}:</span><span style="text-align:right;font-weight:bold;">${row.value}</span>`
+        `<span>${row.label}:</span><span class="text-right font-bold">${row.value}</span>`
     ).join('');
     
     return `
         ${titleHtml}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <div class="grid grid-cols-2 gap-xs">
             ${rowsHtml}
         </div>
     `;
