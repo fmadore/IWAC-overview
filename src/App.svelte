@@ -22,6 +22,9 @@
   let updateCount = 0;
   let unsubscribe: () => void = () => {};
   let renderCount = 0;
+  
+  // DOM References
+  let tabsContainer: HTMLElement;
 
   // Create a reactive title
   const appTitle = translate('app.title');
@@ -85,12 +88,64 @@
     }
   }
   
+  // Function to check if tabs need a scrollbar indicator
+  function checkTabsOverflow() {
+    if (!tabsContainer) return;
+    
+    const hasOverflow = tabsContainer.scrollWidth > tabsContainer.clientWidth;
+    if (hasOverflow) {
+      tabsContainer.classList.add('tab-scroll-active');
+    } else {
+      tabsContainer.classList.remove('tab-scroll-active');
+    }
+  }
+  
+  // Scroll to make the active tab visible
+  function scrollToActiveTab() {
+    if (!tabsContainer) return;
+    
+    const activeTabEl = tabsContainer.querySelector('.tab-item.active') as HTMLElement;
+    if (!activeTabEl) return;
+    
+    // Calculate position to scroll
+    const containerRect = tabsContainer.getBoundingClientRect();
+    const tabRect = activeTabEl.getBoundingClientRect();
+    
+    // Check if tab is partially outside visible area
+    const isTabRightVisible = tabRect.right <= containerRect.right;
+    const isTabLeftVisible = tabRect.left >= containerRect.left;
+    
+    if (!isTabRightVisible) {
+      // If tab is to the right of view, scroll it into view
+      // Use scrollIntoView for better cross-browser support when available
+      try {
+        activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      } catch (e) {
+        // Fallback for browsers that don't support smooth scrolling options
+        tabsContainer.scrollLeft += (tabRect.right - containerRect.right + 16);
+      }
+    } else if (!isTabLeftVisible) {
+      // If tab is to the left of view, scroll it into view
+      try {
+        activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      } catch (e) {
+        // Fallback for browsers that don't support smooth scrolling options
+        tabsContainer.scrollLeft += (tabRect.left - containerRect.left - 16);
+      }
+    }
+  }
+  
   // Function to handle tab changes
   function handleTabChange(tabId: string) {
     activeTab = tabId;
     if (currentLanguage) {
       updateUrl(currentLanguage as any, tabId);
     }
+    
+    // Schedule scroll to the selected tab after UI update
+    setTimeout(() => {
+      scrollToActiveTab();
+    }, 50);
   }
   
   function handleLanguageChange(newLang: string) {
@@ -122,6 +177,12 @@
       loading: t('ui.loading'),
       activeTab: t(tabs.find(tab => tab.id === activeTab)?.label || '')
     });
+    
+    // Re-check tabs overflow after translation update
+    setTimeout(() => {
+      checkTabsOverflow();
+      scrollToActiveTab();
+    }, 100);
   }
 
   beforeUpdate(() => {
@@ -173,6 +234,54 @@
       if (!$itemsStore.items || $itemsStore.items.length === 0) {
         itemsStore.loadItems();
       }
+      
+      // Set up tab container listeners
+      if (tabsContainer) {
+        // Check for tab overflow
+        checkTabsOverflow();
+        
+        // Firefox-specific scrollbar hiding (since we can't use scrollbar-width CSS property)
+        // This adds a Firefox-only CSS rule dynamically
+        if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
+          const style = document.createElement('style');
+          style.textContent = '.tabs-container { scrollbar-width: none; }';
+          document.head.appendChild(style);
+        }
+        
+        // Add scroll listener to toggle indicator
+        tabsContainer.addEventListener('scroll', () => {
+          // Check if we're at the end of the scroll
+          const isAtEnd = tabsContainer.scrollLeft + tabsContainer.clientWidth >= tabsContainer.scrollWidth - 5;
+          // Check if we're at the beginning of the scroll
+          const isAtStart = tabsContainer.scrollLeft <= 5;
+          
+          if (isAtEnd) {
+            tabsContainer.classList.remove('tab-scroll-active');
+          } else {
+            tabsContainer.classList.add('tab-scroll-active');
+          }
+          
+          if (isAtStart) {
+            tabsContainer.classList.remove('tab-scroll-not-at-start');
+          } else {
+            tabsContainer.classList.add('tab-scroll-not-at-start');
+          }
+        });
+        
+        // Trigger initial scroll check
+        tabsContainer.dispatchEvent(new Event('scroll'));
+        
+        // Add window resize listener
+        window.addEventListener('resize', () => {
+          checkTabsOverflow();
+          scrollToActiveTab();
+        });
+        
+        // Scroll to active tab
+        setTimeout(() => {
+          scrollToActiveTab();
+        }, 100);
+      }
     } catch (e) {
       console.error('[App] Error in onMount:', e);
     }
@@ -186,6 +295,9 @@
       isMounted = false;
       trackUnmount(COMPONENT_ID);
       logDebug(COMPONENT_ID, 'Component unmounted');
+      
+      // Remove window resize listener
+      window.removeEventListener('resize', checkTabsOverflow);
     } catch (e) {
       console.error('[App] Error in onDestroy:', e);
     }
@@ -199,6 +311,11 @@
       storeValue: $languageStore,
       activeTab
     });
+    
+    // Check tabs overflow after update
+    setTimeout(() => {
+      checkTabsOverflow();
+    }, 50);
   });
 </script>
 
@@ -213,10 +330,12 @@
         </div>
       </div>
       <nav>
-        <ul class="flex p-0 m-0 border-b list-style-none app-tabs">
+        <ul class="flex p-0 m-0 border-b list-style-none app-tabs tabs-container" bind:this={tabsContainer}>
+          <div class="tab-scroll-left-indicator"></div>
+          <div class="tab-scroll-indicator"></div>
           {#each tabLabels as tab}
             <li 
-              class="py-sm px-md cursor-pointer transition tab-item {activeTab === tab.id ? 'active' : ''}"
+              class="py-sm px-md cursor-pointer transition tab-item tab-flexible tabs-mobile {activeTab === tab.id ? 'active' : ''}"
               on:click={() => handleTabChange(tab.id)}
               on:keydown={(e) => e.key === 'Enter' && handleTabChange(tab.id)}
               role="tab"

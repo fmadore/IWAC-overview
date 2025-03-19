@@ -283,4 +283,86 @@
   text-align: right;
   color: var(--color-text-secondary);
   font-size: 10px;
+}
+
+/* Responsive tab utilities */
+.tabs-container {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  /* Use a cross-browser approach to hide scrollbars while maintaining functionality */
+  /* IE and Edge */
+  -ms-overflow-style: none;
+  position: relative;
+  width: 100%;
+  /* Enable smooth scrolling in modern browsers */
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-scroll-indicator {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(90deg, rgba(var(--rgb-bg-page), 0), rgba(var(--rgb-bg-page), 0.9));
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.tab-scroll-active .tab-scroll-indicator {
+  opacity: 1;
+}
+
+/* Tab responsive styles */
+@media (max-width: 768px) {
+  .tabs-mobile {
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    white-space: nowrap;
+  }
+  
+  /* Show left indicator when not at the beginning */
+  .tab-scroll-left-indicator {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    background: linear-gradient(270deg, rgba(var(--rgb-bg-page), 0), rgba(var(--rgb-bg-page), 0.9));
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+  }
+  
+  .tab-scroll-not-at-start .tab-scroll-left-indicator {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .tabs-mobile {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-2xs) var(--spacing-xs);
+  }
+  
+  /* Adjust tab padding further on very small screens */
+  .app-tabs .tabs-mobile {
+    min-width: 60px;
+    text-align: center;
+  }
+}
+
+/* Make tabs use flex-basis instead of fixed widths */
+.tab-flexible {
+  flex: 0 0 auto;
+  white-space: nowrap;
 } 
