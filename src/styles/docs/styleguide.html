@@ -5,56 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CSS Style Guide</title>
   <link rel="stylesheet" href="../main.css">
-  <style>
-    .section {
-      margin-bottom: var(--spacing-2xl);
-    }
-    
-    .sample-box {
-      padding: var(--spacing-md);
-      margin-bottom: var(--spacing-md);
-      border: 1px solid var(--color-border);
-      border-radius: var(--border-radius-md);
-    }
-
-    .color-sample {
-      width: 100px;
-      height: 100px;
-      margin: var(--spacing-xs);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--border-radius-md);
-    }
-
-    .spacing-sample {
-      background-color: var(--color-bg-secondary);
-      margin-right: var(--spacing-sm);
-      display: inline-block;
-    }
-
-    .swatch-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: var(--spacing-md);
-    }
-
-    .swatch {
-      padding: var(--spacing-md);
-      border-radius: var(--border-radius-md);
-      text-align: center;
-    }
-
-    .swatch-label {
-      margin-top: var(--spacing-xs);
-      font-size: var(--font-size-sm);
-    }
-
-    /* Border for light color swatches */
-    .swatch.bordered {
-      border: 1px solid var(--color-border);
-    }
-  </style>
+  <link rel="stylesheet" href="./styleguide.css">
 </head>
 <body class="p-lg">
   <header class="mb-xl">
@@ -244,7 +195,7 @@
       
       <h3 class="text-xl font-semibold mb-sm mt-lg">Positioning</h3>
       <div class="sample-box">
-        <div class="relative bg-light p-lg mb-md border" style="height: 150px;">
+        <div class="relative bg-light p-lg mb-md border positioning-example">
           <div class="absolute top-0 left-0 bg-primary text-white p-xs">Top Left</div>
           <div class="absolute top-0 right-0 bg-secondary text-white p-xs">Top Right</div>
           <div class="absolute bottom-0 left-0 bg-success text-white p-xs">Bottom Left</div>
