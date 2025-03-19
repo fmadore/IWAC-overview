@@ -4,11 +4,11 @@
     
     const COMPONENT_ID = 'DebugPanel';
     let visible = false;
-    let logs = [];
+    let logs: any[] = [];
     let filterText = '';
     let filterComponent = '';
     let autoRefresh = false;
-    let refreshInterval;
+    let refreshInterval: number | undefined;
     
     function toggleVisibility() {
         visible = !visible;
@@ -52,10 +52,12 @@
         autoRefresh = !autoRefresh;
         
         if (autoRefresh) {
-            refreshInterval = setInterval(refreshLogs, 1000);
+            refreshInterval = window.setInterval(refreshLogs, 1000);
             logDebug(COMPONENT_ID, 'Auto-refresh enabled');
         } else {
-            clearInterval(refreshInterval);
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
             logDebug(COMPONENT_ID, 'Auto-refresh disabled');
         }
     }
@@ -77,7 +79,7 @@
         refreshLogs();
         
         // Add keyboard shortcut (Ctrl+Shift+D) to toggle panel
-        const handleKeyDown = (e) => {
+        const handleKeyDown = (e: KeyboardEvent) => {
             if (e.ctrlKey && e.shiftKey && e.key === 'D') {
                 e.preventDefault();
                 toggleVisibility();
@@ -103,7 +105,7 @@
 </script>
 
 <div 
-    class="debug-toggle" 
+    class="debug-toggle cursor-pointer z-tooltip fixed" 
     on:click={toggleVisibility} 
     on:keydown={(e) => e.key === 'Enter' && toggleVisibility()}
     role="button"
@@ -114,49 +116,51 @@
 </div>
 
 {#if visible}
-<div class="debug-panel">
-    <div class="debug-header">
-        <h2>IWAC Debug Panel</h2>
-        <div class="debug-controls">
-            <button on:click={refreshLogs} title="Refresh Logs">🔄</button>
-            <button on:click={toggleAutoRefresh} class:active={autoRefresh} title="Auto Refresh">
+<div class="debug-panel fixed z-modal">
+    <div class="debug-header flex justify-between items-center border-b">
+        <h2 class="m-0 text-lg">IWAC Debug Panel</h2>
+        <div class="debug-controls flex gap-xs">
+            <button on:click={refreshLogs} title="Refresh Logs" class="cursor-pointer rounded transition">🔄</button>
+            <button on:click={toggleAutoRefresh} class="cursor-pointer rounded transition {autoRefresh ? 'active' : ''}" title="Auto Refresh">
                 {autoRefresh ? '⏸️' : '▶️'}
             </button>
-            <button on:click={downloadLogs} title="Download Logs">💾</button>
-            <button on:click={clearLogs} title="Clear Logs">🗑️</button>
-            <button on:click={toggleVisibility} title="Close">❌</button>
+            <button on:click={downloadLogs} title="Download Logs" class="cursor-pointer rounded transition">💾</button>
+            <button on:click={clearLogs} title="Clear Logs" class="cursor-pointer rounded transition">🗑️</button>
+            <button on:click={toggleVisibility} title="Close" class="cursor-pointer rounded transition">❌</button>
         </div>
     </div>
     
-    <div class="debug-filters">
+    <div class="debug-filters flex gap-md border-b">
         <input 
             type="text" 
             bind:value={filterText} 
             placeholder="Filter logs..." 
             title="Filter by any text"
+            class="flex-1 rounded"
         />
         <input 
             type="text" 
             bind:value={filterComponent} 
             placeholder="Filter by component..." 
             title="Filter by component name"
+            class="flex-1 rounded"
         />
     </div>
     
-    <div class="debug-content">
-        <div class="log-count">
+    <div class="debug-content flex flex-col">
+        <div class="log-count text-sm text-tertiary mb-sm">
             Showing {getFilteredLogs().length} of {logs.length} logs
         </div>
         
-        <div class="log-list">
+        <div class="log-list flex flex-col gap-xs">
             {#each getFilteredLogs().slice().reverse() as log}
-                <div class="log-entry">
-                    <div class="log-timestamp">{new Date(log.timestamp).toLocaleTimeString()}</div>
+                <div class="log-entry rounded">
+                    <div class="log-timestamp text-tertiary text-xs">{new Date(log.timestamp).toLocaleTimeString()}</div>
                     <div class="log-component">{log.component}</div>
                     <div class="log-action">{log.action}</div>
                     {#if log.details}
-                        <div class="log-details">
-                            <pre>{JSON.stringify(log.details, null, 2)}</pre>
+                        <div class="log-details rounded mt-xs">
+                            <pre class="m-0 text-xs">{JSON.stringify(log.details, null, 2)}</pre>
                         </div>
                     {/if}
                 </div>
@@ -168,7 +172,6 @@
 
 <style>
     .debug-toggle {
-        position: fixed;
         bottom: 10px;
         right: 10px;
         width: 40px;
@@ -179,21 +182,17 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
         font-size: 20px;
-        z-index: 9999;
         user-select: none;
     }
     
     .debug-panel {
-        position: fixed;
         bottom: 0;
         right: 0;
         width: 80%;
         height: 70%;
         background: rgba(0, 0, 0, 0.9);
         color: white;
-        z-index: 9998;
         display: flex;
         flex-direction: column;
         font-family: monospace;
@@ -203,30 +202,15 @@
     
     .debug-header {
         padding: 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         border-bottom: 1px solid #444;
-    }
-    
-    .debug-header h2 {
-        margin: 0;
-        font-size: 16px;
-    }
-    
-    .debug-controls {
-        display: flex;
-        gap: 5px;
     }
     
     .debug-controls button {
         background: transparent;
         border: none;
         color: white;
-        cursor: pointer;
         font-size: 16px;
         padding: 5px;
-        border-radius: 4px;
     }
     
     .debug-controls button:hover {
@@ -239,43 +223,24 @@
     
     .debug-filters {
         padding: 10px;
-        display: flex;
-        gap: 10px;
         border-bottom: 1px solid #444;
     }
     
     .debug-filters input {
-        flex: 1;
         background: rgba(255, 255, 255, 0.1);
         border: 1px solid #444;
         color: white;
         padding: 5px 10px;
-        border-radius: 4px;
     }
     
     .debug-content {
         flex: 1;
         overflow: auto;
         padding: 10px;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .log-count {
-        font-size: 12px;
-        color: #aaa;
-        margin-bottom: 10px;
-    }
-    
-    .log-list {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
     }
     
     .log-entry {
         padding: 5px;
-        border-radius: 4px;
         background: rgba(255, 255, 255, 0.05);
         display: grid;
         grid-template-columns: 100px 120px 1fr;
@@ -285,11 +250,6 @@
     
     .log-entry:hover {
         background: rgba(255, 255, 255, 0.1);
-    }
-    
-    .log-timestamp {
-        color: #aaa;
-        font-size: 12px;
     }
     
     .log-component {
@@ -306,15 +266,7 @@
         margin-top: 5px;
         padding: 5px;
         background: rgba(0, 0, 0, 0.3);
-        border-radius: 4px;
         max-height: 200px;
         overflow: auto;
-    }
-    
-    .log-details pre {
-        margin: 0;
-        white-space: pre-wrap;
-        font-size: 12px;
-        color: #aaa;
     }
 </style> 
