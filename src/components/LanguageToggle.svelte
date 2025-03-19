@@ -11,32 +11,26 @@
     }
 </script>
 
-<button class="language-toggle" on:click={toggleLanguage}>
+<button 
+    class="px-md py-xs rounded flex items-center cursor-pointer text-sm language-button"
+    on:click={toggleLanguage}
+>
     {$toggleText}
 </button>
 
 <style>
-    .language-toggle {
-        padding: var(--spacing-xs) var(--spacing-md);
-        border: 1px solid var(--primary-color);
-        background: transparent;
-        color: var(--primary-color);
-        border-radius: var(--border-radius-sm);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        font-size: var(--font-size-sm);
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-xs);
+    .language-button {
+        background-color: var(--color-primary);
+        color: var(--color-text-light);
+        transition: background-color var(--transition-fast);
     }
-
-    .language-toggle:hover {
-        background: var(--primary-color);
-        color: var(--text-color-light);
+    
+    .language-button:hover {
+        background-color: var(--color-primary-dark);
     }
-
-    .language-toggle:focus {
+    
+    .language-button:focus {
         outline: none;
-        box-shadow: 0 0 0 2px var(--primary-color-faded);
+        box-shadow: 0 0 0 2px var(--color-primary-300);
     }
 </style> 

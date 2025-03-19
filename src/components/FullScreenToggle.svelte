@@ -52,7 +52,12 @@
     });
 </script>
 
-<button class="fullscreen-toggle" on:click={toggleFullScreen} title={isFullScreen ? t('ui.exit_fullscreen') : t('ui.enter_fullscreen')}>
+<button 
+    class="px-xs py-xs flex items-center justify-center cursor-pointer fullscreen-button rounded text-sm"
+    on:click={toggleFullScreen} 
+    title={isFullScreen ? t('ui.exit_fullscreen') : t('ui.enter_fullscreen')}
+    aria-label={isFullScreen ? t('ui.exit_fullscreen') : t('ui.enter_fullscreen')}
+>
     {#if isFullScreen}
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 3v3a2 2 0 0 1-2 2H3"></path>
@@ -71,28 +76,19 @@
 </button>
 
 <style>
-    .fullscreen-toggle {
-        padding: var(--spacing-xs) var(--spacing-md);
-        border: 1px solid var(--primary-color);
-        background: transparent;
-        color: var(--primary-color);
-        border-radius: var(--border-radius-sm);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        font-size: var(--font-size-sm);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .fullscreen-button {
+        background-color: var(--color-primary);
+        color: var(--color-text-light);
+        transition: background-color var(--transition-fast);
     }
-
-    .fullscreen-toggle:hover {
-        background: var(--primary-color);
-        color: var(--text-color-light);
+    
+    .fullscreen-button:hover {
+        background-color: var(--color-primary-dark);
     }
-
-    .fullscreen-toggle:focus {
+    
+    .fullscreen-button:focus {
         outline: none;
-        box-shadow: 0 0 0 2px var(--primary-color-faded);
+        box-shadow: 0 0 0 2px var(--color-primary-300);
     }
     
     svg {
