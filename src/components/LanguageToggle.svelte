@@ -12,34 +12,31 @@
 </script>
 
 <button 
-    class="px-md py-xs rounded flex items-center justify-center cursor-pointer text-sm language-button"
+    class="btn btn-primary text-sm"
     on:click={toggleLanguage}
 >
     {$toggleText}
 </button>
 
 <style>
-    .language-button {
+    :global(.btn.btn-primary) {
         background-color: var(--color-primary);
         color: var(--color-text-light);
-        transition: background-color var(--transition-fast);
-        min-height: 36px;
     }
     
-    .language-button:hover {
+    :global(.btn.btn-primary:hover) {
         background-color: var(--color-primary-dark);
     }
     
-    .language-button:focus {
+    :global(.btn.btn-primary:focus) {
         outline: none;
         box-shadow: 0 0 0 2px var(--color-primary-300);
     }
     
     /* Mobile optimizations */
     @media (max-width: 768px) {
-        .language-button {
+        :global(.btn) {
             min-height: 42px;
-            padding: var(--spacing-xs) var(--spacing-md);
             font-size: 14px;
         }
     }

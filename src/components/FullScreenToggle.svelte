@@ -53,7 +53,7 @@
 </script>
 
 <button 
-    class="px-xs py-xs flex items-center justify-center cursor-pointer fullscreen-button rounded text-sm"
+    class="btn btn-primary btn-icon"
     on:click={toggleFullScreen} 
     title={isFullScreen ? t('ui.exit_fullscreen') : t('ui.enter_fullscreen')}
     aria-label={isFullScreen ? t('ui.exit_fullscreen') : t('ui.enter_fullscreen')}
@@ -76,30 +76,34 @@
 </button>
 
 <style>
-    .fullscreen-button {
+    /* Button styling */
+    :global(.btn.btn-primary) {
         background-color: var(--color-primary);
         color: var(--color-text-light);
-        transition: background-color var(--transition-fast);
-        min-width: 36px;
-        min-height: 36px;
     }
     
-    .fullscreen-button:hover {
+    :global(.btn.btn-primary:hover) {
         background-color: var(--color-primary-dark);
     }
     
-    .fullscreen-button:focus {
+    :global(.btn.btn-primary:focus) {
         outline: none;
         box-shadow: 0 0 0 2px var(--color-primary-300);
     }
     
+    :global(.btn-icon) {
+        min-width: 36px;
+        min-height: 36px;
+    }
+    
+    /* Only keep styles that can't be achieved with utility classes */
     svg {
         display: block;
     }
     
     /* Mobile optimizations */
     @media (max-width: 768px) {
-        .fullscreen-button {
+        :global(.btn-icon) {
             min-width: 42px;
             min-height: 42px;
             padding: var(--spacing-sm);
