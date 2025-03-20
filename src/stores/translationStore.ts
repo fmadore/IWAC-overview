@@ -29,6 +29,7 @@ const translations: Record<Language, Record<string, string>> = {
         'ui.no_visualization_content': 'No visualization content available',
         'ui.enter_fullscreen': 'Enter fullscreen mode',
         'ui.exit_fullscreen': 'Exit fullscreen mode',
+        'ui.download_visualization': 'Download visualization',
         
         // Visualization components
         'viz.summary': 'Summary',
@@ -179,6 +180,7 @@ const translations: Record<Language, Record<string, string>> = {
         'ui.no_visualization_content': 'Aucun contenu de visualisation disponible',
         'ui.enter_fullscreen': 'Passer en mode plein écran',
         'ui.exit_fullscreen': 'Quitter le mode plein écran',
+        'ui.download_visualization': 'Télécharger la visualisation',
         
         // Visualization components
         'viz.summary': 'Résumé',

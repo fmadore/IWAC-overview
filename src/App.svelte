@@ -4,6 +4,7 @@
   import { t, languageStore, translate } from './stores/translationStore';
   import LanguageToggle from './components/LanguageToggle.svelte';
   import FullScreenToggle from './components/FullScreenToggle.svelte';
+  import DownloadToggle from './components/DownloadToggle.svelte';
   import TranslationContext from './components/TranslationContext.svelte';
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
   import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
@@ -345,6 +346,7 @@
       <div class="flex justify-between items-center mb-md">
         <h1 class="m-0 text-xl text-primary">{@html $appTitle}</h1>
         <div class="flex gap-md items-center">
+          <DownloadToggle />
           <FullScreenToggle />
           <LanguageToggle />
         </div>

@@ -201,168 +201,19 @@ A component that provides fullscreen functionality for a more immersive data exp
 - Keyboard event handling for fullscreen changes
 - Clean integration with the application header
 
-## Subcollection Categories
-
-The application organizes subcollections into meaningful categories to provide better context and organization in visualizations, particularly in the Country Distribution treemap.
-
-### SubcollectionCategories.ts
-
-This file defines the structure and mapping of subcollections to categories:
-
-- **Category Definitions**: Each category has an ID, English name, French name, and description
-- **Subcollection Mapping**: Maps specific subcollection names to their respective category IDs
-- **Helper Functions**: Provides utility functions for retrieving category information and translations
-
-### Available Categories
-
-The following categories are defined for organizing subcollections:
-
-1. **News Articles** (`news_article`)
-   - Newspaper and magazine articles from various countries
-   - Examples from Benin: "24h au Bénin", "La Nation", "Fraternité"
-   - Examples from Burkina Faso: "Burkina 24", "Le Pays", "Sidwaya"
-   - Examples from Ivory Coast: "Fraternité Matin", "Le Patriote", "Notre Voie"
-   - Examples from Niger: "Le Sahel"
-   - Examples from Togo: "Togo-Presse", "La Lettre de Tchaoudjo", "Forum Hebdo", "Le Démocrate"
-
-2. **Islamic Periodicals** (`islamic_periodical`)
-   - Islamic magazines and periodicals
-   - Examples: "ASSALAM", "Islam Hebdo", "Islam Info"
-
-3. **Documents** (`documents`)
-   - Various documents organized by country
-   - Examples: "Documents divers (Burkina Faso)", "Documents divers (Bénin)"
-
-4. **Photographs** (`photographs`)
-   - Photographs and images organized by country
-   - Examples: "Photographies (Burkina Faso)", "Photographies (Côte d'Ivoire)"
-   - Note: All "Photographies" subcollections are properly categorized under the 'photographs' category
-
-5. **Video Recordings** (`video_recording`)
-   - Video recordings and footage
-   - Examples: "Collection de sermons islamiques sur vidéo"
-
-6. **References** (`references`)
-   - Reference materials organized by country
-   - Examples: "Références (Burkina Faso)", "Références (Nigéria)"
-
-7. **Other** (`other`)
-   - Uncategorized items that don't fit into the above categories
-
-### Implementation
-
-The category system is implemented through TypeScript interfaces and objects:
-
-```typescript
-// Define category structure
-export interface SubcollectionCategory {
-    id: string;
-    nameEn: string;
-    nameFr: string;
-    description?: string;
-}
-
-// Define mapping structure
-export interface SubcollectionMapping {
-    [subcollectionName: string]: string; // Maps subcollection name to category ID
-}
-
-// Define the categories
-export const subcollectionCategories: Record<string, SubcollectionCategory> = {
-    'news_article': {
-        id: 'news_article',
-        nameEn: 'News article',
-        nameFr: 'Article de presse',
-        description: 'Newspaper and magazine articles'
-    },
-    // Other categories...
-};
-
-// Define the mapping of subcollections to categories
-export const subcollectionMapping: SubcollectionMapping = {
-    // News articles - Benin
-    '24h au Bénin': 'news_article',
-    // Other mappings...
-};
-```
-
-### Usage in Visualizations
-
-The category system is primarily used in the Country Distribution visualization to:
-
-1. Group subcollections into meaningful categories
-2. Provide a three-level hierarchy (Country > Category > Subcollection)
-3. Apply consistent coloring based on category types
-4. Display translated category names based on the current language
-
-This categorization enhances the visualization by providing more context and organization to the data, making it easier for users to understand the content distribution across countries and categories.
-
-## Data Management
-
-### itemsStore.ts
-
-A Svelte store that manages the loading and state of database items. It provides:
-- Loading state management
-- Error handling
-- Asynchronous data fetching
-
-### OmekaItem.ts
-
-TypeScript interfaces that define the structure of database items and visualization data:
-- OmekaItem: Represents an individual item from the IWAC database
-- VisualizationData: Manages the state of items, loading, and errors
-
-## Theme System
-
-The application uses a centralized theming system implemented with CSS variables. This allows for consistent styling across all components and makes it easy to update the look and feel of the entire application by changing just a few values.
-
-### theme.css
-
-The theme file defines variables for:
-
-- **Colors**: Primary, secondary, background, card, text, and status colors
-- **Typography**: Font families, sizes, and weights
-- **Spacing**: Consistent spacing scale for margins and padding
-- **Border Radius**: Standardized corner rounding
-- **Shadows**: Consistent shadow styles
-- **Transitions**: Animation timing
-- **Z-index Layers**: Standardized stacking contexts
-
-Example usage:
-
-```css
-.element {
-  color: var(--text-color-primary);
-  background-color: var(--card-background);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius-sm);
-  box-shadow: var(--card-shadow);
-  transition: all var(--transition-fast);
-}
-```
-
-The theme system also includes utility classes for common styling needs:
-
-```html
-<div class="text-primary bg-card">Themed content</div>
-```
-
-## UI Elements
-
-### Header Controls
-
-The application header includes several controls for enhancing the user experience:
-
-#### Language Toggle
-- Allows users to switch between English and French interfaces
-- Updates all text content throughout the application in real-time
-- Preserves the current visualization and state when switching languages
-
 #### Fullscreen Toggle
 - Enables fullscreen mode for a more immersive visualization experience
 - Shows different icons based on the current fullscreen state
 - Provides localized tooltips in the current language
 - Automatically updates its state when the user exits fullscreen using browser controls
+
+#### DownloadToggle
+- Allows users to download the current visualization as an SVG file
+- Includes the visualization title in the downloaded file
+- File is named based on the current visualization title and tab name
+- Properly handles styling and preserves the visual appearance of the graph
+- SVG format ensures high-quality, resolution-independent images suitable for publications and presentations
+- Exports the visualization in the current language state
 
 ### Tab Navigation
 - Provides easy access to different visualization types
@@ -408,6 +259,34 @@ A reusable component that provides language switching functionality:
 
 <button class="language-toggle" on:click={() => languageStore.toggleLanguage()}>
     {$toggleText}
+</button>
+```
+
+#### DownloadToggle.svelte
+A reusable component that allows users to download the current visualization as an SVG file:
+
+```svelte
+<script lang="ts">
+    import { t } from '../stores/translationStore';
+    
+    function downloadVisualization() {
+        // Get SVG element and prepare for download
+        const svg = document.querySelector('.visualization-content svg');
+        if (svg) {
+            // Clone and enhance SVG with proper styling and title
+            const clonedSvg = svg.cloneNode(true) as SVGElement;
+            // ... process SVG for download ...
+            
+            // Create download link with the visualization name
+            const downloadLink = document.createElement('a');
+            downloadLink.download = `iwac-visualization.svg`;
+            downloadLink.click();
+        }
+    }
+</script>
+
+<button class="btn btn-primary btn-icon" on:click={downloadVisualization} title={t('ui.download_visualization')}>
+    <!-- Download icon SVG -->
 </button>
 ```
 
