@@ -47,7 +47,7 @@
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
     
-    // Initialize data processing hook with custom filter function
+    // Initialize data processing hooks with specific filter functions
     const { filterItems, groupAndCount } = useDataProcessing({
         filterMissingValues: true,
         requiredFields: ['language'],
@@ -63,6 +63,25 @@
         calculatePercentages: true,
         sortByCount: true,
         sortDescending: true
+    });
+    
+    // Additional hooks for facet generation
+    const countryFacetHook = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['language', 'country'],
+        filterFn: (item: OmekaItem) => {
+            // When generating country options, only apply type filter
+            return selectedType === 'all' || item.type === selectedType;
+        }
+    });
+    
+    const typeFacetHook = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['language', 'type'],
+        filterFn: (item: OmekaItem) => {
+            // When generating type options, only apply country filter
+            return selectedCountry === 'all' || item.country === selectedCountry;
+        }
     });
     
     // Store unsubscribe functions
@@ -258,21 +277,24 @@
     function generateFacetOptions() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Use the data processing hook to filter items with languages
-        const itemsWithLanguage = filterItems($itemsStore.items);
-        
-        // Generate country options using the hook
-        const countryResults = groupAndCount(
-            itemsWithLanguage,
-            item => item.country || "Unknown"
-        );
-        
-        // Get the current translations directly from the translation store
+        // Get the current translations
         const currentAllCountriesText = t('viz.all_countries');
         const currentAllTypesText = t('viz.all_types');
         
+        // Filter items for country facet (apply only type filter)
+        const itemsForCountryFacet = countryFacetHook.filterItems($itemsStore.items);
+        
+        // Filter items for type facet (apply only country filter)
+        const itemsForTypeFacet = typeFacetHook.filterItems($itemsStore.items);
+        
+        // Generate country options
+        const countryResults = countryFacetHook.groupAndCount(
+            itemsForCountryFacet,
+            item => item.country || "Unknown"
+        );
+        
         countryOptions = [
-            { value: 'all', label: currentAllCountriesText, count: itemsWithLanguage.length },
+            { value: 'all', label: currentAllCountriesText, count: itemsForCountryFacet.length },
             ...countryResults
                 .filter(result => result.key !== "Unknown")
                 .map(result => {
@@ -287,14 +309,14 @@
                 .sort((a, b) => b.count - a.count)
         ];
         
-        // Generate type options using the hook
-        const typeResults = groupAndCount(
-            itemsWithLanguage,
+        // Generate type options
+        const typeResults = typeFacetHook.groupAndCount(
+            itemsForTypeFacet,
             item => item.type || "Unknown"
         );
         
         typeOptions = [
-            { value: 'all', label: currentAllTypesText, count: itemsWithLanguage.length },
+            { value: 'all', label: currentAllTypesText, count: itemsForTypeFacet.length },
             ...typeResults
                 .map(result => ({
                     value: result.key,
@@ -498,6 +520,7 @@
     function handleCountryChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedCountry = select.value;
+        generateFacetOptions(); // Regenerate facet options with new filter
         updateVisualization();
     }
     
@@ -505,11 +528,12 @@
     function handleTypeChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedType = select.value;
+        generateFacetOptions(); // Regenerate facet options with new filter
         updateVisualization();
     }
     
-    // Make sure facet options update when language changes
-    $: if ($languageStore) {
+    // Make sure facet options update when language changes or filters change
+    $: if ($languageStore || selectedCountry || selectedType) {
         if ($itemsStore.items && $itemsStore.items.length > 0) {
             generateFacetOptions();
         }
