@@ -158,6 +158,7 @@ const translations: Record<Language, Record<string, string>> = {
         'category.Organizations': 'Organizations',
         'category.Persons': 'Persons',
         'category.Topics': 'Topics',
+        'category.Authority Files': 'Authority files',
     },
     fr: {
         // App navigation
@@ -307,6 +308,7 @@ const translations: Record<Language, Record<string, string>> = {
         'category.Organizations': 'Organisations',
         'category.Persons': 'Personnes',
         'category.Topics': 'Sujets',
+        'category.Authority Files': 'Notices d\'autorité',
     }
 };
 

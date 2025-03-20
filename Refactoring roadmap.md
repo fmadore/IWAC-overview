@@ -95,36 +95,25 @@
 
 **Implementation steps:**
 1. ✅ Create standardized resize handling with useD3Resize hook - Completed and verified
-2. Create a D3 service/factory with standardized methods
+2. ✅ Create a D3 service/factory with standardized methods:
+   - ✅ Implemented in `src/services/d3Service.ts`
+   - ✅ Provides standardized SVG creation with proper margins and responsive handling
+   - ✅ Offers unified scale creation for different data types
+   - ✅ Handles consistent axis creation and rendering
+   - ✅ Includes helper functions for common visualization elements (legends, grids, titles)
+   - ✅ Features standardized color scale generation
+   - ✅ Manages responsive behavior for visualizations
+   - ✅ Implements consistent error handling for "no data" scenarios
+   - ✅ Provides standardized tooltip container creation
 3. Extract visualization-specific rendering to separate modules (countryChart.ts, timelineChart.ts, etc.)
 4. Implement a consistent data transformation approach
-5. Update visualization components to use the new abstraction
-
-## 3. Streamline the Translation System
-
-**Issue:** The translation system is complex, verbose, and inconsistently implemented.
-
-**Improvement:**
-- ✅ Simplify the translation system architecture
-- ✅ Remove excessive console logging
-- ✅ Standardize how translations are used in components
-- ✅ Improve translation handling in visualization components
-- ✅ Implement proper TypeScript types for translation parameters
-
-**Implementation steps:**
-1. ✅ Improve translation handling in visualization components (proper async handling, error management)
-2. ✅ Create a cleaner translation API with less console logging
-   - ✅ Removed excessive console logging from translationStore.ts
-   - ✅ Simplified TranslationContext.svelte to core functionality
-   - ✅ Cleaned up LanguageToggle.svelte
-   - ✅ Added development-only logging for important state changes
-3. ✅ Implement proper typing for translations
-   - ✅ Added type safety for translation keys
-   - ✅ Created namespace types for different translation categories
-   - ✅ Added type checking for replacement parameters
-   - ✅ Fixed translation parameter types to use object format instead of arrays
-4. ✅ Standardize how components subscribe to language changes
-5. Add support for lazy-loaded translations for better performance
+5. Update visualization components to use the new abstraction:
+   - ✅ Update IndexDistribution.svelte (simplest component to start with)
+   - [ ] Update TimelineDistribution.svelte
+   - [ ] Update LanguageDistribution.svelte
+   - [ ] Update TypeDistribution.svelte
+   - [ ] Update CountryDistribution.svelte
+   - [ ] Update WordDistribution.svelte
 
 ## 4. Improve State Management Architecture
 

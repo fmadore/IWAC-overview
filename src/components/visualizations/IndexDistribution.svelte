@@ -9,6 +9,7 @@
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
+    import { D3Service } from '../../services/d3Service';
 
     // Define interfaces for data structures
     interface CategoryCount {
@@ -16,6 +17,22 @@
         originalCategory: string;
         count: number;
         percentage: number;
+    }
+
+    // Map French item_set_title to category keys
+    const categoryMappings: Record<string, string> = {
+        'Évènements': 'Events',
+        'Associations': 'Organizations',
+        'Individus': 'Persons',
+        'Emplacements': 'Locations',
+        'Sujets': 'Topics',
+        'Notices d\'autorité': 'Authority Files'
+    };
+
+    // Function to map item set title to the correct category key
+    function mapToCategory(itemSetTitle: string): string {
+        // Return mapped category if exists, otherwise return original
+        return categoryMappings[itemSetTitle] || itemSetTitle;
     }
 
     // States
@@ -50,7 +67,7 @@
     // Define translation keys
     const indexDescriptionKey = 'viz.index_distribution_description';
 
-    // Color scale for bars
+    // Create a reused color scale
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
     // Function to format numbers with spaces as thousands separator
@@ -92,12 +109,22 @@
         );
         
         // Transform results to match our CategoryCount interface
-        const categoryCounts: CategoryCount[] = results.map(result => ({
-            category: t(`category.${result.key}`) === `category.${result.key}` ? result.key : t(`category.${result.key}`),
-            originalCategory: result.key,
-            count: result.count,
-            percentage: result.percentage || 0
-        }));
+        const categoryCounts: CategoryCount[] = results.map(result => {
+            // Map the item_set_title to the correct category key first
+            const mappedCategory = mapToCategory(result.key);
+            // Then build the translation key
+            const categoryKey = `category.${mappedCategory}`;
+            // Use the translation store's t function to get the proper translation
+            const translatedCategory = t(categoryKey);
+            
+            return {
+                // Only use the translated string if it exists, otherwise use the original key
+                category: translatedCategory !== categoryKey ? translatedCategory : result.key,
+                originalCategory: result.key,
+                count: result.count,
+                percentage: result.percentage || 0
+            };
+        });
         
         // Update state
         totalItems = results.reduce((sum, r) => sum + r.count, 0);
@@ -130,19 +157,12 @@
             // Process data with current filters
             const data = processData();
             if (!data || data.length === 0) {
-                d3.select(container).select('svg').remove();
-                d3.select(container).append('div')
-                    .attr('class', 'no-data absolute inset-center text-secondary')
-                    .text(t('viz.no_data'));
+                D3Service.handleNoData(container, t('viz.no_data'));
                 return;
             }
             
             // Update categoryCounts for reactive updates
             categoryCounts = data;
-            
-            // Remove previous content
-            d3.select(container).select('svg').remove();
-            d3.select(container).select('.no-data').remove();
             
             // Check if mobile view (width < 768px)
             const isMobile = width < 768;
@@ -153,36 +173,48 @@
                 ? { top: 20, right: 15, bottom: 140, left: 45 }
                 : { top: 20, right: 30, bottom: 120, left: 60 };
             
-            const chartWidth = width - margin.left - margin.right;
-            const chartHeight = height - margin.top - margin.bottom;
+            // Create SVG with D3Service
+            const { svg, chart, chartWidth, chartHeight } = D3Service.createSVG({
+                container,
+                width,
+                height,
+                margin,
+                className: 'index-distribution-chart',
+                responsive: true
+            });
             
-            // Create SVG container
-            const svg = d3.select(container)
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height)
-                .attr('viewBox', `0 0 ${width} ${height}`);
+            // Create scales with D3Service
+            const xScale = D3Service.createScale({
+                type: 'band',
+                domain: data.map(d => d.category),
+                range: [0, chartWidth],
+                padding: isMobile ? 0.1 : 0.2 // Reduce padding on mobile
+            }) as d3.ScaleBand<string>;
             
-            // Create chart group
-            const chart = svg.append('g')
-                .attr('transform', `translate(${margin.left}, ${margin.top})`);
+            const yScale = D3Service.createScale({
+                type: 'linear',
+                domain: [0, maxCount * 1.1], // Add 10% padding at top
+                range: [chartHeight, 0]
+            }) as d3.ScaleLinear<number, number>;
             
-            // Create scales
-            const xScale = d3.scaleBand()
-                .domain(data.map(d => d.category))
-                .range([0, chartWidth])
-                .padding(isMobile ? 0.1 : 0.2); // Reduce padding on mobile
+            // Create axes with D3Service
+            const xAxis = D3Service.createAxis({
+                type: 'x',
+                scale: xScale,
+                position: 'bottom'
+            });
             
-            const yScale = d3.scaleLinear()
-                .domain([0, maxCount * 1.1]) // Add 10% padding at top
-                .range([chartHeight, 0]);
+            const yAxis = D3Service.createAxis({
+                type: 'y',
+                scale: yScale,
+                ticks: isMobile ? 3 : 5, // Fewer ticks on mobile
+            });
             
-            // Create and append x-axis
-            const xAxis = d3.axisBottom(xScale);
+            // Render X axis with manual rotation to match the original implementation
             chart.append('g')
                 .attr('class', 'x-axis')
                 .attr('transform', `translate(0, ${chartHeight})`)
-                .call(xAxis)
+                .call(g => D3Service.renderAxis(g, xAxis))
                 .selectAll('text')
                 .attr('transform', isMobile ? 'rotate(-70)' : 'rotate(-45)') // More rotation on mobile
                 .attr('text-anchor', 'end')
@@ -191,11 +223,10 @@
                 .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
                 .attr('fill', 'var(--color-text-primary)');
             
-            // Create and append y-axis
-            const yAxis = d3.axisLeft(yScale).ticks(isMobile ? 3 : 5); // Fewer ticks on mobile
+            // Render Y axis
             chart.append('g')
                 .attr('class', 'y-axis')
-                .call(yAxis)
+                .call(g => D3Service.renderAxis(g, yAxis))
                 .selectAll('text')
                 .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
                 .attr('fill', 'var(--color-text-primary)');
@@ -222,7 +253,7 @@
                     .text(t('viz.number_of_items'));
             }
             
-            // Create and append bars
+            // Create bars with consistent colors based on originalCategory, not translated category
             chart.selectAll('.bar')
                 .data(data)
                 .enter()
@@ -232,7 +263,7 @@
                 .attr('y', d => yScale(d.count))
                 .attr('width', xScale.bandwidth())
                 .attr('height', d => Math.max(0, chartHeight - yScale(d.count))) // Ensure height is not negative
-                .attr('fill', (d, i) => colorScale(d.category))
+                .attr('fill', (d, i) => colorScale(d.originalCategory))
                 .attr('rx', isMobile ? 2 : 3) // Smaller rounded corners on mobile
                 .attr('ry', isMobile ? 2 : 3)
                 .attr('stroke', 'white')
@@ -243,7 +274,7 @@
                     d3.select(this)
                         .transition()
                         .duration(200)
-                        .attr('fill', d3.rgb(colorScale(d.category)).brighter(0.5).toString());
+                        .attr('fill', d3.rgb(colorScale(d.originalCategory)).brighter(0.5).toString());
                     handleShowTooltip(event, d);
                 })
                 .on('mousemove', function(event, d) {
@@ -256,7 +287,7 @@
                     d3.select(this)
                         .transition()
                         .duration(200)
-                        .attr('fill', colorScale(d.category));
+                        .attr('fill', colorScale(d.originalCategory));
                     hideTooltip();
                 });
             
@@ -395,32 +426,11 @@
         theme="default"
         className="index-visualization"
     >
-        <div class="chart-container relative flex-1 bg-card rounded p-md overflow-hidden min-h-400 mb-md" bind:this={container}>
+        <div class="chart-container relative flex-1 bg-card rounded p-md overflow-hidden min-h-400" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
                 <div class="error absolute inset-center text-error">{$itemsStore.error}</div>
-            {/if}
-        </div>
-        
-        <div class="grid grid-cols-2 gap-md p-md bg-card rounded shadow stats">
-            {#if categoryCounts.length > 0}
-                <div class="p-md stat-summary">
-                    <h3 class="mt-0 mb-sm text-primary text-md border-b pb-xs">{t('viz.summary')}</h3>
-                    <p class="text-sm mb-xs">{t('viz.total_items')}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
-                    <p class="text-sm">{t('viz.number_of_categories')}: <strong class="font-medium">{formatNumber(categoryCounts.length)}</strong></p>
-                </div>
-                <div class="p-md top-categories">
-                    <h3 class="mt-0 mb-sm text-primary text-md border-b pb-xs">{t('viz.top_categories')}</h3>
-                    <ul class="list-style-none p-0 m-0">
-                        {#each categoryCounts.slice(0, 5) as category}
-                            <li class="flex justify-between mb-xs text-sm">
-                                <span class="text-primary category-name truncate mr-sm">{category.category}</span>
-                                <span class="text-secondary font-medium category-count whitespace-nowrap">{formatNumber(category.count)} {t('viz.items')} ({category.percentage.toFixed(1)}%)</span>
-                            </li>
-                        {/each}
-                    </ul>
-                </div>
             {/if}
         </div>
     </BaseVisualization>
@@ -428,16 +438,5 @@
 
 <style>
     /* Only keep styles that can't be achieved with utility classes */
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .stats {
-            grid-template-columns: 1fr !important;
-        }
-        
-        /* Ensure category names don't overflow on mobile */
-        .category-name {
-            max-width: 60%;
-        }
-    }
+    /* Responsive adjustments handled by utility classes */
 </style> 
