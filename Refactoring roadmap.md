@@ -23,6 +23,13 @@
      - Grouped related props with comments
      - Made all props optional with defaults
      - Added proper TypeScript types
+   - ✅ Integrate tooltip functionality directly
+     - Added tooltip configuration props (enableTooltip, tooltipBackgroundColor, tooltipTextColor, tooltipMaxWidth)
+     - Integrated useTooltip hook in BaseVisualization
+     - Exported tooltip methods and utilities (showTooltip, hideTooltip, updateTooltipContent, createGridTooltipContent)
+     - Updated IndexDistribution to use the integrated tooltip functionality
+     - Eliminated duplicate tooltip initialization code in visualization components
+     - Made tooltip initialization conditional based on enableTooltip property
    
    Implementation example:
    ```svelte
@@ -43,10 +50,50 @@
    // Generate unique IDs for accessibility
    const descriptionId = `viz-desc-${Math.random().toString(36).slice(2, 11)}`;
 
+   // Tooltip configuration
+   export let enableTooltip: boolean = true;
+   export let tooltipBackgroundColor: string = 'rgba(0, 0, 0, 0.8)';
+   export let tooltipTextColor: string = 'white';
+   export let tooltipMaxWidth: string = '250px';
+
+   // Initialize tooltip hook
+   const { showTooltip, hideTooltip, updateTooltipContent } = useTooltip({
+       backgroundColor: tooltipBackgroundColor,
+       color: tooltipTextColor,
+       maxWidth: tooltipMaxWidth
+   });
+
+   // Expose tooltip functions to child components
+   export { showTooltip, hideTooltip, updateTooltipContent, createGridTooltipContent };
+
    // Computed values
    $: computedTitle = titleHtml || (translationKey ? t(translationKey) : title);
    $: computedDescription = descriptionTranslationKey ? t(descriptionTranslationKey) : description;
    $: hasDescription = Boolean(description || descriptionTranslationKey);
+   ```
+
+   Visualization Component Usage:
+   ```svelte
+   <script>
+   // Reference to BaseVisualization component to access its tooltip functions
+   let baseVisualization: BaseVisualization;
+
+   // Use tooltip functions directly from BaseVisualization
+   function handleShowTooltip(event, data) {
+     const content = baseVisualization.createGridTooltipContent(
+       data.title,
+       [
+         { label: t('viz.items'), value: formatNumber(data.count) },
+         { label: t('viz.percent'), value: `${data.percentage}%` }
+       ]
+     );
+     baseVisualization.showTooltip(event, content);
+   }
+   </script>
+
+   <BaseVisualization bind:this={baseVisualization}>
+     <!-- Visualization content -->
+   </BaseVisualization>
    ```
 
    Next steps for BaseVisualization:
@@ -61,6 +108,13 @@
    - ✅ useDataProcessing - Completed with comprehensive data processing utilities
 
 3. Update each visualization component to leverage the shared code:
+   - [ ] Update all visualizations to use integrated tooltip functionality:
+     - ✅ IndexDistribution - Updated to use BaseVisualization tooltip
+     - [ ] LanguageDistribution - Update to use BaseVisualization tooltip
+     - [ ] TimelineDistribution - Update to use BaseVisualization tooltip
+     - [ ] TypeDistribution - Update to use BaseVisualization tooltip
+     - [ ] WordDistribution - Update to use BaseVisualization tooltip
+     - [ ] CountryDistribution - Update to use BaseVisualization tooltip
    - [ ] Update all visualizations to use new BaseVisualization props:
      - ✅ CountryDistribution - Fixed title translation parameters
      - ✅ IndexDistribution - Updated to use titleHtml and new translation format

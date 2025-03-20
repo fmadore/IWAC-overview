@@ -3,6 +3,7 @@
     import { t } from '../../stores/translationStore';
     import VisualizationHeader from './VisualizationHeader.svelte';
     import { onMount, createEventDispatcher, onDestroy } from 'svelte';
+    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     // Title props - make title handling more consistent
     export let title: string = '';
@@ -35,6 +36,41 @@
     export let minHeight: string = '400px';
     export let padding: string = 'var(--spacing-md)';
     export let className: string = '';
+    
+    // Tooltip configuration
+    export let enableTooltip: boolean = true;
+    export let tooltipBackgroundColor: string = 'rgba(0, 0, 0, 0.8)';
+    export let tooltipTextColor: string = 'white';
+    export let tooltipMaxWidth: string = '250px';
+
+    // Initialize tooltip hook conditionally
+    const tooltipHook = enableTooltip ? useTooltip({
+        backgroundColor: tooltipBackgroundColor,
+        color: tooltipTextColor,
+        maxWidth: tooltipMaxWidth
+    }) : null;
+
+    // Functions to expose for child components
+    function showTooltip(event: MouseEvent, content: string, width?: number, height?: number) {
+        if (enableTooltip && tooltipHook) {
+            tooltipHook.showTooltip(event, content, width, height);
+        }
+    }
+    
+    function hideTooltip() {
+        if (enableTooltip && tooltipHook) {
+            tooltipHook.hideTooltip();
+        }
+    }
+    
+    function updateTooltipContent(content: string) {
+        if (enableTooltip && tooltipHook) {
+            tooltipHook.updateTooltipContent(content);
+        }
+    }
+    
+    // Expose tooltip functions to child components
+    export { showTooltip, hideTooltip, updateTooltipContent, createGridTooltipContent };
     
     // Computed styles for custom styling that can't be done with utility classes
     $: containerStyle = `

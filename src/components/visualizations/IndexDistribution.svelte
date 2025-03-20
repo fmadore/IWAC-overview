@@ -6,7 +6,6 @@
     import type { OmekaItem } from '../../types/OmekaItem';
     import { t, translate, languageStore } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
-    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import { D3Service } from '../../services/d3Service';
@@ -48,8 +47,8 @@
     let width = 0;
     let height = 0;
 
-    // Initialize tooltip hook
-    const { showTooltip, hideTooltip } = useTooltip();
+    // Reference to BaseVisualization component to access its tooltip functions
+    let baseVisualization: BaseVisualization;
 
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
@@ -136,9 +135,9 @@
 
     // Show tooltip with category information
     function handleShowTooltip(event: MouseEvent, d: CategoryCount) {
-        if (!isMounted) return;
+        if (!isMounted || !baseVisualization) return;
         
-        const content = createGridTooltipContent(
+        const content = baseVisualization.createGridTooltipContent(
             d.category,
             [
                 { label: t('viz.items'), value: formatNumber(d.count) },
@@ -146,7 +145,7 @@
             ]
         );
         
-        showTooltip(event, content);
+        baseVisualization.showTooltip(event, content);
     }
 
     // Create bar chart visualization
@@ -282,13 +281,13 @@
                     handleShowTooltip(event, d);
                 })
                 .on('mouseleave', function(event, d) {
-                    if (!isMounted) return;
+                    if (!isMounted || !baseVisualization) return;
                     // Restore original color
                     d3.select(this)
                         .transition()
                         .duration(200)
                         .attr('fill', colorScale(d.originalCategory));
-                    hideTooltip();
+                    baseVisualization.hideTooltip();
                 });
             
             // Add value labels on top of bars - only if bar is large enough
@@ -425,6 +424,7 @@
         descriptionTranslationKey={indexDescriptionKey}
         theme="default"
         className="index-visualization"
+        bind:this={baseVisualization}
     >
         <div class="chart-container relative flex-1 bg-card rounded p-md overflow-hidden min-h-400" bind:this={container}>
             {#if $itemsStore.loading}
