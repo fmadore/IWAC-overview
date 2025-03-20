@@ -7,7 +7,6 @@
     import { t, translate, languageStore } from '../../stores/translationStore';
     import BaseVisualization from './BaseVisualization.svelte';
     import { subcollectionCategories, subcollectionMapping, getCategoryForSubcollection, getTranslatedCategoryName } from '../../types/SubcollectionCategories';
-    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
 
@@ -69,11 +68,8 @@
     const currentlyViewingText = translate('viz.currently_viewing');
     const clickBackText = translate('viz.click_back_to_return');
     
-    // Initialize tooltip hook
-    const { showTooltip, hideTooltip } = useTooltip({
-        maxWidth: '250px',
-        whiteSpace: 'nowrap'
-    });
+    // Reference to BaseVisualization component to access its tooltip functions
+    let baseVisualization: BaseVisualization;
     
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
@@ -116,12 +112,6 @@
             // Set a fallback title
             titleHtml = "Country Distribution";
         }
-    }
-
-    // React to changes in the itemsStore
-    $: if (isMounted && $itemsStore.items && $itemsStore.items.length > 0 && !totalItems) {
-        // Force a reprocess of data when items change
-        hierarchyData = processData($itemsStore.items as Item[]);
     }
 
     // Track if component is mounted
@@ -658,7 +648,7 @@
                             handleShowTooltip(event, d as any);
                         })
                         .on('mouseout', function() {
-                            hideTooltip();
+                            baseVisualization.hideTooltip();
                         });
                     
                     // Add category labels
@@ -810,7 +800,7 @@
                         handleShowTooltip(event, d as any);
                     })
                     .on('mouseout', function() {
-                        hideTooltip();
+                        baseVisualization.hideTooltip();
                     });
                 
                 // Add category labels
@@ -899,7 +889,7 @@
                             .attr('stroke-width', 0.5);
                         
                         // Hide tooltip
-                        hideTooltip();
+                        baseVisualization.hideTooltip();
                     });
                 
                 // Add subcollection labels
@@ -968,6 +958,8 @@
     // Show tooltip with data - add error handling
     function handleShowTooltip(event: MouseEvent, d: d3.HierarchyRectangularNode<HierarchyDatum>) {
         try {
+            if (!baseVisualization) return;
+            
             // Determine the node type
             const isCountry = d.parent === root; // If parent is root, it's a country
             const isCategory = d.data.isCategory === true;
@@ -997,7 +989,7 @@
                     </div>
                 `;
                 
-                showTooltip(event, content, 250, 150);
+                baseVisualization.showTooltip(event, content, 250, 150);
             } else if (isCategory) {
                 // Category tooltip
                 const categoryName = d.data.name;
@@ -1032,7 +1024,7 @@
                     </div>
                 `;
                 
-                showTooltip(event, content, 250, 150);
+                baseVisualization.showTooltip(event, content, 250, 150);
             } else {
                 // Subcollection tooltip
                 const subcollectionName = d.data.name;
@@ -1083,7 +1075,7 @@
                     </div>
                 `;
                 
-                showTooltip(event, content, 250, 150);
+                baseVisualization.showTooltip(event, content, 250, 150);
             }
         } catch (e) {
             console.error('Error showing tooltip:', e);
@@ -1097,6 +1089,7 @@
         descriptionTranslationKey="viz.country_distribution_description"
         theme="default"
         className="country-distribution"
+        bind:this={baseVisualization}
     >
         <div class="chart-container relative flex-1 min-h-450 bg-card rounded p-md overflow-hidden" bind:this={container}>
             {#if $itemsStore.loading}

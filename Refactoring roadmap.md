@@ -110,11 +110,11 @@
 3. Update each visualization component to leverage the shared code:
    - [ ] Update all visualizations to use integrated tooltip functionality:
      - ✅ IndexDistribution - Updated to use BaseVisualization tooltip
-     - [ ] LanguageDistribution - Update to use BaseVisualization tooltip
+     - ✅ LanguageDistribution - Updated to use BaseVisualization tooltip
      - [ ] TimelineDistribution - Update to use BaseVisualization tooltip
      - [ ] TypeDistribution - Update to use BaseVisualization tooltip
      - [ ] WordDistribution - Update to use BaseVisualization tooltip
-     - [ ] CountryDistribution - Update to use BaseVisualization tooltip
+     - ✅ CountryDistribution - Updated to use BaseVisualization tooltip
    - [ ] Update all visualizations to use new BaseVisualization props:
      - ✅ CountryDistribution - Fixed title translation parameters
      - ✅ IndexDistribution - Updated to use titleHtml and new translation format

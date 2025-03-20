@@ -6,7 +6,7 @@
     import { t, translate, languageStore } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import BaseVisualization from './BaseVisualization.svelte';
-    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
+    import { createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
 
@@ -41,8 +41,8 @@
     let container: HTMLDivElement;
     let legend: HTMLDivElement;
 
-    // Initialize tooltip hook
-    const { showTooltip, hideTooltip } = useTooltip();
+    // Reference to BaseVisualization component to access its tooltip functions
+    let baseVisualization: BaseVisualization;
     
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
@@ -307,6 +307,8 @@
 
     // Show tooltip with language information
     function handleShowTooltip(event: MouseEvent, d: d3.PieArcDatum<LanguageCount>) {
+        if (!baseVisualization) return;
+        
         const data = d.data;
         const languageName = t(`lang.${data.language}`) || data.language;
         
@@ -318,7 +320,7 @@
             ]
         );
         
-        showTooltip(event, content);
+        baseVisualization.showTooltip(event, content);
     }
 
     // Create legend element
@@ -484,7 +486,7 @@
                     .transition()
                     .duration(200)
                     .attr('d', (d: any) => arc(d as d3.PieArcDatum<LanguageCount>)!);
-                hideTooltip();
+                baseVisualization.hideTooltip();
             });
         
         // Update the legend with current data - adjust position on mobile
@@ -520,6 +522,7 @@
         descriptionTranslationKey="viz.language_distribution_description"
         theme="default"
         className="language-visualization"
+        bind:this={baseVisualization}
     >
         <div class="flex flex-wrap gap-md p-md bg-card rounded-t border-b border-solid border-default filters">
             <div class="flex flex-col gap-xs filter-group">
@@ -555,14 +558,6 @@
             {:else if $itemsStore.error}
                 <div class="absolute inset-center text-error">{$itemsStore.error}</div>
             {/if}
-        </div>
-        
-        <div class="p-md bg-card rounded shadow mt-md stats">
-            <div class="stat-summary">
-                <h3 class="mt-0 mb-sm text-primary text-md border-b pb-xs">{t('viz.summary')}</h3>
-                <p class="my-xs text-sm text-secondary">{t('viz.total_items')}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
-                <p class="my-xs text-sm text-secondary">{t('viz.languages')}: <strong class="font-medium">{formatNumber(languageCounts.length)}</strong></p>
-            </div>
         </div>
     </BaseVisualization>
 </div>
