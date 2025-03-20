@@ -23,7 +23,7 @@ const translations: Record<Language, Record<string, string>> = {
         // UI elements and status messages
         'ui.loading': 'Loading database...',
         'ui.select_visualization': 'Select a visualization from the tabs above',
-        'ui.toggle_language': 'Changer en français',
+        'ui.toggle_language': 'Français',
         'ui.show_description': 'Show description',
         'ui.hide_description': 'Hide description',
         'ui.no_visualization_content': 'No visualization content available',
@@ -173,7 +173,7 @@ const translations: Record<Language, Record<string, string>> = {
         // UI elements and status messages
         'ui.loading': 'Chargement de la base de données...',
         'ui.select_visualization': 'Sélectionnez une visualisation dans les onglets ci-dessus',
-        'ui.toggle_language': 'Switch to English',
+        'ui.toggle_language': 'English',
         'ui.show_description': 'Afficher la description',
         'ui.hide_description': 'Masquer la description',
         'ui.no_visualization_content': 'Aucun contenu de visualisation disponible',
