@@ -18,6 +18,9 @@
     let unsubscribeLanguage: () => void;
     let currentLang: 'en' | 'fr' = 'en';
 
+    // Add legend hook reference
+    let legendHook: ReturnType<typeof useLegend>;
+
     // Data interfaces
     interface TypeYearData {
         year: number;
@@ -88,6 +91,11 @@
     // Add title HTML for bilingual support
     let titleHtml = '';
     
+    // Function to format numbers with locale-specific formatting
+    function formatNumber(num: number): string {
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+
     // Function to update the title with the current count
     function updateTitleHtml() {
         if (totalItems > 0) {
@@ -597,106 +605,74 @@
                 return { type, count };
             }).sort((a, b) => b.count - a.count); // Sort by count descending
             
-            // Calculate space required for the legend based on the screenshot
-            const legendY = height + 10; // Position the legend 10px below the chart height instead of inside it
-            
-            // Add the "Toggle Types" text
-            svg.append("text")
-                .attr('class', 'legend-title')
-                .attr('x', margin.left)
-                .attr('y', legendY)
-                .attr('font-size', '11px')
-                .attr('fill', '#666')
-                .text(`Toggle Types (${types.length})`);
-            
-            // Create a legend container group with multi-row layout
-            const legendGroup = svg.append('g')
-                .attr('class', 'multi-row-legend')
-                .attr('transform', `translate(${margin.left}, ${legendY + 15})`);
-            
-            // Create legend items container
-            const legendItems = legendGroup.append('g')
-                .attr('class', 'legend-items');
-            
-            // Calculate number of items per row for even distribution
-            const availableWidth = width - margin.left - margin.right;
-            // Calculate a minimum of 3 items per row and increase as width allows
-            const itemsPerRow = Math.max(3, Math.floor(availableWidth / 120));
-            const itemWidth = availableWidth / itemsPerRow;
-            const rowHeight = 22; // Height for each row of legend items
-            
-            // Create legend items in multiple rows
-            typeCounts.forEach((item, i) => {
-                // Calculate row and column position for layout
-                const rowIndex = Math.floor(i / itemsPerRow);
-                const colIndex = i % itemsPerRow;
+            // Update the legend with current data using the useLegend hook
+            if (legendHook) {
+                // Update existing legend with new data
+                const legendItems: LegendItem[] = typeCounts.map(item => ({
+                    key: item.type,
+                    label: t(`type.${item.type}`) !== `type.${item.type}` ? t(`type.${item.type}`) : item.type,
+                    color: color(item.type),
+                    value: item.count,
+                    visible: typeVisibility.find(t => t.type === item.type)?.visible ?? true,
+                    customProperties: { type: item.type }
+                }));
                 
-                const xPosition = colIndex * itemWidth;
-                const yPosition = rowIndex * rowHeight;
-                
-                const legendItem = legendItems.append('g')
-                    .attr('class', 'legend-item')
-                    .attr('transform', `translate(${xPosition}, ${yPosition})`)
-                    .style('cursor', 'pointer');
-                
-                // Add colored rectangle
-                legendItem.append('rect')
-                    .attr('width', 14)
-                    .attr('height', 14)
-                    .attr('rx', 2)
-                    .attr('fill', color(item.type))
-                    .attr('stroke', 'rgba(0,0,0,0.2)')
-                    .attr('stroke-width', 0.5)
-                    .style('opacity', typeVisibility.find(t => t.type === item.type)?.visible ? 1 : 0.5);
-                
-                // Add label with translation
-                const typeKey = `type.${item.type}`;
-                let displayLabel = item.type;
-                const translated = t(typeKey);
-                if (translated !== typeKey) {
-                    displayLabel = translated;
-                }
-                
-                // Truncate long labels with ellipsis if needed
-                const maxLabelLength = Math.floor((itemWidth - 20) / 7);
-                if (displayLabel.length > maxLabelLength) {
-                    displayLabel = displayLabel.substring(0, maxLabelLength) + '...';
-                }
-                
-                legendItem.append('text')
-                    .attr('x', 17)
-                    .attr('y', 7)
-                    .attr('dominant-baseline', 'middle')
-                    .attr('font-size', '12px')
-                    .attr('fill', typeVisibility.find(t => t.type === item.type)?.visible ? '#333' : '#999')
-                    .style('text-decoration', typeVisibility.find(t => t.type === item.type)?.visible ? 'none' : 'line-through')
-                    .text(displayLabel);
-                
-                // Add click handler for toggling visibility
-                legendItem.on("click", () => {
-                    if (!isMounted) return;
-                    
-                    // Find and toggle the visibility of this type
-                    const typeIndex = typeVisibility.findIndex(t => t.type === item.type);
-                    if (typeIndex >= 0) {
-                        typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
-                        typeVisibility = [...typeVisibility]; // Trigger reactivity
+                legendHook.update(legendItems);
+            } else {
+                // Create new legend
+                legendHook = useLegend({
+                    container,
+                    title: `${t('viz.toggle_types')} (${types.length})`,
+                    items: typeCounts.map(item => ({
+                        key: item.type,
+                        label: t(`type.${item.type}`) !== `type.${item.type}` ? t(`type.${item.type}`) : item.type,
+                        color: color(item.type),
+                        value: item.count,
+                        visible: typeVisibility.find(t => t.type === item.type)?.visible ?? true,
+                        customProperties: { type: item.type }
+                    })),
+                    type: 'html',
+                    position: 'bottom',
+                    orientation: 'horizontal',
+                    className: 'multi-row-legend',
+                    showValues: true,
+                    valueFormatter: (value) => formatNumber(value),
+                    translateKeys: {
+                        itemPrefix: 'type.',
+                    },
+                    responsive: true,
+                    breakpoint: 768,
+                    interactive: true,
+                    onItemClick: (item) => {
+                        if (!isMounted) return;
                         
-                        // Update country facets to reflect the new type visibility
-                        generateCountryFacets();
-                        
-                        // Update chart
-                        updateVisualization();
+                        // Find and toggle the visibility of this type
+                        const typeIndex = typeVisibility.findIndex(t => t.type === item.customProperties?.type);
+                        if (typeIndex >= 0) {
+                            typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
+                            typeVisibility = [...typeVisibility]; // Trigger reactivity
+                            
+                            // Update legend item visibility
+                            legendHook.updateVisibility(item.key, typeVisibility[typeIndex].visible);
+                            
+                            // Update country facets to reflect the new type visibility
+                            generateCountryFacets();
+                            
+                            // Update chart
+                            updateVisualization();
+                        }
                     }
                 });
-            });
+                
+                // Render the legend
+                legendHook.render();
+            }
             
-            // Calculate the height needed for the multi-row legend
-            const rowCount = Math.ceil(typeCounts.length / itemsPerRow);
-            const legendHeight = (rowCount * rowHeight) + 30; // Add padding
-            
-            // Set the final SVG height to ensure the legend doesn't overflow
-            svg.attr('height', height + legendHeight + 20); // Add extra padding below chart for the legend
+            // Set appropriate SVG height to accommodate the chart and legend
+            // Estimate legend height based on number of types
+            const rowCount = Math.ceil(typeCounts.length / 5); // Assume about 5 items per row
+            const legendHeight = rowCount * 22 + 30; // Approximate height per row + padding
+            svg.attr('height', height + legendHeight + 30); // Add extra padding for legend
             
         } catch (error) {
             console.error('Error updating visualization:', error);
@@ -768,11 +744,6 @@
         );
     }
     
-    // Function to format numbers with locale-specific formatting
-    function formatNumber(num: number): string {
-        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
-    }
-
     onMount(() => {
         isMounted = true;
         trackMount(COMPONENT_ID);
@@ -867,6 +838,12 @@
                 unsubscribeLanguage = null as unknown as () => void;
             }
             
+            // Clean up legend hook if it exists
+            if (legendHook) {
+                legendHook.cleanup();
+                legendHook = null as unknown as ReturnType<typeof useLegend>;
+            }
+            
             // Clean up by removing all elements
             if (container) {
                 d3.select(container).selectAll('*').remove();
@@ -888,6 +865,12 @@
         if (unsubscribeLanguage) {
             unsubscribeLanguage();
             unsubscribeLanguage = null as unknown as () => void;
+        }
+        
+        // Clean up legend hook if it exists
+        if (legendHook) {
+            legendHook.cleanup();
+            legendHook = null as unknown as ReturnType<typeof useLegend>;
         }
         
         logDebug(COMPONENT_ID, 'Component destroyed');
