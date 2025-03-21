@@ -54,7 +54,7 @@ export interface LegendOptions {
 
 export interface UseLegendResult {
   render: () => void;
-  update: (newItems: LegendItem[]) => void;
+  update: (newItems: LegendItem[], newTitle?: string) => void;
   updateVisibility: (key: string, visible: boolean) => void;
   getLegendElement: () => HTMLElement | d3.Selection<any, unknown, null, undefined> | null;
   cleanup: () => void;
@@ -67,7 +67,7 @@ export function useLegend(options: LegendOptions): UseLegendResult {
   // Set defaults
   const {
     container,
-    title,
+    title: initialTitle,
     titleTranslationKey,
     items = [],
     type = 'html',
@@ -89,6 +89,9 @@ export function useLegend(options: LegendOptions): UseLegendResult {
     onItemClick = () => {},
     customProperties,
   } = options;
+
+  // Make title mutable
+  let title = initialTitle;
 
   // Store references
   let legendElement: HTMLElement | d3.Selection<any, unknown, null, undefined> | null = null;
@@ -135,7 +138,16 @@ export function useLegend(options: LegendOptions): UseLegendResult {
     // Determine legend title
     let legendTitle = '';
     if (titleTranslationKey) {
-      legendTitle = t(titleTranslationKey);
+      // Use translate() instead of t() for reactive translations
+      const translateStore = translate(titleTranslationKey);
+      if (typeof translateStore === 'string') {
+        legendTitle = translateStore;
+      } else {
+        // Get the current value from the store
+        translateStore.subscribe(value => {
+          legendTitle = value;
+        })();
+      }
     } else if (title) {
       legendTitle = title;
     }
@@ -274,19 +286,34 @@ export function useLegend(options: LegendOptions): UseLegendResult {
     
     // Create legend group
     const legend = svgSelection.append('g')
-      .attr('class', `legend ${className}`.trim())
+      .attr('class', `legend legend-${orientation} ${className}`.trim())
       .attr('transform', `translate(${x}, ${y})`);
     
     // Add title if provided
     if (title || titleTranslationKey) {
-      const legendTitle = titleTranslationKey ? t(titleTranslationKey) : (title || '');
+      let legendTitle = '';
+      if (titleTranslationKey) {
+        // Use translate() instead of t() for reactive translations
+        const translateStore = translate(titleTranslationKey);
+        if (typeof translateStore === 'string') {
+          legendTitle = translateStore;
+        } else {
+          // Get the current value from the store
+          translateStore.subscribe(value => {
+            legendTitle = value;
+          })();
+        }
+      } else if (title) {
+        legendTitle = title;
+      }
+      
       legend.append('text')
         .attr('class', 'legend-title')
         .attr('x', 0)
         .attr('y', -10)
         .attr('font-size', 'var(--font-size-xs)')
         .attr('fill', 'var(--color-text-secondary)')
-        .text(`${legendTitle} (${currentItems.length})`);
+        .text(legendTitle);
     }
     
     // Configure legend layout
@@ -460,8 +487,35 @@ export function useLegend(options: LegendOptions): UseLegendResult {
     
     // Create legend group
     const legend = svgSelection.append('g')
-      .attr('class', `legend ${className}`.trim())
+      .attr('class', `legend legend-${orientation} ${className}`.trim())
       .attr('transform', `translate(${x}, ${y})`);
+    
+    // Add title if provided
+    if (title || titleTranslationKey) {
+      let legendTitle = '';
+      if (titleTranslationKey) {
+        // Use translate() instead of t() for reactive translations
+        const translateStore = translate(titleTranslationKey);
+        if (typeof translateStore === 'string') {
+          legendTitle = translateStore;
+        } else {
+          // Get the current value from the store
+          translateStore.subscribe(value => {
+            legendTitle = value;
+          })();
+        }
+      } else if (title) {
+        legendTitle = title;
+      }
+      
+      legend.append('text')
+        .attr('class', 'legend-title')
+        .attr('x', 0)
+        .attr('y', -10)
+        .attr('font-size', 'var(--font-size-xs)')
+        .attr('fill', 'var(--color-text-secondary)')
+        .text(legendTitle);
+    }
     
     // Configure legend layout
     const lineLength = 20;
@@ -482,32 +536,61 @@ export function useLegend(options: LegendOptions): UseLegendResult {
         }
       }
       
+      // Create item group
+      const itemGroup = legend.append('g')
+        .attr('class', 'legend-item')
+        .attr('transform', `translate(0, ${yPosition})`);
+      
       // Create line with the item's style
-      legend.append('line')
+      itemGroup.append('line')
         .attr('x1', 0)
-        .attr('y1', yPosition)
+        .attr('y1', 0)
         .attr('x2', lineLength)
-        .attr('y2', yPosition)
+        .attr('y2', 0)
         .attr('stroke', item.color)
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', item.customProperties?.dashArray || 'none');
       
       // Add marker if specified
       if (item.customProperties?.marker) {
-        legend.append('circle')
+        itemGroup.append('circle')
           .attr('cx', lineLength)
-          .attr('cy', yPosition)
+          .attr('cy', 0)
           .attr('r', 3)
           .attr('fill', item.color);
       }
       
       // Add label
-      legend.append('text')
+      itemGroup.append('text')
         .attr('x', lineLength + textOffset + 5)
-        .attr('y', yPosition)
+        .attr('y', 0)
         .attr('dy', '0.35em')
-        .attr('class', 'text-xs text-secondary')
+        .attr('fill', 'var(--color-text-primary)')
+        .attr('font-size', 'var(--font-size-sm)')
+        .attr('class', 'legend-item-label')
         .text(itemLabel);
+        
+      // If interactive, add click behavior
+      if (interactive) {
+        itemGroup
+          .attr('class', 'legend-item cursor-pointer')
+          .attr('role', 'button')
+          .style('cursor', 'pointer')
+          .on('click', () => onItemClick(item, i));
+          
+        // Add strikethrough for hidden items
+        if (item.visible === false) {
+          const textWidth = itemLabel.length * 6; // Approximation, could be improved
+          
+          itemGroup.append('line')
+            .attr('x1', lineLength + textOffset + 5)
+            .attr('y1', 0)
+            .attr('x2', lineLength + textOffset + 5 + textWidth)
+            .attr('y2', 0)
+            .attr('stroke', 'var(--color-text-primary)')
+            .attr('stroke-width', 1);
+        }
+      }
     });
     
     // Store and return the legend selection
@@ -559,10 +642,16 @@ export function useLegend(options: LegendOptions): UseLegendResult {
   }
 
   /**
-   * Update legend with new items
+   * Update legend with new items and optionally a new title
    */
-  function update(newItems: LegendItem[]) {
+  function update(newItems: LegendItem[], newTitle?: string) {
     currentItems = [...newItems];
+    
+    // Update title if provided
+    if (newTitle !== undefined) {
+      title = newTitle;
+    }
+    
     render();
   }
 

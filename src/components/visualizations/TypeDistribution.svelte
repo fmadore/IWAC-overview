@@ -361,11 +361,15 @@
             // Process data based on current filters
             typeYearData = processData();
             
-            // Remove previous visualization and no-data message
+            // Clean up previous visualization elements
             d3.select(container).select('svg').remove();
             d3.select(container).selectAll('.absolute.inset-center').remove();
             
-            // No need to clean up previous legend since we're removing everything
+            // Clean up any existing legend
+            if (legendHook) {
+                legendHook.cleanup();
+                legendHook = null as unknown as ReturnType<typeof useLegend>;
+            }
             
             if (typeYearData.length === 0) {
                 d3.select(container).append('div')
@@ -605,68 +609,47 @@
                 return { type, count };
             }).sort((a, b) => b.count - a.count); // Sort by count descending
             
-            // Update the legend with current data using the useLegend hook
-            if (legendHook) {
-                // Update existing legend with new data
-                const legendItems: LegendItem[] = typeCounts.map(item => ({
+            // Create new legend
+            legendHook = useLegend({
+                container,
+                title: $toggleTypesText,
+                items: typeCounts.map(item => ({
                     key: item.type,
                     label: t(`type.${item.type}`) !== `type.${item.type}` ? t(`type.${item.type}`) : item.type,
                     color: color(item.type),
                     value: item.count,
                     visible: typeVisibility.find(t => t.type === item.type)?.visible ?? true,
                     customProperties: { type: item.type }
-                }));
-                
-                legendHook.update(legendItems);
-            } else {
-                // Create new legend
-                legendHook = useLegend({
-                    container,
-                    title: t('viz.toggle_types'),
-                    items: typeCounts.map(item => ({
-                        key: item.type,
-                        label: t(`type.${item.type}`) !== `type.${item.type}` ? t(`type.${item.type}`) : item.type,
-                        color: color(item.type),
-                        value: item.count,
-                        visible: typeVisibility.find(t => t.type === item.type)?.visible ?? true,
-                        customProperties: { type: item.type }
-                    })),
-                    type: 'html',
-                    position: 'bottom',
-                    orientation: 'horizontal',
-                    className: 'multi-row-legend',
-                    showValues: true,
-                    valueFormatter: (value) => formatNumber(value),
-                    translateKeys: {
-                        itemPrefix: 'type.',
-                    },
-                    responsive: true,
-                    breakpoint: 768,
-                    interactive: true,
-                    onItemClick: (item) => {
-                        if (!isMounted) return;
+                })),
+                type: 'html',
+                position: 'bottom',
+                orientation: 'horizontal',
+                className: 'multi-row-legend',
+                showValues: true,
+                valueFormatter: (value) => formatNumber(value),
+                translateKeys: {
+                    itemPrefix: 'type.',
+                },
+                responsive: true,
+                breakpoint: 768,
+                interactive: true,
+                onItemClick: (item) => {
+                    if (!isMounted) return;
+                    
+                    // Find and toggle the visibility of this type
+                    const typeIndex = typeVisibility.findIndex(t => t.type === item.customProperties?.type);
+                    if (typeIndex >= 0) {
+                        typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
+                        typeVisibility = [...typeVisibility]; // Trigger reactivity
                         
-                        // Find and toggle the visibility of this type
-                        const typeIndex = typeVisibility.findIndex(t => t.type === item.customProperties?.type);
-                        if (typeIndex >= 0) {
-                            typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
-                            typeVisibility = [...typeVisibility]; // Trigger reactivity
-                            
-                            // Update legend item visibility
-                            legendHook.updateVisibility(item.key, typeVisibility[typeIndex].visible);
-                            
-                            // Update country facets to reflect the new type visibility
-                            generateCountryFacets();
-                            
-                            // Update chart
-                            updateVisualization();
-                        }
+                        // Update visualization
+                        updateVisualization();
                     }
-                });
-                
-                // Render the legend
-                legendHook.render();
-            }
+                }
+            });
+            
+            // Render the legend
+            legendHook.render();
             
             // Set appropriate SVG height to accommodate the chart and legend
             // Estimate legend height based on number of types
@@ -780,8 +763,16 @@
                     
                     if (container) {
                         updateTitleHtml();
+                        console.log("Language changed to", value, "- updating legend with", $toggleTypesText);
                         
                         if ($itemsStore.items && $itemsStore.items.length > 0) {
+                            // Remove existing legend entirely when language changes
+                            if (legendHook) {
+                                legendHook.cleanup();
+                                legendHook = null as unknown as ReturnType<typeof useLegend>;
+                            }
+                            
+                            // Force complete redraw, including country facets
                             generateCountryFacets();
                             updateVisualization();
                         }
