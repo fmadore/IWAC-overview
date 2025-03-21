@@ -9,6 +9,7 @@
     import { createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
+    import { useLegend, type LegendItem } from '../../hooks/useLegend';
 
     // Define interfaces for data structures
     interface LanguageCount {
@@ -39,10 +40,12 @@
     let width = 0;
     let height = 0;
     let container: HTMLDivElement;
-    let legend: HTMLDivElement;
-
+    
     // Reference to BaseVisualization component to access its tooltip functions
     let baseVisualization: BaseVisualization;
+    
+    // Legend hook
+    let legendHook: ReturnType<typeof useLegend>;
     
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
@@ -217,6 +220,10 @@
                     languageUnsubscribe();
                 }
                 
+                if (legendHook) {
+                    legendHook.cleanup();
+                }
+                
                 if (container) {
                     d3.select(container).selectAll('*').remove();
                 }
@@ -237,6 +244,10 @@
             
             if (languageUnsubscribe) {
                 languageUnsubscribe();
+            }
+            
+            if (legendHook) {
+                legendHook.cleanup();
             }
             
             if (container) {
@@ -345,84 +356,6 @@
         baseVisualization.showTooltip(event, content);
     }
 
-    // Create legend element
-    function createLegend() {
-        if (legend) {
-            legend.innerHTML = '';
-        } else {
-            legend = document.createElement('div');
-            
-            // Position legend differently on mobile vs desktop
-            const isMobile = window.innerWidth < 768;
-            if (isMobile) {
-                legend.className = 'legend-mobile';
-            } else {
-                legend.className = 'legend-desktop';
-            }
-            
-            container.appendChild(legend);
-        }
-    }
-    
-    // Update legend with current data
-    function updateLegend(data: LanguageCount[]) {
-        if (!legend) return;
-        
-        const isMobile = window.innerWidth < 768;
-        
-        // Make the legend more compact on mobile
-        if (isMobile) {
-            // On mobile, show fewer items and make the legend more compact
-            const topLanguages = data.slice(0, 6); // Only show top 6 languages on mobile
-            const totalOthers = data.slice(6).reduce((sum, d) => sum + d.count, 0);
-            const othersPercentage = data.slice(6).reduce((sum, d) => sum + d.percentage, 0);
-            
-            legend.innerHTML = `
-                <div class="legend-heading-mobile">${t('viz.languages')} (${data.length})</div>
-                <div class="legend-grid-mobile">
-                    ${topLanguages.map((d, i) => {
-                        const languageName = t(`lang.${d.language}`) || d.language;
-                        return `
-                            <div class="legend-color-mobile" data-color="${colorScale(d.language)}"></div>
-                            <div class="legend-label-mobile">${languageName}</div>
-                            <div class="legend-value-mobile">${formatNumber(d.count)}</div>
-                        `;
-                    }).join('')}
-                    ${data.length > 6 ? `
-                        <div class="legend-color-mobile" data-color="#999"></div>
-                        <div class="legend-label-mobile">${t('viz.others')}</div>
-                        <div class="legend-value-mobile">${formatNumber(totalOthers)}</div>
-                    ` : ''}
-                </div>
-            `;
-            
-            // Apply background colors using dataset
-            legend.querySelectorAll('.legend-color-mobile').forEach(el => {
-                (el as HTMLElement).style.backgroundColor = (el as HTMLElement).dataset.color || '';
-            });
-        } else {
-            // Desktop view with full legend
-            legend.innerHTML = `
-                <div class="legend-heading">${t('viz.languages')} (${data.length})</div>
-                <div class="legend-grid">
-                    ${data.map((d, i) => {
-                        const languageName = t(`lang.${d.language}`) || d.language;
-                        return `
-                            <div class="legend-color" data-color="${colorScale(d.language)}"></div>
-                            <div class="legend-label">${languageName}</div>
-                            <div class="legend-value">${formatNumber(d.count)}</div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-            
-            // Apply background colors using dataset
-            legend.querySelectorAll('.legend-color').forEach(el => {
-                (el as HTMLElement).style.backgroundColor = (el as HTMLElement).dataset.color || '';
-            });
-        }
-    }
-
     // Create pie chart visualization
     function updateVisualization() {
         if (!container) return;
@@ -511,9 +444,41 @@
                 baseVisualization.hideTooltip();
             });
         
-        // Update the legend with current data - adjust position on mobile
-        createLegend();
-        updateLegend(data);
+        // Update the legend with current data using the useLegend hook
+        if (legendHook) {
+            // Update existing legend
+            const legendItems: LegendItem[] = data.map(d => ({
+                key: d.language,
+                color: colorScale(d.language),
+                value: d.count
+            }));
+            legendHook.update(legendItems);
+        } else {
+            // Create new legend
+            legendHook = useLegend({
+                container,
+                titleTranslationKey: 'viz.languages',
+                items: data.map(d => ({
+                    key: d.language,
+                    color: colorScale(d.language),
+                    value: d.count
+                })),
+                type: 'html',
+                position: 'right',
+                maxItems: isMobile ? 6 : data.length, // Show fewer items on mobile
+                showValues: true,
+                valueFormatter: formatNumber,
+                translateKeys: {
+                    itemPrefix: 'lang.',
+                    othersLabel: 'viz.others'
+                },
+                responsive: true,
+                breakpoint: 768
+            });
+            
+            // Render the legend
+            legendHook.render();
+        }
     }
     
     // Handle country filter change

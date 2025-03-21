@@ -208,10 +208,133 @@ Creates a data processing instance with the specified options.
 - `groupHierarchically(items, keyFns, totalItems?)`: Groups items by multiple keys hierarchically
 - `processTimeData(items, dateField, options?)`: Processes time-based data with monthly aggregation
 
+### useLegend
+
+The `useLegend` hook provides a standardized way to create and manage legends for visualizations, with support for both HTML DOM-based and D3 SVG-based legends.
+
+#### Usage
+
+```typescript
+import { useLegend } from '../hooks/useLegend';
+
+// For HTML/DOM-based legend
+const { render, update, updateVisibility, cleanup } = useLegend({
+  container: legendContainer,
+  title: 'Languages',
+  titleTranslationKey: 'viz.languages',
+  items: languageCounts.map(d => ({
+    key: d.language,
+    color: colorScale(d.language),
+    value: d.count,
+    visible: true
+  })),
+  type: 'html',
+  maxItems: 8,
+  translateKeys: {
+    itemPrefix: 'lang.',
+    othersLabel: 'viz.others'
+  },
+  valueFormatter: (value) => formatNumber(value)
+});
+
+// For D3 SVG-based legend
+const { render, update, updateVisibility, cleanup } = useLegend({
+  container: svg,
+  titleTranslationKey: 'viz.types',
+  items: types.map(type => ({
+    key: type,
+    color: colorScale(type),
+    visible: typeVisibility.find(t => t.type === type)?.visible || true
+  })),
+  type: 'svg',
+  position: 'bottom',
+  orientation: 'horizontal',
+  interactive: true,
+  translateKeys: {
+    itemPrefix: 'type.'
+  },
+  onItemClick: (item, index) => {
+    // Toggle visibility
+    updateVisibility(item.key, !(item.visible === true));
+    // Update chart
+    updateVisualization();
+  }
+});
+
+// For line chart legend
+const { render, update, cleanup } = useLegend({
+  container: svg,
+  items: [
+    {
+      key: 'monthlyAdditions',
+      label: t('viz.monthly_additions'),
+      color: 'var(--color-primary)',
+      customProperties: { marker: true }
+    },
+    {
+      key: 'totalItems',
+      label: t('viz.total_items'),
+      color: 'var(--color-secondary)',
+      customProperties: { dashArray: '4 2' }
+    }
+  ],
+  type: 'svg',
+  position: 'right',
+  customProperties: {
+    lineChart: true
+  }
+});
+
+// Make sure to call render
+render();
+
+// Cleanup when component is destroyed
+onDestroy(() => {
+  cleanup();
+});
+```
+
+#### API
+
+##### useLegend(options)
+
+Creates a legend with the specified options.
+
+**Parameters:**
+- `options`: Configuration options for the legend
+  - `container`: The container element or D3 selection to append the legend to
+  - `title`: The title text for the legend (optional)
+  - `titleTranslationKey`: Translation key for the legend title (optional)
+  - `items`: Array of legend items to display
+  - `type`: Type of legend to create ('html' or 'svg', default: 'html')
+  - `orientation`: Legend layout ('horizontal', 'vertical', or 'grid', default: 'vertical')
+  - `position`: Position of the legend ('top', 'right', 'bottom', 'left', or 'custom', default: 'right')
+  - `customPosition`: Custom position for the legend ({x, y}, used when position is 'custom')
+  - `maxItems`: Maximum number of items to show before grouping as "Others" (default: 10)
+  - `showValues`: Whether to show values alongside items (default: true)
+  - `className`: Additional CSS class name to add to the legend
+  - `valueFormatter`: Function to format values (default: value.toLocaleString())
+  - `translateKeys`: Translation key prefixes and suffixes
+    - `itemPrefix`: Prefix for item key translations (e.g., "lang." or "type.")
+    - `othersLabel`: Translation key for "Others" label (default: 'viz.others')
+    - `countLabel`: Translation key for count label (default: 'viz.items')
+  - `responsive`: Whether the legend should be responsive (default: true)
+  - `breakpoint`: Mobile breakpoint in pixels (default: 768)
+  - `interactive`: Whether the legend items can be clicked (default: false)
+  - `onItemClick`: Callback for when a legend item is clicked (item, index) => void
+  - `customProperties`: Additional custom properties for specialized legends
+    - `lineChart`: Whether this is a line chart legend
+
+**Returns:**
+- `render()`: Renders the legend
+- `update(newItems)`: Updates the legend with new items
+- `updateVisibility(key, visible)`: Updates the visibility of a specific item
+- `getLegendElement()`: Returns the legend DOM element or D3 selection
+- `cleanup()`: Cleans up the legend (removes event listeners, etc.)
+
 ## Planned Hooks
 
 Future hooks to be implemented:
 
-1. `useLegend`: Create and manage legends for visualizations
-2. `useAxis`: Create and manage D3.js axes
-3. `useZoom`: Handle zoom behavior in visualizations 
+1. `useAxis`: Create and manage D3.js axes
+2. `useZoom`: Handle zoom behavior in visualizations 
