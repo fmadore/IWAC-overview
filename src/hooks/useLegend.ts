@@ -162,7 +162,7 @@ export function useLegend(options: LegendOptions): UseLegendResult {
 
     // Generate legend HTML
     const legendTitleHtml = legendTitle 
-      ? `<div class="legend-heading${isMobile ? '-mobile' : ''}">${legendTitle} (${currentItems.length})</div>` 
+      ? `<div class="legend-heading${isMobile ? '-mobile' : ''}">${legendTitle}</div>` 
       : '';
     
     const gridClass = isMobile ? 'legend-grid-mobile' : 'legend-grid';

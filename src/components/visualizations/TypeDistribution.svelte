@@ -622,7 +622,7 @@
                 // Create new legend
                 legendHook = useLegend({
                     container,
-                    title: `${t('viz.toggle_types')} (${types.length})`,
+                    title: t('viz.toggle_types'),
                     items: typeCounts.map(item => ({
                         key: item.type,
                         label: t(`type.${item.type}`) !== `type.${item.type}` ? t(`type.${item.type}`) : item.type,
