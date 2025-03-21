@@ -32,7 +32,8 @@ src/styles/
     ├── buttons.css           # Button component styles
     ├── cards.css             # Card component styles
     ├── alerts.css            # Alert component styles
-    └── badges.css            # Badge component styles
+    ├── badges.css            # Badge component styles
+    └── legend.css            # Legend component styles for data visualizations
 ```
 
 ## Usage
@@ -169,6 +170,16 @@ Small labeling elements with:
 - Sizes: `.badge-sm`, `.badge-lg`
 - Shapes: `.badge-rounded`, `.badge-square`
 - Special types: `.badge-notification`, `.badge-status`
+
+### Legends
+Data visualization legends with extensive customization:
+- Positioning: `.legend-top`, `.legend-bottom`, `.legend-left`, `.legend-right`
+- Orientations: `.legend-horizontal`, `.legend-vertical` 
+- Items: `.legend-item`, `.legend-item-swatch`, `.legend-item-label`, `.legend-item-value`
+- Responsive variants: `.legend-mobile`, `.legend-grid`, `.legend-grid-mobile`
+- Appearance: `.legend-background`, `.legend-boxed`
+- Components: `.legend-title`, `.legend-heading`, `.legend-color`
+- Special types: `.types-legend` for type distribution charts
 
 ## Working with Popups and Tooltips
 

@@ -1,0 +1,315 @@
+/* Legend Component Styles */
+
+/* Basic legend container */
+.legend {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  padding: var(--spacing-xs);
+}
+
+/* Legend positioning classes */
+.legend-top {
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.legend-bottom {
+  align-items: center;
+  margin-top: var(--spacing-md);
+}
+
+.legend-left {
+  align-items: flex-start;
+  margin-right: var(--spacing-md);
+}
+
+.legend-right {
+  align-items: flex-start;
+  margin-left: var(--spacing-md);
+}
+
+/* Legend title styling */
+.legend-title {
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Legend items container */
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* Individual legend item */
+.legend-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.legend-item:hover {
+  background-color: var(--color-bg-hover);
+}
+
+/* Disabled legend items */
+.legend-item.disabled {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* Legend item pointer events */
+.legend-item text {
+  pointer-events: none;
+}
+
+.legend-item rect {
+  pointer-events: none;
+}
+
+.legend-item line {
+  pointer-events: none;
+}
+
+/* Legend in different orientations */
+.legend-horizontal .legend-items {
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.legend-vertical .legend-items {
+  flex-direction: column;
+}
+
+/* Legend background - enhancing for better visual appearance */
+.legend-background {
+  /* No background fill to avoid hiding graph elements */
+  fill: none;
+  stroke: var(--color-border, #e2e8f0);
+  stroke-width: 1;
+  opacity: 0.6;
+  rx: 6;
+  ry: 6;
+}
+
+/* SVG legend specific styles */
+.legend-item-swatch {
+  width: 14px;
+  height: 14px;
+  margin-right: var(--spacing-xs);
+  stroke: var(--color-border);
+  stroke-width: 0.5;
+}
+
+.legend-item-label {
+  margin-right: var(--spacing-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.legend-item-value {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Responsive layout for mobile */
+.legend-mobile {
+  font-size: var(--font-size-xs);
+}
+
+.legend-mobile .legend-item {
+  padding: var(--spacing-2xs);
+}
+
+.legend-mobile .legend-item-swatch {
+  width: 10px;
+  height: 10px;
+}
+
+/* Legend heading styles */
+.legend-heading {
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.legend-heading-mobile {
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+/* Legend grid layouts */
+.legend-grid {
+  display: grid;
+  gap: var(--spacing-sm);
+  grid-template-columns: 14px auto 50px;
+  align-items: center;
+}
+
+.legend-grid-mobile {
+  display: grid;
+  gap: var(--spacing-xs);
+  grid-template-columns: 10px auto 30px;
+  align-items: center;
+}
+
+/* Legend color box */
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.legend-color-mobile {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Legend label text */
+.legend-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.legend-label-mobile {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+}
+
+/* Legend value text */
+.legend-value {
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.legend-value-mobile {
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+/* Container for types legend */
+.types-legend {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+/* Improved layout for types legend - better use of space */
+.types-legend .legend-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-gap: var(--spacing-xs) var(--spacing-xs);
+  max-width: 100%;
+  justify-content: start;
+}
+
+/* Improve spacing for Type Distribution legend items */
+.types-legend .legend-item {
+  margin-right: var(--spacing-xs);
+  padding: var(--spacing-2xs) var(--spacing-xs);
+  font-size: 0.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Make the colors more visible with borders */
+.types-legend rect {
+  stroke: rgba(0, 0, 0, 0.2);
+  stroke-width: 0.5;
+}
+
+/* Legend with box for contained appearance */
+.legend-boxed {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Compact legend styles for dense visualizations */
+.compact-legend .legend-items {
+  grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+  grid-gap: var(--spacing-2xs) var(--spacing-xs);
+}
+
+.compact-legend .legend-item {
+  padding: var(--spacing-2xs) var(--spacing-2xs);
+  font-size: 0.75em;
+  margin-right: 0;
+}
+
+.compact-legend .legend-item-swatch {
+  width: 10px;
+  height: 10px;
+  margin-right: var(--spacing-2xs);
+}
+
+/* Make the label more compact */
+.compact-legend .legend-item text {
+  font-size: 11px;
+}
+
+/* Multi-row legend layout - clear display with multiple rows */
+.multi-row-legend {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs);
+}
+
+.multi-row-legend .legend-items {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: var(--spacing-xs) var(--spacing-md) !important;
+  width: 100% !important;
+}
+
+.multi-row-legend .legend-item {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: var(--spacing-xs) !important;
+  margin-right: var(--spacing-sm) !important;
+  padding: var(--spacing-2xs) var(--spacing-xs) !important;
+  max-width: 150px !important;
+}
+
+.multi-row-legend rect {
+  width: 14px !important;
+  height: 14px !important;
+  margin-right: var(--spacing-xs) !important;
+}
+
+.multi-row-legend text {
+  font-size: 12px !important;
+}
+
+/* Force horizontal layout for legend title */
+.multi-row-legend .legend-title {
+  margin-bottom: var(--spacing-sm) !important;
+  font-weight: var(--font-weight-medium) !important;
+} 

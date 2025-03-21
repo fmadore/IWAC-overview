@@ -10,6 +10,7 @@
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
+    import { useLegend, type LegendItem } from '../../hooks/useLegend';
 
     const COMPONENT_ID = 'TypeDistribution';
     let isMounted = false;
@@ -356,6 +357,8 @@
             d3.select(container).select('svg').remove();
             d3.select(container).selectAll('.absolute.inset-center').remove();
             
+            // No need to clean up previous legend since we're removing everything
+            
             if (typeYearData.length === 0) {
                 d3.select(container).append('div')
                     .attr('class', 'absolute inset-center text-secondary z-50')
@@ -366,20 +369,28 @@
             // Check again if component is still mounted
             if (!isMounted || !document.body.contains(container)) return;
             
-            // Set up dimensions
+            // Get initial dimensions from container
             const rect = container.getBoundingClientRect();
             width = rect.width;
-            height = rect.height;
+            
+            // More reasonable height for the visualization area
+            height = Math.max(400, rect.height - 100);
             
             // Verify component is still mounted after accessing DOM properties
             if (!isMounted || !document.body.contains(container)) return;
             
-            // Set margins - make bottom margin just enough for the legend
-            let margin = { top: 20, right: 30, bottom: 120, left: 60 };
-            const chartWidth = width - margin.left - margin.right;
-            
-            // Get all unique types
+            // Get all unique types for dynamic margin calculation
             const types = Array.from(new Set(typeYearData.map(d => d.type)));
+            
+            // Calculate margin with proper dimensions to match the screenshot
+            const margin = { 
+                top: 20, 
+                right: 30, 
+                bottom: 70, // Increased bottom margin to make room for x-axis labels and prevent overlap with legend
+                left: 60 
+            };
+            
+            const chartWidth = width - margin.left - margin.right;
             
             // Sort types alphabetically for consistent display
             types.sort((a, b) => {
@@ -405,21 +416,35 @@
                 });
             }
             
-            // Calculate the number of legend rows needed - make it more compact
-            const legendItemWidth = 150; // Smaller width
-            const maxItemsPerRow = 6; // More items per row
-            const legendItemsPerRow = Math.min(Math.floor(chartWidth / legendItemWidth) || 1, maxItemsPerRow);
-            const legendRowHeight = 25; // Increased row height
-            const numRows = Math.ceil(types.length / legendItemsPerRow);
-            
-            // Adjust bottom margin based on the number of rows
-            margin.bottom = Math.max(margin.bottom, numRows * legendRowHeight + 70);
+            // Get visible types for the chart
+            const visibleTypes = types.filter(type => 
+                typeVisibility.find(t => t.type === type)?.visible ?? true
+            );
             
             // Recalculate chart height with the adjusted margin
             const chartHeight = height - margin.top - margin.bottom;
             
             // Check component is still mounted
             if (!isMounted || !document.body.contains(container)) return;
+            
+            // If no types are visible, show a message and return
+            if (visibleTypes.length === 0) {
+                d3.select(container).selectAll('.absolute.inset-center').remove();
+                d3.select(container).append('div')
+                    .attr('class', 'absolute inset-center text-secondary z-50')
+                    .text($noDataText);
+                return;
+            }
+            
+            // Create SVG
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create chart group
+            const chart = svg.append('g')
+                .attr('transform', `translate(${margin.left}, ${margin.top})`);
             
             // Group the data by year, only including visible types
             const yearData = Array.from(d3.group(
@@ -444,33 +469,6 @@
                     .text($noDataText);
                 return;
             }
-            
-            // Get only visible types for the chart
-            const visibleTypes = types.filter(type => 
-                typeVisibility.find(t => t.type === type)?.visible ?? true
-            );
-            
-            // Check component is still mounted
-            if (!isMounted || !document.body.contains(container)) return;
-            
-            // If no types are visible, show a message and return
-            if (visibleTypes.length === 0) {
-                d3.select(container).selectAll('.absolute.inset-center').remove();
-                d3.select(container).append('div')
-                    .attr('class', 'absolute inset-center text-secondary z-50')
-                    .text($noDataText);
-                return;
-            }
-            
-            // Create SVG
-            const svg = d3.select(container)
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height);
-            
-            // Create chart group
-            const chart = svg.append('g')
-                .attr('transform', `translate(${margin.left}, ${margin.top})`);
             
             // Create scales
             const x = d3.scaleBand()
@@ -591,157 +589,115 @@
             // Check component is still mounted
             if (!isMounted || !document.body.contains(container)) return;
             
-            // Add interactive legend below the chart (under x-axis)
-            const legend = svg.append('g')
-                .attr('class', 'legend')
-                .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + 60})`);
+            // Create type count for legend items
+            const typeCounts = types.map(type => {
+                const count = typeYearData
+                    .filter(d => d.type === type)
+                    .reduce((sum, d) => sum + d.count, 0);
+                return { type, count };
+            }).sort((a, b) => b.count - a.count); // Sort by count descending
             
-            // Add legend title with improved styling - make it smaller
-            legend.append('text')
-                .attr('x', 0)
-                .attr('y', -15)
-                .attr('font-size', 'var(--font-size-xs)')
-                .attr('font-weight', 'normal')
-                .attr('fill', 'var(--color-text-secondary)')
-                .text($toggleTypesText);
+            // Calculate space required for the legend based on the screenshot
+            const legendY = height + 10; // Position the legend 10px below the chart height instead of inside it
             
-            // Create a container for the legend items
-            const legendItems = legend.append('g')
-                .attr('class', 'legend-items')
-                .attr('transform', 'translate(0, 5)');
+            // Add the "Toggle Types" text
+            svg.append("text")
+                .attr('class', 'legend-title')
+                .attr('x', margin.left)
+                .attr('y', legendY)
+                .attr('font-size', '11px')
+                .attr('fill', '#666')
+                .text(`Toggle Types (${types.length})`);
             
-            // Check component is still mounted
-            if (!isMounted || !document.body.contains(container)) return;
+            // Create a legend container group with multi-row layout
+            const legendGroup = svg.append('g')
+                .attr('class', 'multi-row-legend')
+                .attr('transform', `translate(${margin.left}, ${legendY + 15})`);
             
-            types.forEach((type, i) => {
-                // Check component is still mounted in each iteration
-                if (!isMounted || !document.body.contains(container)) return;
+            // Create legend items container
+            const legendItems = legendGroup.append('g')
+                .attr('class', 'legend-items');
+            
+            // Calculate number of items per row for even distribution
+            const availableWidth = width - margin.left - margin.right;
+            // Calculate a minimum of 3 items per row and increase as width allows
+            const itemsPerRow = Math.max(3, Math.floor(availableWidth / 120));
+            const itemWidth = availableWidth / itemsPerRow;
+            const rowHeight = 22; // Height for each row of legend items
+            
+            // Create legend items in multiple rows
+            typeCounts.forEach((item, i) => {
+                // Calculate row and column position for layout
+                const rowIndex = Math.floor(i / itemsPerRow);
+                const colIndex = i % itemsPerRow;
                 
-                const isVisible = typeVisibility.find(t => t.type === type)?.visible ?? true;
+                const xPosition = colIndex * itemWidth;
+                const yPosition = rowIndex * rowHeight;
                 
-                // Calculate position in grid layout
-                const row = Math.floor(i / legendItemsPerRow);
-                const col = i % legendItemsPerRow;
-                
-                // Create a group for each legend item
                 const legendItem = legendItems.append('g')
-                    .attr('transform', `translate(${col * legendItemWidth}, ${row * legendRowHeight})`)
-                    .attr('class', 'legend-item cursor-pointer')
-                    .attr('role', 'button');
+                    .attr('class', 'legend-item')
+                    .attr('transform', `translate(${xPosition}, ${yPosition})`)
+                    .style('cursor', 'pointer');
                 
-                // Add background for better click target
+                // Add colored rectangle
                 legendItem.append('rect')
-                    .attr('x', -5)
-                    .attr('y', -5)
-                    .attr('width', legendItemWidth - 10)
-                    .attr('height', 15)
-                    .attr('fill', 'transparent');
+                    .attr('width', 14)
+                    .attr('height', 14)
+                    .attr('rx', 2)
+                    .attr('fill', color(item.type))
+                    .attr('stroke', 'rgba(0,0,0,0.2)')
+                    .attr('stroke-width', 0.5)
+                    .style('opacity', typeVisibility.find(t => t.type === item.type)?.visible ? 1 : 0.5);
                 
-                // Add color box - make it smaller
-                legendItem.append('rect')
-                    .attr('width', 10)
-                    .attr('height', 10)
-                    .attr('fill', color(type))
-                    .attr('stroke', isVisible ? 'none' : '#999')
-                    .attr('stroke-width', isVisible ? 0 : 1)
-                    .attr('opacity', isVisible ? 1 : 0.5);
-                
-                // Add text with translated type name - make it smaller
-                const typeKey = `type.${type}`;
-                let displayText = type;
-                
-                try {
-                    // First try to get the translation
-                    const translatedType = t(typeKey);
-                    // If translation doesn't return the key itself, use it
-                    if (translatedType !== typeKey) {
-                        displayText = translatedType;
-                    }
-                    // Log for debugging
-                    console.log(`Type: ${type}, Translation key: ${typeKey}, Result: ${displayText}`);
-                } catch (e) {
-                    console.error(`Error translating type ${type}:`, e);
+                // Add label with translation
+                const typeKey = `type.${item.type}`;
+                let displayLabel = item.type;
+                const translated = t(typeKey);
+                if (translated !== typeKey) {
+                    displayLabel = translated;
                 }
                 
-                const text = legendItem.append('text')
-                    .attr('x', 15) // Reduce spacing
-                    .attr('y', 8) // Adjust vertical position
-                    .attr('font-size', 'var(--font-size-xs)') // Make font smaller
-                    .attr('fill', 'var(--color-text-secondary)') // Make text less prominent
-                    .attr('class', 'text-xs text-primary')
-                    .attr('opacity', isVisible ? 1 : 0.5)
-                    .text(displayText);
-                
-                // Add strikethrough for hidden types
-                if (!isVisible) {
-                    const textNode = text.node();
-                    if (textNode) {
-                        const textWidth = textNode.getComputedTextLength();
-                        legendItem.append('line')
-                            .attr('x1', 15)
-                            .attr('y1', 8)
-                            .attr('x2', 15 + textWidth)
-                            .attr('y2', 8)
-                            .attr('stroke', 'var(--color-text-secondary)')
-                            .attr('stroke-width', 1)
-                            .attr('opacity', 0.7);
-                    }
+                // Truncate long labels with ellipsis if needed
+                const maxLabelLength = Math.floor((itemWidth - 20) / 7);
+                if (displayLabel.length > maxLabelLength) {
+                    displayLabel = displayLabel.substring(0, maxLabelLength) + '...';
                 }
                 
-                // Add click handler to the entire group
-                legendItem.on('click', () => {
+                legendItem.append('text')
+                    .attr('x', 17)
+                    .attr('y', 7)
+                    .attr('dominant-baseline', 'middle')
+                    .attr('font-size', '12px')
+                    .attr('fill', typeVisibility.find(t => t.type === item.type)?.visible ? '#333' : '#999')
+                    .style('text-decoration', typeVisibility.find(t => t.type === item.type)?.visible ? 'none' : 'line-through')
+                    .text(displayLabel);
+                
+                // Add click handler for toggling visibility
+                legendItem.on("click", () => {
                     if (!isMounted) return;
                     
-                    console.log(`Clicked on type: ${type}`);
-                    d3.select(container).append('div')
-                        .attr('class', 'fixed bottom-0 left-0 bg-black bg-opacity-70 text-white p-xs rounded z-50')
-                        .text(`Toggled type: ${type}`)
-                        .transition()
-                        .duration(2000)
-                        .attr('opacity', 0)
-                        .remove();
-                    
-                    const typeIndex = typeVisibility.findIndex(t => t.type === type);
-                    if (typeIndex >= 0 && isMounted) {
+                    // Find and toggle the visibility of this type
+                    const typeIndex = typeVisibility.findIndex(t => t.type === item.type);
+                    if (typeIndex >= 0) {
                         typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
                         typeVisibility = [...typeVisibility]; // Trigger reactivity
                         
                         // Update country facets to reflect the new type visibility
                         generateCountryFacets();
                         
+                        // Update chart
                         updateVisualization();
                     }
-                })
-                .attr('tabindex', '0')
-                .on('keydown', (event) => {
-                    if (!isMounted) return;
-                    
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        const typeIndex = typeVisibility.findIndex(t => t.type === type);
-                        if (typeIndex >= 0 && isMounted) {
-                            typeVisibility[typeIndex].visible = !typeVisibility[typeIndex].visible;
-                            typeVisibility = [...typeVisibility]; // Trigger reactivity
-                            
-                            // Update country facets to reflect the new type visibility
-                            generateCountryFacets();
-                            
-                            updateVisualization();
-                        }
-                    }
-                });
-                
-                // Add hover effects
-                legendItem.on('mouseenter', function() {
-                    if (!isMounted) return;
-                    d3.select(this).select('text').attr('font-weight', 'bold');
-                    d3.select(this).select('.legend-hitbox').attr('fill', 'rgba(0,0,0,0.05)');
-                }).on('mouseleave', function() {
-                    if (!isMounted) return;
-                    d3.select(this).select('text').attr('font-weight', 'normal');
-                    d3.select(this).select('.legend-hitbox').attr('fill', 'transparent');
                 });
             });
+            
+            // Calculate the height needed for the multi-row legend
+            const rowCount = Math.ceil(typeCounts.length / itemsPerRow);
+            const legendHeight = (rowCount * rowHeight) + 30; // Add padding
+            
+            // Set the final SVG height to ensure the legend doesn't overflow
+            svg.attr('height', height + legendHeight + 20); // Add extra padding below chart for the legend
+            
         } catch (error) {
             console.error('Error updating visualization:', error);
             // Don't try to update anything else if there was an error
@@ -911,6 +867,7 @@
                 unsubscribeLanguage = null as unknown as () => void;
             }
             
+            // Clean up by removing all elements
             if (container) {
                 d3.select(container).selectAll('*').remove();
             }
@@ -1047,11 +1004,14 @@
     /* Make the chart container take up remaining space */
     .chart-container {
         flex: 1;
-        min-height: 550px;
         position: relative;
         background: var(--color-bg-card);
         border-radius: var(--radius-md);
         box-shadow: var(--shadow-md);
+        /* Reasonable height that allows the chart to be visible without being too tall */
+        min-height: 450px;
+        max-height: 600px;
+        height: auto;
     }
     
     h3 {
@@ -1180,23 +1140,6 @@
         background: var(--color-primary);
         cursor: pointer;
         border: none;
-    }
-    
-    /* Global styles for the chart elements */
-    :global(.legend-item:hover) {
-        filter: brightness(1.1);
-    }
-    
-    :global(.legend-item text) {
-        pointer-events: none;
-    }
-    
-    :global(.legend-item rect) {
-        pointer-events: none;
-    }
-    
-    :global(.legend-item line) {
-        pointer-events: none;
     }
     
     /* Add header compact styles */

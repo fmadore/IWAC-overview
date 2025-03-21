@@ -124,18 +124,26 @@ const translations: Record<Language, Record<string, string>> = {
         'country.Unknown': 'Unknown',
         
         // Item type translations
-        'type.Article de presse': 'Press Article',
-        'type.Notice d\'autorité': 'Authority Record',
-        'type.Périodique islamique': 'Islamic Periodical',
+        'type.Article de presse': 'Press article',
+        'type.Notice d\'autorité': 'Authority record',
+        'type.Périodique islamique': 'Islamic periodical',
         'type.Unknown': 'Unknown',
-        'type.Article de revue': 'Journal Article',
+        'type.Article de revue': 'Journal article',
         'type.Document': 'Document',
-        'type.Article de blog': 'Blog Post',
-        'type.Chapitre de livre': 'Book Chapter',
+        'type.Article de blog': 'Blog post',
+        'type.Chapitre de livre': 'Book chapter',
         'type.Livre': 'Book',
-        'type.Thèse de doctorat': 'Doctoral Thesis',
-        'type.Communication scientifique': 'Scientific Communication',
-        'type.all': 'All Types',
+        'type.Thèse de doctorat': 'Doctoral thesis',
+        'type.Communication scientifique': 'Scientific communication',
+        'type.Article d\'encyclopédie': 'Encyclopedia article',
+        'type.Compte rendu de livre': 'Book review',
+        'type.Enregistrement vidéo': 'Video recording',
+        'type.Mémoire de licence': 'Bachelor\'s thesis',
+        'type.Mémoire de maitrise': 'Master\'s thesis',
+        'type.Photographie': 'Photograph',
+        'type.Rapport': 'Report',
+        'type.Working paper': 'Working paper',
+        'type.all': 'All types',
 
         // Index distribution specific
         'viz.index_distribution_title': 'Index Distribution',
@@ -152,6 +160,7 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.published_between': 'published between {0} and {1}',
         'viz.type': 'Type',
         'viz.count': 'Count',
+        'viz.others': 'Others',
         
         // Category translations
         'category.Events': 'Events',
@@ -286,6 +295,14 @@ const translations: Record<Language, Record<string, string>> = {
         'type.Livre': 'Livre',
         'type.Thèse de doctorat': 'Thèse de doctorat',
         'type.Communication scientifique': 'Communication scientifique',
+        'type.Article d\'encyclopédie': 'Article d\'encyclopédie',
+        'type.Compte rendu de livre': 'Compte rendu de livre',
+        'type.Enregistrement vidéo': 'Enregistrement vidéo',
+        'type.Mémoire de licence': 'Mémoire de licence',
+        'type.Mémoire de maitrise': 'Mémoire de maitrise',
+        'type.Photographie': 'Photographie',
+        'type.Rapport': 'Rapport',
+        'type.Working paper': 'Working paper',
         'type.all': 'Tous les types',
 
         // Index distribution specific
@@ -303,6 +320,7 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.published_between': 'publiés entre {0} et {1}',
         'viz.type': 'Type',
         'viz.count': 'Nombre',
+        'viz.others': 'Autres',
         
         // Category translations
         'category.Events': 'Événements',
