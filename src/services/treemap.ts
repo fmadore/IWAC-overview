@@ -151,11 +151,24 @@ export default class TreemapService {
 
             // Create or use color scale
             const colorScale = this.createColorScale(root, options);
+            
+            // Track the parent node's color when zoomed in to maintain color consistency
+            let parentColor: string | undefined;
+            if (currentZoomedNode && options.colorMap) {
+                parentColor = options.colorMap.get(currentZoomedNode.data.name);
+            }
 
             // Draw the treemap elements
             if (currentZoomedNode) {
-                // When zoomed in, render the children directly
-                this.renderLeafNodes(chart, root.children || [], colorScale, tooltipCallback, labelOptions);
+                // When zoomed in, render the children directly with parent's color
+                this.renderLeafNodes(
+                    chart, 
+                    root.children || [], 
+                    colorScale, 
+                    tooltipCallback, 
+                    labelOptions,
+                    parentColor // Pass parent color to ensure consistency
+                );
             } else {
                 // When not zoomed in, render countries and their children
                 this.renderParentNodes(chart, root.children || [], colorScale, zoomCallback, labelOptions);
@@ -368,7 +381,8 @@ export default class TreemapService {
         nodes: d3.HierarchyNode<TreemapNode>[],
         colorScale: d3.ScaleOrdinal<string, string>,
         tooltipCallback?: (event: MouseEvent, d: d3.HierarchyNode<TreemapNode>) => void,
-        labelOptions?: any
+        labelOptions?: any,
+        parentColor?: string
     ) {
         const nodeGroups = chart.selectAll('.leaf-node')
             .data(nodes)
@@ -394,7 +408,11 @@ export default class TreemapService {
                 return Math.max(0, y1 - y0);
             })
             .attr('fill', d => {
-                // Use the same color as the parent for consistency
+                // If we have a parentColor (in zoomed view), use it for all children
+                if (parentColor) {
+                    return parentColor;
+                }
+                // Otherwise use the parent's color (in main view)
                 return d.parent 
                     ? colorScale(d.parent.data.name)
                     : colorScale(d.data.name);
