@@ -127,28 +127,58 @@
         // Update title HTML
         updateTitleHtml();
         
-        // Group items hierarchically by country and item_set_title
-        const hierarchicalData = groupHierarchically(
-            filteredItems,
-            [
-                item => item.country || 'Unknown', // Add fallback for undefined
-                item => item.item_set_title || 'No Set'
-            ]
-        );
-
-        // Convert hierarchical data to the required format
+        // Create hierarchical structure manually to correctly calculate word counts
+        const countryMap = new Map<string, {
+            words: number, 
+            items: number, 
+            sets: Map<string, {words: number, items: number}>
+        }>();
+        
+        // First pass: group and sum word counts by country and set
+        filteredItems.forEach(item => {
+            const country = item.country || 'Unknown';
+            const set = item.item_set_title || 'No Set';
+            const wordCount = item.word_count || 0;
+            
+            // Initialize or update country data
+            if (!countryMap.has(country)) {
+                countryMap.set(country, {
+                    words: 0,
+                    items: 0,
+                    sets: new Map()
+                });
+            }
+            
+            const countryData = countryMap.get(country)!;
+            countryData.words += wordCount;
+            countryData.items += 1;
+            
+            // Initialize or update set data
+            if (!countryData.sets.has(set)) {
+                countryData.sets.set(set, {
+                    words: 0,
+                    items: 0
+                });
+            }
+            
+            const setData = countryData.sets.get(set)!;
+            setData.words += wordCount;
+            setData.items += 1;
+        });
+        
+        // Convert to hierarchical structure
         const root: TreemapNode = {
             name: 'Word Distribution',
-            children: (hierarchicalData.children || []).map(country => ({
-                name: country.name,
-                children: (country.children || []).map(set => ({
-                    name: set.name,
-                    value: set.value,
-                    wordCount: set.value,
-                    itemCount: set.itemCount
-                })),
-                wordCount: country.value,
-                itemCount: country.itemCount
+            children: Array.from(countryMap.entries()).map(([countryName, countryData]) => ({
+                name: countryName,
+                wordCount: countryData.words,
+                itemCount: countryData.items,
+                children: Array.from(countryData.sets.entries()).map(([setName, setData]) => ({
+                    name: setName,
+                    value: setData.words, // Use word count as value for treemap sizing
+                    wordCount: setData.words,
+                    itemCount: setData.items
+                }))
             }))
         };
 
