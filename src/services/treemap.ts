@@ -394,12 +394,10 @@ export default class TreemapService {
                 return Math.max(0, y1 - y0);
             })
             .attr('fill', d => {
-                // Use a lighter shade of the parent color
-                const nodeColor = d.parent 
+                // Use the same color as the parent for consistency
+                return d.parent 
                     ? colorScale(d.parent.data.name)
                     : colorScale(d.data.name);
-                const baseColor = d3.rgb(nodeColor);
-                return d3.rgb(baseColor).brighter(0.7).toString();
             })
             .attr('stroke', 'white')
             .attr('stroke-width', 0.5)
