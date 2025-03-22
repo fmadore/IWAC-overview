@@ -23,6 +23,7 @@ export interface TreemapOptions {
     colors?: d3.ScaleOrdinal<string, string>;
     colorMap?: Map<string, string>;
     tooltipCallback?: (event: MouseEvent, d: d3.HierarchyNode<TreemapNode>) => void;
+    hideTooltipCallback?: () => void;
     zoomCallback?: (node: d3.HierarchyNode<TreemapNode> | null) => void;
     currentZoomedNode?: d3.HierarchyNode<TreemapNode> | null;
     minSizeThreshold?: number;
@@ -57,6 +58,7 @@ export default class TreemapService {
                 margin = { top: 10, right: 10, bottom: 10, left: 10 },
                 padding = { outer: 3, top: 16, inner: 1 },
                 tooltipCallback,
+                hideTooltipCallback,
                 zoomCallback,
                 currentZoomedNode = null,
                 minSizeThreshold = 0.001,
@@ -104,7 +106,14 @@ export default class TreemapService {
                .attr('viewBox', `0 0 ${width} ${height}`)
                .style('height', `${height}px`)
                .style('max-height', `${height}px`)
-               .style('overflow', 'hidden');
+               .style('overflow', 'hidden')
+               // Add mouseout for the entire SVG to catch when cursor leaves the chart area
+               .on('mouseout', (event) => {
+                   // Only hide tooltip if we're actually leaving the SVG
+                   if (event.relatedTarget && !svg.node()?.contains(event.relatedTarget as Node)) {
+                       if (hideTooltipCallback) hideTooltipCallback();
+                   }
+               });
 
             // If zoomed in, add a button to zoom out
             if (currentZoomedNode) {
@@ -167,12 +176,13 @@ export default class TreemapService {
                     colorScale, 
                     tooltipCallback, 
                     labelOptions,
-                    parentColor // Pass parent color to ensure consistency
+                    parentColor, // Pass parent color to ensure consistency
+                    hideTooltipCallback
                 );
             } else {
                 // When not zoomed in, render countries and their children
                 this.renderParentNodes(chart, root.children || [], colorScale, zoomCallback, labelOptions);
-                this.renderLeafNodes(chart, root.leaves(), colorScale, tooltipCallback, labelOptions);
+                this.renderLeafNodes(chart, root.leaves(), colorScale, tooltipCallback, labelOptions, undefined, hideTooltipCallback);
             }
 
             return { svg, chart };
@@ -382,7 +392,8 @@ export default class TreemapService {
         colorScale: d3.ScaleOrdinal<string, string>,
         tooltipCallback?: (event: MouseEvent, d: d3.HierarchyNode<TreemapNode>) => void,
         labelOptions?: any,
-        parentColor?: string
+        parentColor?: string,
+        hideTooltipCallback?: () => void
     ) {
         const nodeGroups = chart.selectAll('.leaf-node')
             .data(nodes)
@@ -438,6 +449,9 @@ export default class TreemapService {
                 d3.select(this)
                     .attr('stroke', 'white')
                     .attr('stroke-width', 0.5);
+                
+                // Hide tooltip when mouse leaves the element
+                if (hideTooltipCallback) hideTooltipCallback();
             });
         
         // Add labels

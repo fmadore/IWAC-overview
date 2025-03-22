@@ -299,6 +299,7 @@
                 height: 500, // Explicitly set fixed height
                 colorMap: countryColors,
                 tooltipCallback: handleShowTooltip,
+                hideTooltipCallback: hideTooltip,
                 zoomCallback: zoomToNode,
                 currentZoomedNode: zoomedNode,
                 labelOptions: {
