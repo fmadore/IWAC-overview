@@ -27,6 +27,8 @@ export interface TreemapOptions {
     zoomCallback?: (node: d3.HierarchyNode<TreemapNode> | null) => void;
     currentZoomedNode?: d3.HierarchyNode<TreemapNode> | null;
     minSizeThreshold?: number;
+    useBreadcrumbs?: boolean;
+    rootName?: string;
     labelOptions?: {
         parentLabel?: {
             fontSize?: string;
@@ -62,6 +64,8 @@ export default class TreemapService {
                 zoomCallback,
                 currentZoomedNode = null,
                 minSizeThreshold = 0.001,
+                useBreadcrumbs = false,
+                rootName = 'All',
                 labelOptions = {
                     parentLabel: {
                         fontSize: 'var(--font-size-sm)',
@@ -92,12 +96,18 @@ export default class TreemapService {
             container.style.maxHeight = `${height}px`;
             container.style.overflow = 'hidden';
             
+            // Adjust margins for breadcrumbs if needed
+            const adjustedMargin = { ...margin };
+            if (currentZoomedNode && useBreadcrumbs) {
+                adjustedMargin.top += 30; // Add space for breadcrumb navigation
+            }
+            
             // Create SVG with fixed dimensions to prevent layout loops
             const { svg, chart, chartWidth, chartHeight } = D3Service.createSVG({
                 container,
                 width,
                 height,
-                margin,
+                margin: adjustedMargin,
                 responsive: false // Disable responsive behavior which might cause expansion
             });
             
@@ -115,9 +125,13 @@ export default class TreemapService {
                    }
                });
 
-            // If zoomed in, add a button to zoom out
+            // If zoomed in, add navigation (either breadcrumbs or button)
             if (currentZoomedNode) {
-                this.addZoomOutButton(svg, margin, zoomCallback);
+                if (useBreadcrumbs) {
+                    this.addBreadcrumbNavigation(svg, margin, currentZoomedNode, rootName, zoomCallback);
+                } else {
+                    this.addZoomOutButton(svg, margin, zoomCallback);
+                }
             }
 
             // Create treemap layout
@@ -292,6 +306,73 @@ export default class TreemapService {
             .attr('fill', 'white')
             .attr('font-size', 'var(--font-size-sm)')
             .text('Back to All');
+    }
+
+    /**
+     * Adds breadcrumb navigation to the visualization
+     */
+    private static addBreadcrumbNavigation(
+        svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+        margin: { top: number; right: number; bottom: number; left: number },
+        currentNode: d3.HierarchyNode<TreemapNode>,
+        rootName: string,
+        zoomCallback?: (node: d3.HierarchyNode<TreemapNode> | null) => void
+    ) {
+        if (!zoomCallback) return;
+
+        // Create a background for better visibility
+        const bgHeight = 30;
+        const bgWidth = svg.node()?.getBoundingClientRect().width || 300;
+        
+        svg.append('rect')
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', bgWidth)
+            .attr('height', bgHeight)
+            .attr('fill', 'white')
+            .attr('opacity', 0.9);
+
+        // Create navigation container
+        const nav = svg.append('g')
+            .attr('class', 'breadcrumb-navigation')
+            .attr('transform', `translate(${margin.left + 10}, ${margin.top + 10})`);
+        
+        // Add "All" link with a clearer interactive style
+        const allLink = nav.append('text')
+            .attr('x', 0)
+            .attr('y', 5)
+            .attr('font-size', 'var(--font-size-sm)')
+            .attr('fill', 'var(--primary-color)')
+            .attr('class', 'cursor-pointer')
+            .text(rootName)
+            .on('click', () => zoomCallback(null));
+        
+        // Underline to make it clear it's clickable
+        const allLinkWidth = allLink.node()?.getComputedTextLength() || 20;
+        nav.append('line')
+            .attr('x1', 0)
+            .attr('y1', 22)
+            .attr('x2', allLinkWidth)
+            .attr('y2', 22)
+            .attr('stroke', 'var(--primary-color)')
+            .attr('stroke-width', 1);
+        
+        // Add separator
+        nav.append('text')
+            .attr('x', allLinkWidth + 8)
+            .attr('y', 5)
+            .attr('font-size', 'var(--font-size-sm)')
+            .attr('fill', 'var(--color-text-secondary)')
+            .text('/');
+        
+        // Add current node name
+        nav.append('text')
+            .attr('x', allLinkWidth + 20)
+            .attr('y', 5)
+            .attr('font-size', 'var(--font-size-sm)')
+            .attr('font-weight', 'bold')
+            .attr('fill', 'var(--color-text-primary)')
+            .text(currentNode.data.name);
     }
 
     /**

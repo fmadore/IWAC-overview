@@ -302,6 +302,8 @@
                 hideTooltipCallback: hideTooltip,
                 zoomCallback: zoomToNode,
                 currentZoomedNode: zoomedNode,
+                useBreadcrumbs: true,
+                rootName: currentLang === 'en' ? 'All' : 'Tous',
                 labelOptions: {
                     parentLabel: {
                         fontSize: 'var(--font-size-sm)',
