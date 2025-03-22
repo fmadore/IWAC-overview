@@ -73,8 +73,23 @@ export function useD3Resize(options: D3ResizeOptions): D3ResizeResult {
         if (!container) return;
         
         const rect = container.getBoundingClientRect();
+        
+        // Only update if dimensions actually changed significantly (avoid micro-changes)
+        const widthChanged = Math.abs(width - rect.width) > 1;
+        const heightChanged = Math.abs(height - rect.height) > 1;
+        
+        if (!widthChanged && !heightChanged) return;
+        
+        // Update the width but maintain the height constraint if provided in CSS
         width = rect.width;
-        height = rect.height;
+        
+        // Only update height if not explicitly set in CSS
+        const computedStyle = window.getComputedStyle(container);
+        const hasExplicitHeight = computedStyle.height !== 'auto' && !computedStyle.height.includes('%');
+        
+        if (!hasExplicitHeight) {
+            height = rect.height;
+        }
         
         if (debounce) {
             // Clear existing timeout if any

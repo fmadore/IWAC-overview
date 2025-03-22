@@ -10,19 +10,11 @@
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
+    import TreemapService, { type TreemapNode, type TreemapOptions } from '../../services/treemap';
 
-    const COMPONENT_ID = 'WordDistribution';
+    const COMPONENT_ID = 'WordDistributionRefactored';
     let isMounted = false;
     let unsubscribeItems: () => void;
-
-    // Data interfaces
-    interface WordHierarchyNode {
-        name: string;
-        children?: WordHierarchyNode[];
-        value?: number;
-        wordCount?: number;
-        itemCount?: number;
-    }
 
     // Visualization state
     let container: HTMLDivElement;
@@ -30,8 +22,8 @@
     let height = 0;
     let totalWordCount = 0;
     let totalItems = 0;
-    let hierarchyData: WordHierarchyNode = { name: 'root', children: [] };
-    let zoomedNode: d3.HierarchyNode<WordHierarchyNode> | null = null;
+    let hierarchyData: TreemapNode = { name: 'root', children: [] };
+    let zoomedNode: d3.HierarchyNode<TreemapNode> | null = null;
     let titleHtml = '';
     let currentLang: 'en' | 'fr' = 'en';
     // Store country colors to maintain consistency when zooming
@@ -145,7 +137,7 @@
         );
 
         // Convert hierarchical data to the required format
-        const root: WordHierarchyNode = {
+        const root: TreemapNode = {
             name: 'Word Distribution',
             children: (hierarchicalData.children || []).map(country => ({
                 name: country.name,
@@ -177,7 +169,7 @@
     }
 
     // Zoom to a node
-    function zoomToNode(node: d3.HierarchyNode<WordHierarchyNode> | null) {
+    function zoomToNode(node: d3.HierarchyNode<TreemapNode> | null) {
         zoomedNode = node;
         
         if (zoomedNode) {
@@ -206,380 +198,8 @@
         updateVisualization();
     }
 
-    // Create or update the visualization
-    function updateVisualization() {
-        try {
-            if (!container) {
-                console.error('Container element not found');
-                return;
-            }
-            
-            // Get fresh data if not zoomed
-            if (!zoomedNode) {
-                hierarchyData = processData();
-            }
-            
-            if (!hierarchyData.children || hierarchyData.children.length === 0) {
-                d3.select(container).select('svg').remove();
-                d3.select(container).append('div')
-                    .attr('class', 'absolute inset-center text-secondary')
-                    .text($noDataText);
-                return;
-            }
-            
-            // Remove previous visualization and messages
-            d3.select(container).select('svg').remove();
-            d3.select(container).select('.absolute').remove();
-            
-            // Get container dimensions
-            const rect = container.getBoundingClientRect();
-            width = rect.width;
-            height = rect.height;
-            
-            // Set margins
-            const margin = { top: 10, right: 10, bottom: 10, left: 10 };
-            const chartWidth = width - margin.left - margin.right;
-            const chartHeight = height - margin.top - margin.bottom;
-            
-            // Create SVG
-            const svg = d3.select(container)
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height);
-            
-            // Create chart group
-            const chart = svg.append('g')
-                .attr('transform', `translate(${margin.left}, ${margin.top})`);
-            
-            // If zoomed in, add a button to zoom out
-            if (zoomedNode) {
-                const button = svg.append('g')
-                    .attr('class', 'zoom-out-button cursor-pointer')
-                    .attr('transform', `translate(${margin.left}, ${margin.top})`)
-                    .on('click', () => zoomToNode(null));
-                    
-                button.append('rect')
-                    .attr('width', 100)
-                    .attr('height', 24)
-                    .attr('rx', 4)
-                    .attr('fill', 'var(--primary-color)')
-                    .attr('opacity', 0.8);
-                    
-                button.append('text')
-                    .attr('x', 50)
-                    .attr('y', 16)
-                    .attr('text-anchor', 'middle')
-                    .attr('fill', 'white')
-                    .attr('font-size', 'var(--font-size-sm)')
-                    .text($backToAllText);
-                    
-                // Update title HTML for zoomed node - remove item count
-                updateZoomedNodeTitle();
-            }
-            
-            // Create treemap layout
-            const treemap = d3.treemap<WordHierarchyNode>()
-                .size([chartWidth, chartHeight])
-                .paddingOuter(3)
-                .paddingTop(16)
-                .paddingInner(1)
-                .round(true);
-            
-            // Create hierarchy
-            let root: d3.HierarchyNode<WordHierarchyNode>;
-            
-            if (zoomedNode) {
-                // When zoomed in, we have two approaches:
-                // 1. If the zoomed node data has children, use it directly
-                if (zoomedNode.data.children && zoomedNode.data.children.length > 0) {
-                    // Create a new hierarchy from the children data
-                    const childrenData: WordHierarchyNode = {
-                        name: zoomedNode.data.name,
-                        children: zoomedNode.data.children
-                    };
-                    
-                    root = d3.hierarchy<WordHierarchyNode>(childrenData)
-                        .sum(d => d.value || 0)
-                        .sort((a, b) => (b.value || 0) - (a.value || 0));
-                } 
-                // 2. If the zoomed node only has a flat representation (no children),
-                // create a flat hierarchy using its actual children nodes
-                else if (zoomedNode.children && zoomedNode.children.length > 0) {
-                    // Create a temporary root with the zoomed node's children
-                    const tempChildren = zoomedNode.children.map(child => ({
-                        name: child.data.name,
-                        value: child.data.value || child.value,
-                        wordCount: child.data.wordCount,
-                        itemCount: child.data.itemCount
-                    }));
-                    
-                    const tempRoot: WordHierarchyNode = {
-                        name: zoomedNode.data.name,
-                        children: tempChildren
-                    };
-                    
-                    root = d3.hierarchy<WordHierarchyNode>(tempRoot)
-                        .sum(d => d.value || 0)
-                        .sort((a, b) => (b.value || 0) - (a.value || 0));
-                } 
-                else {
-                    // Fallback to the full hierarchy if something goes wrong
-                    console.warn('Zoomed node has no valid children data, falling back to full hierarchy');
-                    hierarchyData = processData();
-                    root = d3.hierarchy<WordHierarchyNode>(hierarchyData)
-                        .sum(d => d.value || 0)
-                        .sort((a, b) => (b.value || 0) - (a.value || 0));
-                }
-            } else {
-                // When not zoomed, create hierarchy from full data
-                root = d3.hierarchy<WordHierarchyNode>(hierarchyData)
-                    .sum(d => d.value || 0)
-                    .sort((a, b) => (b.value || 0) - (a.value || 0));
-                
-                // Filter out nodes with very small values that might cause display issues
-                // This ensures all displayed countries have enough space to be visible
-                if (root.children) {
-                    // Calculate minimum threshold (e.g., 0.1% of total)
-                    const totalValue = root.value || 0;
-                    const minThreshold = totalValue * 0.001; // 0.1% of total
-                    
-                    // Filter children to only include those with sufficient value
-                    root.children = root.children.filter(child => 
-                        (child.value || 0) > minThreshold
-                    );
-                }
-            }
-            
-            // Apply treemap layout - make sure to validate
-            try {
-                treemap(root as d3.HierarchyRectangularNode<WordHierarchyNode>);
-            } catch (e) {
-                console.error('Error applying treemap layout:', e);
-                // If treemap fails, revert to full data view
-                zoomedNode = null;
-                hierarchyData = processData();
-                root = d3.hierarchy<WordHierarchyNode>(hierarchyData)
-                    .sum(d => d.value || 0)
-                    .sort((a, b) => (b.value || 0) - (a.value || 0));
-                treemap(root as d3.HierarchyRectangularNode<WordHierarchyNode>);
-            }
-            
-            // Color scale - use d3.schemeCategory10 for consistent colors
-            const colorScale = d3.scaleOrdinal<string>()
-                .domain(root.children ? root.children.map(d => d.data.name) : [root.data.name])
-                .range(d3.schemeCategory10);
-            
-            // If not zoomed, store the colors for each country
-            if (!zoomedNode) {
-                // Initialize or update country colors
-                if (root.children) {
-                    root.children.forEach(child => {
-                        if (!countryColors.has(child.data.name)) {
-                            countryColors.set(child.data.name, colorScale(child.data.name));
-                        }
-                    });
-                }
-            }
-            
-            // Create cells for countries (first level)
-            const countries = chart.selectAll('.country')
-                .data(zoomedNode ? [] : (root.children || []))
-                .enter()
-                .append('g')
-                .attr('class', 'country')
-                .attr('transform', d => {
-                    const x = (d as any).x0 || 0;
-                    const y = (d as any).y0 || 0;
-                    return `translate(${x},${y})`;
-                });
-            
-            // Add country background
-            countries.append('rect')
-                .attr('width', d => {
-                    const x0 = (d as any).x0 || 0;
-                    const x1 = (d as any).x1 || 0;
-                    return Math.max(0, x1 - x0);
-                })
-                .attr('height', d => {
-                    const y0 = (d as any).y0 || 0;
-                    const y1 = (d as any).y1 || 0;
-                    return Math.max(0, y1 - y0);
-                })
-                .attr('fill', d => {
-                    // Use stored color if available
-                    return countryColors.get(d.data.name) || colorScale(d.data.name);
-                })
-                .attr('stroke', 'white')
-                .attr('stroke-width', 2)
-                .attr('opacity', 0.7)
-                .attr('class', 'cursor-pointer')
-                .on('click', (event, d) => {
-                    zoomToNode(d);
-                })
-                .attr('title', $clickZoomInText)
-                .append('title')
-                .text(() => $clickZoomInText);
-            
-            // Add country labels
-            countries.append('text')
-                .attr('x', 5)
-                .attr('y', 15)
-                .attr('font-size', 'var(--font-size-sm)')
-                .attr('font-weight', 'bold')
-                .attr('fill', 'white')
-                .text(d => {
-                    // Calculate available width
-                    const width = (d as any).x1 - (d as any).x0 - 10;
-                    // If width is too small, just show the name without word count
-                    if (width < 150) return d.data.name;
-                    // Otherwise show name with word count
-                    return `${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`;
-                })
-                .attr('pointer-events', 'none')
-                .each(function(d) {
-                    const self = d3.select(this);
-                    const textLength = (this as SVGTextElement).getComputedTextLength();
-                    const availableWidth = (d as any).x1 - (d as any).x0 - 10;
-                    
-                    if (textLength > availableWidth) {
-                        // If text is too long, truncate it
-                        let text = d.data.name;
-                        self.text(text);
-                        
-                        // Check if text fits and truncate if necessary
-                        let currentTextLength = (this as SVGTextElement).getComputedTextLength();
-                        let ellipsis = false;
-                        
-                        while (currentTextLength > availableWidth && text.length > 3) {
-                            text = text.slice(0, -1);
-                            self.text(text);
-                            currentTextLength = (this as SVGTextElement).getComputedTextLength();
-                            ellipsis = true;
-                        }
-                        
-                        if (ellipsis) {
-                            self.text(text + '...');
-                        }
-                        
-                        // Add tooltip with full name and word count
-                        self.append('title')
-                            .text(`${d.data.name} (${d.data.wordCount?.toLocaleString() || 0} ${$wordsText})`);
-                    }
-                });
-            
-            // Create cells for item sets (second level)
-            const itemSets = chart.selectAll('.item-set')
-                .data(zoomedNode ? (root.children || []) : root.leaves())
-                .enter()
-                .append('g')
-                .attr('class', 'item-set')
-                .attr('transform', d => {
-                    // Ensure d.x0 and d.y0 are valid numbers
-                    const x = (d as any).x0 || 0;
-                    const y = (d as any).y0 || 0;
-                    return `translate(${x},${y})`;
-                });
-            
-            // Add item set rectangles
-            itemSets.append('rect')
-                .attr('width', d => {
-                    const x0 = (d as any).x0 || 0;
-                    const x1 = (d as any).x1 || 0;
-                    return Math.max(0, x1 - x0);
-                })
-                .attr('height', d => {
-                    const y0 = (d as any).y0 || 0;
-                    const y1 = (d as any).y1 || 0;
-                    return Math.max(0, y1 - y0);
-                })
-                .attr('fill', d => {
-                    // Use a lighter shade of the country/parent color
-                    const nodeColor = zoomedNode 
-                        ? countryColors.get(zoomedNode.data.name) || colorScale(zoomedNode.data.name)
-                        : countryColors.get((d.parent as any)?.data?.name) || colorScale((d.parent as any)?.data?.name);
-                    const baseColor = d3.rgb(nodeColor);
-                    return d3.rgb(baseColor).brighter(0.7).toString();
-                })
-                .attr('stroke', 'white')
-                .attr('stroke-width', 0.5)
-                .attr('class', 'cursor-pointer')
-                .on('mouseover', function(event, d) {
-                    // Highlight on hover
-                    d3.select(this)
-                        .attr('stroke', 'var(--primary-color)')
-                        .attr('stroke-width', 2);
-                    
-                    // Show tooltip using the new handler
-                    handleShowTooltip(event, d);
-                })
-                .on('mousemove', function(event, d) {
-                    // Update tooltip position
-                    handleShowTooltip(event, d);
-                })
-                .on('mouseout', function() {
-                    // Remove highlight
-                    d3.select(this)
-                        .attr('stroke', 'white')
-                        .attr('stroke-width', 0.5);
-                    
-                    // Hide tooltip
-                    hideTooltip();
-                });
-            
-            // Add item set labels
-            itemSets.append('text')
-                .attr('x', 3)
-                .attr('y', 13)
-                .attr('font-size', 'var(--font-size-xs)')
-                .attr('fill', 'var(--color-text-primary)')
-                .attr('pointer-events', 'none')
-                .each(function(d) {
-                    const self = d3.select(this);
-                    const width = (d as any).x1 - (d as any).x0;
-                    const height = (d as any).y1 - (d as any).y0;
-                    
-                    // Only add text if rectangle is big enough
-                    if (width < 30 || height < 20) {
-                        return;
-                    }
-                    
-                    let text = d.data.name;
-                    // Truncate text if too long
-                    const availableWidth = width - 6;
-                    
-                    // Get the parent/country for the tooltip
-                    const country = zoomedNode ? zoomedNode.data.name : (d.parent ? d.parent.data.name : '');
-                    
-                    self.text(text)
-                        .append('title')
-                        .text(`${country} > ${d.data.name}: ${d.data.wordCount?.toLocaleString() || 0} ${$wordsText} (${d.data.itemCount} ${$itemsText})`);
-                    
-                    // Check if text fits and truncate if necessary
-                    const node = this as SVGTextElement;
-                    let textLength = node.getComputedTextLength();
-                    let ellipsis = false;
-                    
-                    while (textLength > availableWidth && text.length > 3) {
-                        text = text.slice(0, -1);
-                        self.text(text);
-                        textLength = node.getComputedTextLength();
-                        ellipsis = true;
-                    }
-                    
-                    if (ellipsis) {
-                        self.text(text + '...');
-                        // Re-add the tooltip since it was lost when changing the text
-                        self.append('title')
-                            .text(`${country} > ${d.data.name}: ${d.data.wordCount?.toLocaleString() || 0} ${$wordsText} (${d.data.itemCount} ${$itemsText})`);
-                    }
-                });
-        } catch (e) {
-            console.error('Error in updateVisualization:', e);
-        }
-    }
-
     // Handle tooltip display
-    function handleShowTooltip(event: MouseEvent, d: any) {
+    function handleShowTooltip(event: MouseEvent, d: d3.HierarchyNode<TreemapNode>) {
         try {
             if (!event) {
                 logDebug(COMPONENT_ID, 'Event object is undefined in handleShowTooltip');
@@ -622,6 +242,54 @@
         }
     }
 
+    // Create or update the visualization
+    function updateVisualization() {
+        try {
+            if (!container) {
+                console.error('Container element not found');
+                return;
+            }
+            
+            // Get fresh data if not zoomed
+            if (!zoomedNode) {
+                hierarchyData = processData();
+            }
+            
+            if (!hierarchyData.children || hierarchyData.children.length === 0) {
+                d3.select(container).select('svg').remove();
+                d3.select(container).append('div')
+                    .attr('class', 'absolute inset-center text-secondary')
+                    .text($noDataText);
+                return;
+            }
+            
+            // Create treemap using TreemapService
+            TreemapService.createTreemap(hierarchyData, {
+                container,
+                height: 500, // Explicitly set fixed height
+                colorMap: countryColors,
+                tooltipCallback: handleShowTooltip,
+                zoomCallback: zoomToNode,
+                currentZoomedNode: zoomedNode,
+                labelOptions: {
+                    parentLabel: {
+                        fontSize: 'var(--font-size-sm)',
+                        fontWeight: 'bold',
+                        color: 'white'
+                    },
+                    childLabel: {
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--color-text-primary)',
+                        minWidth: 30,
+                        minHeight: 20
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Error in updateVisualization:', e);
+        }
+    }
+
     function handleItemsChange(items: any) {
         if (!isMounted || !container) return;
         
@@ -653,13 +321,20 @@
                     container,
                     onResize: () => {
                         if (isMounted && container) {
-                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
+                            // Only update width, keep height fixed at 500px to prevent expansion
+                            const { width: newWidth } = resizeHook.dimensions;
                             width = newWidth;
-                            height = newHeight;
+                            height = 500; // Force fixed height
                             updateVisualization();
                         }
-                    }
+                    },
+                    debounce: true,
+                    debounceDelay: 300 // Increase debounce delay to prevent frequent updates
                 });
+                
+                // Set initial dimensions
+                width = container.clientWidth;
+                height = Math.min(container.clientHeight, 500); // Ensure height is capped
 
                 // Add language subscription here
                 const languageUnsubscribe = languageStore.subscribe(value => {
@@ -777,7 +452,11 @@
         {titleHtml}
         className="word-visualization-compact-header"
     >
-        <div class="flex-1 min-h-500 relative bg-card rounded shadow" bind:this={container}>
+        <div 
+            class="flex-1 min-h-500 relative bg-card rounded shadow" 
+            bind:this={container}
+            style="height: 500px; max-height: 500px; overflow: hidden; position: relative;"
+        >
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
