@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import type { OmekaItem, VisualizationData } from '../types/OmekaItem';
 
 // Create a writable store with the visualization data
-function createVisualizationStore() {
+const itemsStore = (() => {
     const { subscribe, set, update } = writable<VisualizationData>({
         items: [],
         loading: false,
@@ -27,10 +27,7 @@ function createVisualizationStore() {
             }
         }
     };
-}
+})();
 
-// Create the store instance
-const visualizationStore = createVisualizationStore();
-
-// Export as default
-export default visualizationStore; 
+// Export as default to match existing imports across the codebase
+export default itemsStore; 
