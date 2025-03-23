@@ -48,12 +48,13 @@
     let width = 0;
     let height = 0;
     let barChartInstance: BarChartResult | null = null;
+    let storeUnsubscribe: (() => void) | null = null;
 
     // Reference to BaseVisualization component to access its tooltip functions
     let baseVisualization: BaseVisualization;
 
     // Initialize resize hook after container is bound
-    let resizeHook: ReturnType<typeof useD3Resize>;
+    let resizeHook: ReturnType<typeof useD3Resize> | null = null;
 
     // Initialize data processing hook with custom filter function
     const { filterItems, groupAndCount } = useDataProcessing({
@@ -97,7 +98,7 @@
     }
 
     // Subscribe to language changes
-    let languageUnsubscribe: () => void;
+    let languageUnsubscribe: (() => void) | null = null;
 
     onMount(async () => {
         try {
@@ -122,7 +123,7 @@
             resizeHook = useD3Resize({
                 container,
                 onResize: () => {
-                    if (isMounted && container) {
+                    if (isMounted && container && resizeHook) {
                         // Only update width, keep height fixed
                         width = resizeHook.width;
                         // Don't change height to avoid unwanted resizing
@@ -144,6 +145,13 @@
                     if ($itemsStore.items && $itemsStore.items.length > 0) {
                         renderBarChart();
                     }
+                }
+            });
+            
+            // Subscribe to itemsStore changes
+            storeUnsubscribe = itemsStore.subscribe(store => {
+                if (isMounted && container && store.items && store.items.length > 0) {
+                    renderBarChart();
                 }
             });
             
@@ -233,18 +241,21 @@
                 valueFormatter: formatNumber,
                 // Event handlers for tooltips
                 onBarMouseEnter: (event: MouseEvent, d: BarData) => {
+                    if (!isMounted) return;
                     const categoryData = categoryCounts.find(c => c.category === d.key);
                     if (categoryData) {
                         handleShowTooltip(event, categoryData);
                     }
                 },
                 onBarMouseMove: (event: MouseEvent, d: BarData) => {
+                    if (!isMounted) return;
                     const categoryData = categoryCounts.find(c => c.category === d.key);
                     if (categoryData) {
                         handleShowTooltip(event, categoryData);
                     }
                 },
                 onBarMouseLeave: () => {
+                    if (!isMounted) return;
                     if (baseVisualization) {
                         baseVisualization.hideTooltip();
                     }
@@ -317,27 +328,29 @@
         baseVisualization.showTooltip(event, content);
     }
 
-    // Update visualization when data changes
-    $: if (isMounted && $itemsStore.items && container) {
-        renderBarChart();
-    }
-
     // Add onDestroy to ensure cleanup
     onDestroy(() => {
         try {
             isMounted = false;
             
+            if (barChartInstance) {
+                barChartInstance.destroy();
+                barChartInstance = null;
+            }
+            
             if (resizeHook) {
                 resizeHook.cleanup();
+                resizeHook = null;
             }
             
             if (languageUnsubscribe) {
                 languageUnsubscribe();
+                languageUnsubscribe = null;
             }
             
-            if (barChartInstance) {
-                barChartInstance.destroy();
-                barChartInstance = null;
+            if (storeUnsubscribe) {
+                storeUnsubscribe();
+                storeUnsubscribe = null;
             }
             
             if (container) {
