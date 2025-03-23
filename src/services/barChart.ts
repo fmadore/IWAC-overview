@@ -207,9 +207,7 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
                 .attr('class', 'x-axis-label')
                 .attr('text-anchor', 'middle')
                 .attr('x', chartWidth / 2)
-                .attr('y', chartHeight + (isMobile ? margin.bottom - 5 : margin.bottom - 10))
-                .attr('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
-                .attr('fill', 'var(--color-text-secondary)')
+                .attr('y', chartHeight + (isMobile ? margin.bottom * 0.5 : margin.bottom * 0.4))
                 .text(xAxisLabel);
         }
     }
@@ -238,8 +236,6 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
                 .attr('transform', 'rotate(-90)')
                 .attr('x', -chartHeight / 2)
                 .attr('y', isMobile ? -margin.left + 12 : -margin.left + 15)
-                .attr('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
-                .attr('fill', 'var(--color-text-secondary)')
                 .text(yAxisLabel);
         }
     }

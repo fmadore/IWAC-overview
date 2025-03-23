@@ -208,6 +208,8 @@ export function renderAxis(selection: d3.Selection<SVGGElement, unknown, null, u
   if (rotate) {
     selection.selectAll('text')
       .style('text-anchor', rotate > 45 ? 'end' : 'middle')
+      .attr('dy', rotate > 45 ? '0.15em' : '0.35em')
+      .attr('dx', rotate > 45 ? '-0.8em' : '0')
       .attr('transform', `rotate(${rotate})`);
   }
 }

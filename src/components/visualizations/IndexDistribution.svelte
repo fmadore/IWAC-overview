@@ -175,7 +175,7 @@
             // Get dimensions from container
             const rect = container.getBoundingClientRect();
             width = rect.width;
-            height = 500; // Fixed height
+            height = 500; // Reduce height to eliminate excess white space
             
             // Process data with current filters
             const data = processData();
@@ -209,8 +209,8 @@
             const margin = {
                 top: 20,
                 right: 30,
-                // Use larger bottom margin to ensure x-axis labels are visible
-                bottom: 150, 
+                // Reduce the excessive bottom margin but still keep enough for labels
+                bottom: 120, 
                 left: 60
             };
             
@@ -228,8 +228,8 @@
                 barCornerRadius: 3,
                 xAxisLabel: t('viz.categories'),
                 yAxisLabel: t('viz.number_of_items'),
-                // Steeper angle for better label display
-                xAxisRotation: -70,
+                // Make rotation even steeper to avoid overlapping
+                xAxisRotation: -75,
                 // Limit the number of ticks based on available width
                 xAxisTicks: Math.max(3, Math.floor(width / 120)),
                 yAxisTicks: isMobile ? 3 : 5,
@@ -370,11 +370,11 @@
         className="index-visualization"
         bind:this={baseVisualization}
     >
-        <div class="chart-container relative bg-card rounded p-md overflow-hidden" bind:this={container}>
+        <div class="relative bg-card rounded p-md overflow-hidden min-h-400 w-full chart-container" bind:this={container}>
             {#if $itemsStore.loading}
-                <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
+                <div class="absolute inset-center text-secondary loading">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
-                <div class="error absolute inset-center text-error">{$itemsStore.error}</div>
+                <div class="absolute inset-center text-error error">{$itemsStore.error}</div>
             {/if}
         </div>
     </BaseVisualization>
@@ -394,6 +394,7 @@
         text-anchor: end;
         font-size: var(--font-size-xs);
         fill: var(--color-text-secondary);
+        transform: translateY(5px); /* Move text down a bit to avoid cutting off */
     }
     
     :global(.index-distribution-chart .y-axis text) {
@@ -412,8 +413,5 @@
         fill: var(--color-text-secondary);
     }
     
-    /* Set fixed height for chart container */
-    .chart-container {
-        height: 500px;
-    }
+    /* Removed fixed height definition for chart-container as we're using min-h-500 utility class */
 </style> 
