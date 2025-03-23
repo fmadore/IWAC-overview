@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { itemsStore } from '../../stores/itemsStore';
+    import itemsStore from '../../stores/itemsStore';
     import { t } from '../../stores/translationStore';
     import VisualizationHeader from './VisualizationHeader.svelte';
     import { onMount, createEventDispatcher, onDestroy } from 'svelte';

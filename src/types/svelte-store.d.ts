@@ -51,14 +51,6 @@ declare module 'svelte' {
 declare const $type: unique symbol;
 declare type StoreValue<T> = T extends { [$type]: infer U } ? U : never;
 
-// Add specific store types
-declare module '../stores/itemsStore' {
-  export const itemsStore: {
-    subscribe: (callback: (value: VisualizationData) => void) => () => void;
-    loadItems: () => Promise<void>;
-  };
-}
-
 // Add type declarations for translation store
 declare module '../stores/translationStore' {
   export type { Language, TranslationStore, TranslationFunction, ReactiveTranslationFunction, TranslationKeys, TranslationParams };

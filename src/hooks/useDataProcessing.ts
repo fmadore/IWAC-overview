@@ -196,52 +196,141 @@ export function useDataProcessing(options: DataProcessingOptions = {}) {
             includeCumulative?: boolean;
         } = {}
     ): any[] {
-        const filteredItems = filterItems(items);
-        const { startDate, endDate, includeCumulative = true } = options;
+        try {
+            const filteredItems = filterItems(items);
+            const { startDate, endDate, includeCumulative = true } = options;
 
-        // Parse dates and filter by date range
-        const validItems = filteredItems.filter(item => {
-            const date = new Date(item[dateField] as string);
-            return !isNaN(date.getTime()) &&
-                (!startDate || date >= startDate) &&
-                (!endDate || date <= endDate);
-        });
+            console.log('[useDataProcessing] Processing time data for', filteredItems.length, 'items');
+            console.log('[useDataProcessing] Date range:', { startDate, endDate });
 
-        // Group by month
-        const monthlyData = d3.rollup(
-            validItems,
-            v => v.length,
-            d => {
-                const date = new Date(d[dateField] as string);
-                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            }
-        );
-
-        // Convert to array and sort by date
-        const results = Array.from(monthlyData, ([month, count]) => {
-            const [year, monthNum] = month.split('-');
-            const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-            
-            return {
-                date,
-                month,
-                monthFormatted: date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }),
-                count,
-                total: 0, // Will be calculated if includeCumulative is true
-                percentage: (count / validItems.length) * 100
-            };
-        }).sort((a, b) => a.date.getTime() - b.date.getTime());
-
-        // Calculate cumulative totals if requested
-        if (includeCumulative) {
-            let runningTotal = 0;
-            results.forEach(item => {
-                runningTotal += item.count;
-                item.total = runningTotal;
+            // Parse dates and filter by date range
+            const validItems = filteredItems.filter(item => {
+                try {
+                    const dateStr = item[dateField] as string;
+                    if (!dateStr) return false;
+                    
+                    const date = new Date(dateStr);
+                    const isValid = !isNaN(date.getTime());
+                    const isAfterStart = !startDate || date >= startDate;
+                    const isBeforeEnd = !endDate || date <= endDate;
+                    
+                    return isValid && isAfterStart && isBeforeEnd;
+                } catch (e) {
+                    console.warn('[useDataProcessing] Error parsing date for item:', item);
+                    return false;
+                }
             });
-        }
 
-        return results;
+            console.log('[useDataProcessing] Valid items after date filtering:', validItems.length);
+            if (validItems.length > 0) {
+                console.log('[useDataProcessing] Sample dates:', 
+                    validItems.slice(0, 3).map(item => item[dateField]));
+            } else {
+                console.warn('[useDataProcessing] No valid items with dates in the specified range');
+                return [];
+            }
+
+            // Group by month
+            const monthlyData = d3.rollup(
+                validItems,
+                v => v.length,
+                d => {
+                    try {
+                        const date = new Date(d[dateField] as string);
+                        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    } catch (e) {
+                        console.error('[useDataProcessing] Error formatting date for grouping:', e);
+                        return 'unknown';
+                    }
+                }
+            );
+
+            // Filter out any 'unknown' entries
+            if (monthlyData.has('unknown')) {
+                console.warn('[useDataProcessing] Removing unknown date entries');
+                monthlyData.delete('unknown');
+            }
+
+            // Convert to array and sort by date
+            const results = Array.from(monthlyData, ([month, count]) => {
+                try {
+                    const [year, monthNum] = month.split('-');
+                    const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                    
+                    return {
+                        date,
+                        month,
+                        monthFormatted: date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }),
+                        count,
+                        total: 0, // Will be calculated if includeCumulative is true
+                        percentage: (count / validItems.length) * 100
+                    };
+                } catch (e) {
+                    console.error('[useDataProcessing] Error parsing month data:', e);
+                    return null;
+                }
+            })
+            .filter(item => item !== null) // Filter out null entries
+            .sort((a, b) => a!.date.getTime() - b!.date.getTime()) as any[];
+
+            // Fill in missing months if needed
+            if (results.length > 1) {
+                const filledResults = [];
+                const startMonth = results[0].date;
+                const endMonth = results[results.length - 1].date;
+                
+                // Create date range iterator
+                let currentDate = new Date(startMonth);
+                while (currentDate <= endMonth) {
+                    const year = currentDate.getFullYear();
+                    const month = currentDate.getMonth();
+                    const currentMonthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+                    
+                    // Find if this month exists in results
+                    const existingMonth = results.find(r => r.month === currentMonthKey);
+                    
+                    if (existingMonth) {
+                        filledResults.push(existingMonth);
+                    } else {
+                        // Add a zero entry for this month
+                        filledResults.push({
+                            date: new Date(year, month),
+                            month: currentMonthKey,
+                            monthFormatted: new Date(year, month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }),
+                            count: 0,
+                            total: 0,
+                            percentage: 0
+                        });
+                    }
+                    
+                    // Move to next month
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                }
+                
+                // Replace results with filled version
+                if (filledResults.length > results.length) {
+                    console.log('[useDataProcessing] Filled in missing months:', 
+                        filledResults.length - results.length);
+                    results.length = 0;
+                    results.push(...filledResults);
+                }
+            }
+
+            // Calculate cumulative totals if requested
+            if (includeCumulative) {
+                let runningTotal = 0;
+                results.forEach(item => {
+                    runningTotal += item.count;
+                    item.total = runningTotal;
+                });
+            }
+
+            console.log('[useDataProcessing] Processed timeline data:', results.length, 'data points');
+            return results;
+        } catch (error) {
+            console.error('[useDataProcessing] Error processing time data:', error);
+            return [];
+        }
     }
 
     return {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, afterUpdate, beforeUpdate } from 'svelte';
-  import { itemsStore } from './stores/itemsStore';
+  import itemsStore from './stores/itemsStore';
   import { t, languageStore, translate } from './stores/translationStore';
   import LanguageToggle from './components/LanguageToggle.svelte';
   import FullScreenToggle from './components/FullScreenToggle.svelte';

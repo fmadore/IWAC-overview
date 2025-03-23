@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from 'svelte';
     import * as d3 from 'd3';
-    import { itemsStore } from '../../stores/itemsStore';
+    import itemsStore from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { t, translate, languageStore } from '../../stores/translationStore';

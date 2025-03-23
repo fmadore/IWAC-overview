@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from 'svelte';
     import * as d3 from 'd3';
-    import { itemsStore } from '../../stores/itemsStore';
+    import itemsStore from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
     import { t, translate, languageStore } from '../../stores/translationStore';
     import type { OmekaItem } from '../../types/OmekaItem';
@@ -9,17 +9,9 @@
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
+    import { TimelineChart, type MonthlyData } from '../../services/timelineChart';
 
     // Define interfaces for data structures
-    interface MonthlyData {
-        date: Date;          // First day of the month
-        month: string;       // Formatted month (e.g., "2024-03")
-        monthFormatted: string; // Display format (e.g., "Mar 2024")
-        count: number;       // Number of items added in this month
-        total: number;       // Cumulative total as of this month
-        percentage: number;  // Percentage of total
-    }
-
     interface FacetOption {
         value: string;
         label: string;
@@ -47,6 +39,7 @@
     let width = 0;
     let height = 0;
     let container: HTMLDivElement;
+    let timelineChart: TimelineChart;
     
     // Initialize tooltip hook
     const { showTooltip, hideTooltip } = useTooltip({
@@ -177,6 +170,7 @@
     onMount(() => {
         // Set mounted flag first
         isMounted = true;
+        console.log('[TimelineDistribution] Component mounted');
 
         // Create initialization promise
         initializationPromise = (async () => {
@@ -189,6 +183,8 @@
                     console.error('[TimelineDistribution] Container element not found in onMount');
                     return;
                 }
+                
+                console.log('[TimelineDistribution] Container element found:', container);
 
                 // Initialize resize hook
                 resizeHook = useD3Resize({
@@ -201,6 +197,7 @@
                             const heightChanged = Math.abs(height - newHeight) > 5;
                             
                             if (widthChanged || heightChanged) {
+                                console.log('[TimelineDistribution] Size changed, updating visualization', { newWidth, newHeight });
                                 width = newWidth;
                                 height = newHeight;
                                 debounceUpdate();
@@ -209,24 +206,37 @@
                     }
                 });
                 
+                // Get initial dimensions
+                const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
+                width = initialWidth;
+                height = initialHeight;
+                
+                console.log('[TimelineDistribution] Initial dimensions:', { width, height });
+                
                 // Subscribe to language changes
                 languageUnsubscribe = languageStore.subscribe(value => {
-                    if (!isMounted || !isInitialized) return;
+                    if (!isMounted) return;
                     console.log("[TimelineDistribution] Language changed to:", value);
                     currentLang = value;
+                    updateTitleHtml();
                     
-                    if (container) {
-                        updateTitleHtml();
+                    if (isInitialized && container) {
                         debounceUpdate();
                     }
                 });
                 
-                // Initialize data
-                if ($itemsStore.items && $itemsStore.items.length > 0) {
-                    // Get initial dimensions
-                    const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
-                    width = initialWidth;
-                    height = initialHeight;
+                // Check if items are already loaded
+                if (!$itemsStore.items || $itemsStore.items.length === 0) {
+                    console.log('[TimelineDistribution] No items loaded, loading items');
+                    try {
+                        await itemsStore.loadItems();
+                        console.log('[TimelineDistribution] Items loaded:', $itemsStore.items?.length);
+                    } catch (e) {
+                        console.error('[TimelineDistribution] Error loading items:', e);
+                    }
+                } else {
+                    console.log('[TimelineDistribution] Items already loaded:', $itemsStore.items.length);
+                }
                     
                     // Generate initial facet options
                     generateFacetOptions();
@@ -234,24 +244,26 @@
                     // Set initialization flag
                     isInitialized = true;
                     
-                    // Wait for next tick before updating visualization
+                // Initialize and update visualization
                     await tick();
                     if (container) {
+                    // Initialize timeline chart 
+                    initializeTimelineChart();
+                    // Update visualization with data
                         updateVisualization();
-                    }
+                    console.log('[TimelineDistribution] Visualization initialized');
                 } else {
-                    await itemsStore.loadItems();
-                    // Set initialization flag after data is loaded
-                    isInitialized = true;
+                    console.error('[TimelineDistribution] Container not available after initialization');
                 }
             } catch (error) {
-                console.error('Error during initialization:', error);
+                console.error('[TimelineDistribution] Error during initialization:', error);
             }
         })();
 
         // Return cleanup function
         return () => {
             try {
+                console.log('[TimelineDistribution] Component unmounting, cleaning up');
                 isMounted = false;
                 isInitialized = false;
                 
@@ -263,25 +275,72 @@
                     languageUnsubscribe();
                 }
                 
+                if (updateTimeoutId) {
+                    clearTimeout(updateTimeoutId);
+                    updateTimeoutId = null;
+                }
+                
                 if (container) {
                     d3.select(container).selectAll('*').remove();
                 }
             } catch (e) {
-                console.error('Error during cleanup:', e);
+                console.error('[TimelineDistribution] Error during cleanup:', e);
             }
         };
     });
 
-    // Create timeline visualization
+    // Initialize the timeline chart
+    function initializeTimelineChart() {
+        try {
+            console.log('[TimelineDistribution] Initializing timeline chart with dimensions:', { width, height });
+            console.log('[TimelineDistribution] Container element:', container);
+            
+            // Make sure container is empty
+            d3.select(container).selectAll('*').remove();
+            
+            timelineChart = new TimelineChart({
+                container,
+                width,
+                height,
+                formatNumber,
+                currentLang,
+                translations: {
+                    monthlyAdditions: $monthlyAdditionsText,
+                    totalItems: $totalItemsText,
+                    newItems: $newItemsText,
+                    percentage: $percentageText,
+                    month: $monthText
+                }
+            });
+            
+            // Set tooltip callbacks
+            timelineChart.setTooltipCallbacks({
+                showTooltip,
+                hideTooltip
+            });
+            
+            console.log('[TimelineDistribution] Timeline chart initialized');
+        } catch (error) {
+            console.error('[TimelineDistribution] Error initializing timeline chart:', error);
+        }
+    }
+
+    // Create timeline visualization using the service
     function updateVisualization() {
+        try {
         if (!container || !isMounted || !isInitialized) {
-            console.error('[TimelineDistribution] Cannot update visualization - component not ready');
+                console.error('[TimelineDistribution] Cannot update visualization - component not ready', 
+                    { container: !!container, isMounted, isInitialized });
             return;
         }
+            
+            console.log('[TimelineDistribution] Updating visualization with dimensions:', { width, height });
         
         // Process data with current filters
         const data = processData();
         if (!data || data.length === 0) {
+                console.warn('[TimelineDistribution] No timeline data available with current filters');
+                // Clear previous content and show no data message
             d3.select(container).selectAll('*').remove();
             d3.select(container).append('div')
                 .attr('class', 'absolute inset-center text-secondary')
@@ -291,365 +350,51 @@
         
         // Update timeline data for reactive updates
         timelineData = data;
-        
-        // Get current dimensions from the container's bounding rect
-        const containerRect = container.getBoundingClientRect();
-        // Use the stored width/height values instead of recalculating - prevents feedback loop
-        const containerWidth = width;
-        const containerHeight = height;
-        const isMobile = containerWidth < 768;
-        const isExtraSmall = containerWidth < 480;
-        
-        // Remove previous content
-        d3.select(container).selectAll('*').remove();
-        
-        // Create SVG container with fixed dimensions based on the current container size
-        const svg = d3.select(container)
-            .append('svg')
-            .attr('width', containerWidth)
-            .attr('height', containerHeight)
-            .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
-            .attr('class', 'timeline-chart');
+            console.log('[TimelineDistribution] Timeline data updated with', timelineData.length, 'data points');
             
-        // Set margins based on screen size
-        const margin = {
-            top: isMobile ? 20 : 40,
-            right: isMobile ? 15 : 30,
-            bottom: isMobile ? 70 : 80,
-            left: isMobile ? 40 : 60
-        };
-        const chartWidth = containerWidth - margin.left - margin.right;
-        const chartHeight = (containerHeight - margin.top - margin.bottom - (isMobile ? 30 : 50)) / 2;
-        
-        // Create x scale for both charts (shared)
-        const xScale = d3.scaleTime()
-            .domain(d3.extent(data, d => d.date) as [Date, Date])
-            .range([0, chartWidth]);
+            // Force clear previous chart content to avoid rendering issues
+            d3.select(container).selectAll('*').remove();
             
-        // Add divider line between charts
-        svg.append('line')
-            .attr('x1', margin.left)
-            .attr('y1', margin.top + chartHeight + (isMobile ? 15 : 25))
-            .attr('x2', containerWidth - margin.right)
-            .attr('y2', margin.top + chartHeight + (isMobile ? 15 : 25))
-            .attr('stroke', 'var(--color-border-default)')
-            .attr('stroke-width', 1)
-            .attr('stroke-dasharray', '3,3');
-            
-        // Add legend only if not extra small
-        if (!isExtraSmall) {
-            const legendGroup = svg.append('g')
-                .attr('transform', `translate(${containerWidth - margin.right}, ${margin.top - 10})`);
-                
-            // Monthly additions legend item
-            legendGroup.append('line')
-                .attr('x1', -100)
-                .attr('y1', 0)
-                .attr('x2', -80)
-                .attr('y2', 0)
-                .attr('stroke', 'var(--color-primary)')
-                .attr('stroke-width', 2)
-                .attr('marker-end', 'url(#circle)');
-                
-            legendGroup.append('text')
-                .attr('x', -75)
-                .attr('y', 4)
-                .attr('class', 'text-xs text-secondary')
-                .text(t('viz.monthly_additions'));
-                
-            // Total items legend item
-            legendGroup.append('line')
-                .attr('x1', -100)
-                .attr('y1', 20)
-                .attr('x2', -80)
-                .attr('y2', 20)
-                .attr('stroke', 'var(--color-secondary)')
-                .attr('stroke-width', 2)
-                .attr('stroke-dasharray', '4 2');
-                
-            legendGroup.append('text')
-                .attr('x', -75)
-                .attr('y', 24)
-                .attr('class', 'text-xs text-secondary')
-                .text(t('viz.total_items'));
-        }
-            
-        // Create circle marker definition for line points
-        svg.append('defs').append('marker')
-            .attr('id', 'circle')
-            .attr('viewBox', '-5 -5 10 10')
-            .attr('refX', 0)
-            .attr('refY', 0)
-            .attr('markerWidth', 5)
-            .attr('markerHeight', 5)
-            .append('circle')
-            .attr('r', 3)
-            .attr('fill', 'var(--color-primary)');
-
-        // CHART 1: Monthly Additions
-        // =========================
-        const chart1 = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top})`);
-            
-        // Create y scale for monthly chart
-        const yScaleMonthly = d3.scaleLinear()
-            .domain([0, (d3.max(data, d => d.count) || 0) * 1.1])
-            .range([chartHeight, 0]);
-            
-        // Create grid lines for monthly chart
-        chart1.append('g')
-            .attr('class', 'grid')
-            .selectAll('line')
-            .data(yScaleMonthly.ticks(isMobile ? 3 : 5))
-            .enter()
-            .append('line')
-            .attr('x1', 0)
-            .attr('x2', chartWidth)
-            .attr('y1', d => yScaleMonthly(d))
-            .attr('y2', d => yScaleMonthly(d))
-            .attr('stroke', 'var(--color-border-default)')
-            .attr('stroke-width', 0.5);
-            
-        // Create x-axis for monthly chart
-        chart1.append('g')
-            .attr('class', 'x-axis')
-            .attr('transform', `translate(0, ${chartHeight})`)
-            .call(d3.axisBottom(xScale)
-                .ticks(isMobile ? d3.timeMonth.every(2) : d3.timeMonth.every(1))
-                .tickFormat(d => {
-                    const date = new Date(d as Date);
-                    return isMobile ? 
-                        `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2)}` : 
-                        d3.timeFormat('%Y-%m')(date);
-                }))
-            .selectAll('text')
-            .attr('class', 'text-xs text-primary')
-            .attr('text-anchor', 'end')
-            .attr('dx', '-.8em')
-            .attr('dy', '.15em')
-            .attr('transform', `rotate(${isMobile ? -45 : -30})`);
-            
-        // Create y-axis for monthly chart
-        chart1.append('g')
-            .attr('class', 'y-axis')
-            .call(d3.axisLeft(yScaleMonthly).ticks(isMobile ? 3 : 5))
-            .selectAll('text')
-            .attr('class', 'text-xs text-primary');
-            
-        // Add y-axis label for monthly chart (only on non-mobile)
-        if (!isMobile) {
-            chart1.append('text')
-                .attr('class', 'text-xs text-secondary')
-                .attr('transform', 'rotate(-90)')
-                .attr('y', -40)
-                .attr('x', -chartHeight / 2)
-                .attr('text-anchor', 'middle')
-                .text(t('viz.monthly_additions'));
-        }
-            
-        // Create line generator for monthly data
-        const lineMonthly = d3.line<MonthlyData>()
-            .x(d => xScale(d.date))
-            .y(d => yScaleMonthly(d.count))
-            .curve(d3.curveMonotoneX);
-            
-        // Add the line path for monthly data
-        chart1.append('path')
-            .datum(data)
-            .attr('fill', 'none')
-            .attr('stroke', 'var(--color-primary)')
-            .attr('stroke-width', isMobile ? 1.5 : 2)
-            .attr('d', lineMonthly);
-            
-        // Add dots for each data point in monthly chart - fewer on mobile
-        const dotsMonthly = chart1.selectAll('.dot-monthly')
-            .data(isMobile ? data.filter((_, i) => i % 2 === 0) : data)
-            .enter()
-            .append('circle')
-            .attr('class', 'dot-monthly cursor-pointer')
-            .attr('cx', d => xScale(d.date))
-            .attr('cy', d => yScaleMonthly(d.count))
-            .attr('r', isMobile ? 3 : 4)
-            .attr('fill', 'var(--color-primary)')
-            .attr('stroke', 'white')
-            .attr('stroke-width', 1)
-            .on('mouseenter', function(event, d) {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('r', isMobile ? 5 : 6);
-                
-                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
-                const year = d.date.getFullYear();
-                
-                const content = createGridTooltipContent(
-                    `${monthName} ${year}`,
-                    [
-                        { label: t('viz.new_items'), value: formatNumber(d.count) },
-                        { label: t('viz.percentage'), value: `${d.percentage.toFixed(2)}%` }
-                    ]
-                );
-                
-                showTooltip(event, content);
-            })
-            .on('mousemove', function(event, d) {
-                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
-                const year = d.date.getFullYear();
-                
-                const content = createGridTooltipContent(
-                    `${monthName} ${year}`,
-                    [
-                        { label: t('viz.new_items'), value: formatNumber(d.count) },
-                        { label: t('viz.percentage'), value: `${d.percentage.toFixed(2)}%` }
-                    ]
-                );
-                
-                showTooltip(event, content);
-            })
-            .on('mouseleave', function() {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('r', isMobile ? 3 : 4);
-                hideTooltip();
+            // Create a new TimelineChart instance
+            timelineChart = new TimelineChart({
+                container,
+                width,
+                height,
+                formatNumber,
+                currentLang,
+                translations: {
+                    monthlyAdditions: $monthlyAdditionsText,
+                    totalItems: $totalItemsText,
+                    newItems: $newItemsText,
+                    percentage: $percentageText,
+                    month: $monthText
+                }
             });
-
-        // CHART 2: Total Items
-        // =========================
-        const chart2 = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top + chartHeight + (isMobile ? 30 : 50)})`);
             
-        // Create y scale for total chart
-        const yScaleTotal = d3.scaleLinear()
-            .domain([0, (d3.max(data, d => d.total) || 0) * 1.1])
-            .range([chartHeight, 0]);
-            
-        // Create grid lines for total chart
-        chart2.append('g')
-            .attr('class', 'grid')
-            .selectAll('line')
-            .data(yScaleTotal.ticks(isMobile ? 3 : 5))
-            .enter()
-            .append('line')
-            .attr('x1', 0)
-            .attr('x2', chartWidth)
-            .attr('y1', d => yScaleTotal(d))
-            .attr('y2', d => yScaleTotal(d))
-            .attr('stroke', 'var(--color-border-default)')
-            .attr('stroke-width', 0.5);
-            
-        // Create x-axis for total chart
-        chart2.append('g')
-            .attr('class', 'x-axis')
-            .attr('transform', `translate(0, ${chartHeight})`)
-            .call(d3.axisBottom(xScale)
-                .ticks(isMobile ? d3.timeMonth.every(2) : d3.timeMonth.every(1))
-                .tickFormat(d => {
-                    const date = new Date(d as Date);
-                    return isMobile ? 
-                        `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2)}` : 
-                        d3.timeFormat('%Y-%m')(date);
-                }))
-            .selectAll('text')
-            .attr('class', 'text-xs text-primary')
-            .attr('text-anchor', 'end')
-            .attr('dx', '-.8em')
-            .attr('dy', '.15em')
-            .attr('transform', `rotate(${isMobile ? -45 : -30})`);
-            
-        // Create y-axis for total chart
-        chart2.append('g')
-            .attr('class', 'y-axis')
-            .call(d3.axisLeft(yScaleTotal).ticks(isMobile ? 3 : 5))
-            .selectAll('text')
-            .attr('class', 'text-xs text-primary');
-            
-        // Add y-axis label for total chart (only on non-mobile)
-        if (!isMobile) {
-            chart2.append('text')
-                .attr('class', 'text-xs text-secondary')
-                .attr('transform', 'rotate(-90)')
-                .attr('y', -40)
-                .attr('x', -chartHeight / 2)
-                .attr('text-anchor', 'middle')
-                .text(t('viz.total_items'));
-        }
-            
-        // Add x-axis label (only on non-mobile and on the bottom chart)
-        if (!isMobile) {
-            chart2.append('text')
-                .attr('class', 'text-xs text-secondary')
-                .attr('text-anchor', 'middle')
-                .attr('x', chartWidth / 2)
-                .attr('y', chartHeight + 45)
-                .text(t('viz.month'));
-        }
-            
-        // Create line generator for total data
-        const lineTotal = d3.line<MonthlyData>()
-            .x(d => xScale(d.date))
-            .y(d => yScaleTotal(d.total))
-            .curve(d3.curveMonotoneX);
-            
-        // Add the line path for total data
-        chart2.append('path')
-            .datum(data)
-            .attr('fill', 'none')
-            .attr('stroke', 'var(--color-secondary)')
-            .attr('stroke-width', isMobile ? 1.5 : 2)
-            .attr('stroke-dasharray', '4 2')
-            .attr('d', lineTotal);
-            
-        // Add dots for each data point in total chart - fewer on mobile
-        const dotsTotal = chart2.selectAll('.dot-total')
-            .data(isMobile ? data.filter((_, i) => i % 2 === 0) : data)
-            .enter()
-            .append('circle')
-            .attr('class', 'dot-total cursor-pointer')
-            .attr('cx', d => xScale(d.date))
-            .attr('cy', d => yScaleTotal(d.total))
-            .attr('r', isMobile ? 3 : 4)
-            .attr('fill', 'var(--color-secondary)')
-            .attr('stroke', 'white')
-            .attr('stroke-width', 1)
-            .on('mouseenter', function(event, d) {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('r', isMobile ? 5 : 6);
-                
-                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
-                const year = d.date.getFullYear();
-                
-                const content = createGridTooltipContent(
-                    `${monthName} ${year}`,
-                    [
-                        { label: t('viz.total_items'), value: formatNumber(d.total) }
-                    ]
-                );
-                
-                showTooltip(event, content);
-            })
-            .on('mousemove', function(event, d) {
-                const monthName = d.date.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long' });
-                const year = d.date.getFullYear();
-                
-                const content = createGridTooltipContent(
-                    `${monthName} ${year}`,
-                    [
-                        { label: t('viz.total_items'), value: formatNumber(d.total) }
-                    ]
-                );
-                
-                showTooltip(event, content);
-            })
-            .on('mouseleave', function() {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('r', isMobile ? 3 : 4);
-                hideTooltip();
+            // Set tooltip callbacks
+            timelineChart.setTooltipCallbacks({
+                showTooltip,
+                hideTooltip
             });
+            
+            // Render the chart
+            timelineChart.render(data);
+            console.log('[TimelineDistribution] Chart rendered with', data.length, 'data points');
+        } catch (error) {
+            console.error('[TimelineDistribution] Error updating visualization:', error);
+            
+            // Try to show an error message in the container
+            if (container) {
+                try {
+                    d3.select(container).selectAll('*').remove();
+                    d3.select(container).append('div')
+                        .attr('class', 'absolute inset-center text-error')
+                        .text('Error rendering timeline visualization');
+                } catch (e) {
+                    console.error('[TimelineDistribution] Error showing error message:', e);
+                }
+            }
+        }
     }
     
     // Handle country filter change
@@ -673,14 +418,32 @@
 
     // Process data based on current filters and generate timeline data
     function processData() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) return [];
+        if (!$itemsStore.items || $itemsStore.items.length === 0) {
+            console.warn('[TimelineDistribution] No items available for timeline data');
+            return [];
+        }
         
-        // Define the start date (April 1, 2024)
-        const startDate = new Date(2024, 3, 1); // Note: Months are 0-indexed, so 3 = April
+        console.log('[TimelineDistribution] Processing data with filters:', 
+            { country: selectedCountry, type: selectedType });
+        console.log('[TimelineDistribution] Total items before filtering:', $itemsStore.items.length);
+        
+        try {
+            // Define the start date (January 1, 2020 instead of April 2024)
+            const startDate = new Date(2020, 0, 1);
+            
+            // Log a few sample dates to help with debugging
+            if ($itemsStore.items.length > 0) {
+                console.log('[TimelineDistribution] Sample created_date values:',
+                    $itemsStore.items.slice(0, 5).map(item => item.created_date));
+            }
+    
+            // Apply filters first before processing time data
+            const filteredItems = filterItems($itemsStore.items);
+            console.log('[TimelineDistribution] Items after filtering:', filteredItems.length);
 
         // Process time-based data using the hook
         const timelineData = processTimeData(
-            $itemsStore.items,
+                filteredItems,
             'created_date',
             {
                 startDate,
@@ -688,35 +451,51 @@
             }
         );
 
-        if (timelineData.length === 0) return [];
+            console.log('[TimelineDistribution] Processed timeline data length:', timelineData.length);
+            if (timelineData.length > 0) {
+                console.log('[TimelineDistribution] First and last data points:', 
+                    timelineData[0], timelineData[timelineData.length - 1]);
+            }
+    
+            if (timelineData.length === 0) {
+                console.warn('[TimelineDistribution] No timeline data generated after processing');
+                return [];
+            }
 
         // Update total items count
-        totalItems = timelineData[timelineData.length - 1].total;
+            totalItems = timelineData[timelineData.length - 1]?.total || 0;
 
         // Calculate max values for scaling
         maxMonthlyCount = Math.max(...timelineData.map(d => d.count));
         maxTotalCount = Math.max(...timelineData.map(d => d.total));
         
         return timelineData;
+        } catch (error) {
+            console.error('[TimelineDistribution] Error processing timeline data:', error);
+            return [];
+        }
     }
     
     // Generate facet options using the data processing hook
     function generateFacetOptions() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Define the start date (April 1, 2024)
-        const startDate = new Date(2024, 3, 1);
+        // Define the start date (January 1, 2020)
+        const startDate = new Date(2020, 0, 1); // Use a date in the past to include actual data
         
-        // Filter items after April 2024 without applying country/type filters
+        // Filter items after January 2020 without applying country/type filters
         const { filterItems: filterItemsWithoutFacets } = useDataProcessing({
             filterMissingValues: true,
             requiredFields: ['created_date']
         });
         
         const filteredItems = filterItemsWithoutFacets($itemsStore.items).filter(item => {
-            const itemDate = new Date(item.created_date!);
-            return itemDate >= startDate;
+            if (!item.created_date) return false;
+            const itemDate = new Date(item.created_date);
+            return !isNaN(itemDate.getTime()) && itemDate >= startDate;
         });
+
+        console.log('[TimelineDistribution] Filtered items for facets:', filteredItems.length);
 
         // Generate country options using groupAndCount
         const countryData = groupAndCount(
@@ -791,23 +570,37 @@
             </div>
             
             <div class="ml-auto self-end text-sm text-secondary summary">
-                {#if timelineData.length > 0}
+                {#if timelineData && timelineData.length > 0}
                     <span>{$showingItemsOverMonthsText.replace('{0}', formatNumber(totalItems)).replace('{1}', timelineData.length.toString())}</span>
                 {/if}
             </div>
         </div>
         
-        <div class="flex-1 relative min-h-500 bg-card rounded-b p-md chart-container overflow-hidden"
-             bind:this={container}>
-            {#if $itemsStore.loading}
-                <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
+        <div 
+            class="flex-1 relative min-h-500 bg-card rounded-b p-md chart-container overflow-hidden"
+            bind:this={container}
+        >
+            {#if !$itemsStore}
+                <div class="absolute inset-center text-error">Store not available</div>
+            {:else if $itemsStore.loading}
+                <div class="absolute inset-center text-secondary">
+                    <div class="loading-spinner mr-sm"></div>
+                    <span>{t('ui.loading')}</span>
+                </div>
             {:else if $itemsStore.error}
                 <div class="absolute inset-center text-error">{$itemsStore.error}</div>
+            {:else if !isInitialized}
+                <div class="absolute inset-center text-secondary">
+                    <div class="loading-spinner mr-sm"></div>
+                    <span>Initializing visualization...</span>
+                </div>
+            {:else if !timelineData || timelineData.length === 0}
+                <div class="absolute inset-center text-secondary">{$noDataText}</div>
             {/if}
         </div>
         
         <div class="grid grid-cols-2 gap-md p-md bg-card rounded shadow mt-md stats">
-            {#if timelineData.length > 0}
+            {#if timelineData && timelineData.length > 0}
                 <div class="p-md stat-summary">
                     <h3 class="mt-0 mb-sm text-md text-primary border-b border-solid border-default pb-xs">{$summaryText}</h3>
                     <p class="text-sm mb-xs">{$totalItemsText}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
@@ -824,6 +617,10 @@
                             </li>
                         {/each}
                     </ul>
+                </div>
+            {:else}
+                <div class="p-md col-span-2 text-center text-secondary">
+                    {$noDataText}
                 </div>
             {/if}
         </div>
@@ -851,5 +648,26 @@
         .stats {
             grid-template-columns: 1fr !important;
         }
+    }
+    
+    /* Ensure the chart container has minimum dimensions */
+    .chart-container {
+        min-height: 400px;
+        width: 100%;
+    }
+    
+    /* Loading spinner */
+    .loading-spinner {
+        display: inline-block;
+        width: 1.5rem;
+        height: 1.5rem;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: var(--color-primary);
+        animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
 </style> 
