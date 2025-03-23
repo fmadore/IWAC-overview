@@ -82,14 +82,21 @@ export class TimelineChart {
             }
             
             // Check if dimensions are valid
-            if (!width || !height || width <= 0 || height <= 0) {
-                console.error('[TimelineChart] Invalid dimensions:', { width, height });
-                d3.select(container).selectAll('*').remove();
-                d3.select(container).append('div')
-                    .attr('class', 'absolute inset-center text-error')
-                    .text('Invalid chart dimensions');
-                return;
+            let validWidth = width;
+            let validHeight = height;
+            
+            // Apply minimum dimensions if needed
+            if (!validWidth || validWidth <= 0) {
+                console.warn('[TimelineChart] Invalid width, using minimum width of 300px');
+                validWidth = 300;
             }
+            
+            if (!validHeight || validHeight <= 0) {
+                console.warn('[TimelineChart] Invalid height, using minimum height of 500px');
+                validHeight = 500;
+            }
+            
+            console.log('[TimelineChart] Using dimensions:', { width: validWidth, height: validHeight });
             
             // Remove previous content
             d3.select(container).selectAll('*').remove();
@@ -105,14 +112,14 @@ export class TimelineChart {
             // Create SVG
             const svg = d3.select(container)
                 .append('svg')
-                .attr('width', width)
-                .attr('height', height)
-                .attr('viewBox', `0 0 ${width} ${height}`)
+                .attr('width', validWidth)
+                .attr('height', validHeight)
+                .attr('viewBox', `0 0 ${validWidth} ${validHeight}`)
                 .attr('class', 'timeline-chart');
             
             // Calculate chart dimensions
-            const chartWidth = width - margin.left - margin.right;
-            const fullChartHeight = height - margin.top - margin.bottom;
+            const chartWidth = validWidth - margin.left - margin.right;
+            const fullChartHeight = validHeight - margin.top - margin.bottom;
             
             // Adjust chartHeight for two charts
             const chartHeight = (fullChartHeight - (isMobile ? 30 : 50)) / 2;
@@ -126,14 +133,14 @@ export class TimelineChart {
             svg.append('line')
                 .attr('x1', margin.left)
                 .attr('y1', margin.top + chartHeight + (isMobile ? 15 : 25))
-                .attr('x2', width - margin.right)
+                .attr('x2', validWidth - margin.right)
                 .attr('y2', margin.top + chartHeight + (isMobile ? 15 : 25))
                 .attr('stroke', 'var(--color-border-default)')
                 .attr('stroke-width', 1)
                 .attr('stroke-dasharray', '3,3');
             
             // Add legend only if not extra small
-            this.addLegend(svg, margin, isExtraSmall, width);
+            this.addLegend(svg, margin, isExtraSmall, validWidth);
             
             // Create circle marker definition for line points
             svg.append('defs').append('marker')

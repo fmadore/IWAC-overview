@@ -209,7 +209,7 @@
                 // Get initial dimensions
                 const { width: initialWidth, height: initialHeight } = resizeHook.dimensions;
                 width = initialWidth;
-                height = initialHeight;
+                height = initialHeight || 500;
                 
                 console.log('[TimelineDistribution] Initial dimensions:', { width, height });
                 
@@ -328,13 +328,19 @@
     // Create timeline visualization using the service
     function updateVisualization() {
         try {
-        if (!container || !isMounted || !isInitialized) {
+            if (!container || !isMounted || !isInitialized) {
                 console.error('[TimelineDistribution] Cannot update visualization - component not ready', 
                     { container: !!container, isMounted, isInitialized });
-            return;
-        }
+                return;
+            }
             
             console.log('[TimelineDistribution] Updating visualization with dimensions:', { width, height });
+            
+            // Ensure height is not zero
+            if (height <= 0) {
+                height = 500; // Use a default height if the detected height is zero
+                console.log('[TimelineDistribution] Using fallback height of 500px');
+            }
         
         // Process data with current filters
         const data = processData();
@@ -578,6 +584,7 @@
         
         <div 
             class="flex-1 relative min-h-500 bg-card rounded-b p-md chart-container overflow-hidden"
+            style="height: 500px;"
             bind:this={container}
         >
             {#if !$itemsStore}
@@ -653,6 +660,7 @@
     /* Ensure the chart container has minimum dimensions */
     .chart-container {
         min-height: 400px;
+        height: 500px;
         width: 100%;
     }
     
