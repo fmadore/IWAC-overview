@@ -164,17 +164,14 @@
         if (!isMounted || !container) return;
         
         try {
-            // Set fixed dimensions based on container's actual size
+            // Get dimensions from container
             const rect = container.getBoundingClientRect();
-            
-            // Use fixed values to avoid constant resizing
             width = rect.width;
-            height = 500; // Fixed height matching container
+            height = 500; // Fixed height
             
             // Process data with current filters
             const data = processData();
             if (!data || data.length === 0) {
-                console.log('No data available for visualization');
                 D3Service.handleNoData(container, t('viz.no_data'));
                 return;
             }
@@ -199,10 +196,15 @@
                 percentage: item.percentage
             }));
             
-            // Set margins - adjust for mobile
-            const margin = isMobile 
-                ? { top: 20, right: 15, bottom: 140, left: 45 }
-                : { top: 20, right: 30, bottom: 120, left: 60 };
+            // Calculate margins based on data - use more space if we have many categories
+            const hasManyCatetgories = data.length > 5;
+            const margin = {
+                top: 20,
+                right: 30,
+                // Use larger bottom margin to ensure x-axis labels are visible
+                bottom: 150, 
+                left: 60
+            };
             
             // Create the bar chart with the BarChart service
             barChartInstance = createBarChart({
@@ -214,13 +216,20 @@
                 className: 'index-distribution-chart',
                 isMobile,
                 barColors: colorScale,
-                barCornerRadius: isMobile ? 2 : 3,
-                barStrokeWidth: isMobile ? 0.5 : 1,
+                barPadding: 0.2,
+                barCornerRadius: 3,
                 xAxisLabel: t('viz.categories'),
                 yAxisLabel: t('viz.number_of_items'),
-                xAxisRotation: isMobile ? -70 : -45,
+                // Steeper angle for better label display
+                xAxisRotation: -70,
+                // Limit the number of ticks based on available width
+                xAxisTicks: Math.max(3, Math.floor(width / 120)),
                 yAxisTicks: isMobile ? 3 : 5,
-                valueLabelMinHeight: 15,
+                // Format axis ticks
+                xAxisTickFormat: (d: string) => {
+                    // Truncate long category names
+                    return d.length > 15 ? d.substring(0, 12) + '...' : d;
+                },
                 valueFormatter: formatNumber,
                 // Event handlers for tooltips
                 onBarMouseEnter: (event: MouseEvent, d: BarData) => {
@@ -340,16 +349,15 @@
     });
 </script>
 
-<div class="w-full flex flex-col index-visualization-container" style="height: 600px;">
+<div class="w-full index-visualization-container">
     <BaseVisualization
         titleHtml={titleHtml}
         descriptionTranslationKey={indexDescriptionKey}
         theme="default"
-        className="index-visualization flex-1"
+        className="index-visualization"
         bind:this={baseVisualization}
     >
-        <!-- Set a fixed height with CSS utility classes -->
-        <div class="chart-container relative flex-1 bg-card rounded p-md overflow-hidden" style="height: 500px;" bind:this={container}>
+        <div class="chart-container relative bg-card rounded p-md overflow-hidden" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -360,6 +368,39 @@
 </div>
 
 <style>
-    /* Only keep styles that can't be achieved with utility classes */
-    /* Responsive adjustments handled by utility classes */
+    :global(.index-distribution-chart) {
+        height: 100%;
+    }
+    
+    :global(.index-distribution-chart text) {
+        font-family: var(--font-family-base);
+        font-size: var(--font-size-xs);
+    }
+    
+    :global(.index-distribution-chart .x-axis text) {
+        text-anchor: end;
+        font-size: var(--font-size-xs);
+        fill: var(--color-text-secondary);
+    }
+    
+    :global(.index-distribution-chart .y-axis text) {
+        font-size: var(--font-size-xs);
+        fill: var(--color-text-secondary);
+    }
+    
+    :global(.index-distribution-chart .x-axis-label, .index-distribution-chart .y-axis-label) {
+        font-size: var(--font-size-sm);
+        fill: var(--color-text-secondary);
+        font-weight: var(--font-weight-medium);
+    }
+    
+    :global(.index-distribution-chart .bar-label) {
+        font-size: var(--font-size-xs);
+        fill: var(--color-text-secondary);
+    }
+    
+    /* Set fixed height for chart container */
+    .chart-container {
+        height: 500px;
+    }
 </style> 
