@@ -9,6 +9,7 @@
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import { D3Service } from '../../services/d3Service';
+    import { createBarChart, BarChartUtils, type BarData, type BarChartResult } from '../../services/barChart';
 
     // Define interfaces for data structures
     interface CategoryCount {
@@ -46,6 +47,7 @@
     let titleHtml = '';
     let width = 0;
     let height = 0;
+    let barChartInstance: BarChartResult | null = null;
 
     // Reference to BaseVisualization component to access its tooltip functions
     let baseVisualization: BaseVisualization;
@@ -97,15 +99,173 @@
     // Subscribe to language changes
     let languageUnsubscribe: () => void;
 
+    onMount(async () => {
+        try {
+            // Set mounted flag first
+            isMounted = true;
+            
+            // Wait for the next tick to ensure container is bound
+            await tick();
+            
+            // Double check container after tick
+            if (!container) {
+                console.error('Container element not found in onMount');
+                return;
+            }
+            
+            // Get initial dimensions
+            const rect = container.getBoundingClientRect();
+            width = rect.width || 100;  // Provide fallback width
+            height = rect.height || 400; // Provide fallback height
+            
+            // Initialize resize hook
+            resizeHook = useD3Resize({
+                container,
+                onResize: () => {
+                    if (isMounted && container) {
+                        // Only update width, keep height fixed
+                        width = resizeHook.width;
+                        // Don't change height to avoid unwanted resizing
+                        renderBarChart();
+                    }
+                },
+                debounce: true,
+                debounceDelay: 200 // Longer debounce to avoid frequent updates
+            });
+            
+            // Subscribe to language changes
+            languageUnsubscribe = languageStore.subscribe(value => {
+                if (!isMounted) return;
+                currentLang = value;
+                
+                if (container) {
+                    updateTitleHtml();
+                    
+                    if ($itemsStore.items && $itemsStore.items.length > 0) {
+                        renderBarChart();
+                    }
+                }
+            });
+            
+            // Initialize data
+            if ($itemsStore.items && $itemsStore.items.length > 0) {
+                renderBarChart();
+            } else {
+                // Load items if not already loaded
+                itemsStore.loadItems();
+            }
+        } catch (error) {
+            console.error('Error during initialization:', error);
+        }
+    });
+
+    // Create bar chart visualization using the new BarChart service
+    function renderBarChart() {
+        if (!isMounted || !container) return;
+        
+        try {
+            // Set fixed dimensions based on container's actual size
+            const rect = container.getBoundingClientRect();
+            
+            // Use fixed values to avoid constant resizing
+            width = rect.width;
+            height = 500; // Fixed height matching container
+            
+            // Process data with current filters
+            const data = processData();
+            if (!data || data.length === 0) {
+                console.log('No data available for visualization');
+                D3Service.handleNoData(container, t('viz.no_data'));
+                return;
+            }
+            
+            // Update categoryCounts for reactive updates
+            categoryCounts = data;
+            
+            // Check if mobile view (width < 768px)
+            const isMobile = width < 768;
+            
+            // Clean up previous chart if it exists
+            if (barChartInstance) {
+                barChartInstance.destroy();
+                barChartInstance = null;
+            }
+            
+            // Convert data to BarData format
+            const barData: BarData[] = data.map(item => ({
+                key: item.category,
+                value: item.count,
+                originalKey: item.originalCategory,
+                percentage: item.percentage
+            }));
+            
+            // Set margins - adjust for mobile
+            const margin = isMobile 
+                ? { top: 20, right: 15, bottom: 140, left: 45 }
+                : { top: 20, right: 30, bottom: 120, left: 60 };
+            
+            // Create the bar chart with the BarChart service
+            barChartInstance = createBarChart({
+                container,
+                width,
+                height,
+                data: barData,
+                margin,
+                className: 'index-distribution-chart',
+                isMobile,
+                barColors: colorScale,
+                barCornerRadius: isMobile ? 2 : 3,
+                barStrokeWidth: isMobile ? 0.5 : 1,
+                xAxisLabel: t('viz.categories'),
+                yAxisLabel: t('viz.number_of_items'),
+                xAxisRotation: isMobile ? -70 : -45,
+                yAxisTicks: isMobile ? 3 : 5,
+                valueLabelMinHeight: 15,
+                valueFormatter: formatNumber,
+                // Event handlers for tooltips
+                onBarMouseEnter: (event: MouseEvent, d: BarData) => {
+                    const categoryData = categoryCounts.find(c => c.category === d.key);
+                    if (categoryData) {
+                        handleShowTooltip(event, categoryData);
+                    }
+                },
+                onBarMouseMove: (event: MouseEvent, d: BarData) => {
+                    const categoryData = categoryCounts.find(c => c.category === d.key);
+                    if (categoryData) {
+                        handleShowTooltip(event, categoryData);
+                    }
+                },
+                onBarMouseLeave: () => {
+                    if (baseVisualization) {
+                        baseVisualization.hideTooltip();
+                    }
+                }
+            });
+            
+        } catch (e) {
+            console.error('Error creating bar chart:', e);
+        }
+    }
+    
     // Process data to get index items by category
     function processData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return [];
         
-        // Filter and group items
+        console.log(`Processing ${$itemsStore.items.length} items`);
+        
+        // Filter items of type "Notice d'autorité" first
+        const filteredItems = $itemsStore.items.filter(item => item.type === "Notice d'autorité");
+        console.log(`Found ${filteredItems.length} items of type "Notice d'autorité"`);
+        
+        if (filteredItems.length === 0) return [];
+        
+        // Group items by item_set_title
         const results = groupAndCount(
-            $itemsStore.items,
+            filteredItems,
             item => item.item_set_title || t('viz.uncategorized')
         );
+        
+        console.log(`Grouped into ${results.length} categories`);
         
         // Transform results to match our CategoryCount interface
         const categoryCounts: CategoryCount[] = results.map(result => {
@@ -148,253 +308,10 @@
         baseVisualization.showTooltip(event, content);
     }
 
-    // Create bar chart visualization
-    function createBarChart() {
-        if (!isMounted || !container) return;
-        
-        try {
-            // Process data with current filters
-            const data = processData();
-            if (!data || data.length === 0) {
-                D3Service.handleNoData(container, t('viz.no_data'));
-                return;
-            }
-            
-            // Update categoryCounts for reactive updates
-            categoryCounts = data;
-            
-            // Check if mobile view (width < 768px)
-            const isMobile = width < 768;
-            const isExtraSmall = width < 480;
-            
-            // Set margins - adjust for mobile
-            const margin = isMobile 
-                ? { top: 20, right: 15, bottom: 140, left: 45 }
-                : { top: 20, right: 30, bottom: 120, left: 60 };
-            
-            // Create SVG with D3Service
-            const { svg, chart, chartWidth, chartHeight } = D3Service.createSVG({
-                container,
-                width,
-                height,
-                margin,
-                className: 'index-distribution-chart',
-                responsive: true
-            });
-            
-            // Create scales with D3Service
-            const xScale = D3Service.createScale({
-                type: 'band',
-                domain: data.map(d => d.category),
-                range: [0, chartWidth],
-                padding: isMobile ? 0.1 : 0.2 // Reduce padding on mobile
-            }) as d3.ScaleBand<string>;
-            
-            const yScale = D3Service.createScale({
-                type: 'linear',
-                domain: [0, maxCount * 1.1], // Add 10% padding at top
-                range: [chartHeight, 0]
-            }) as d3.ScaleLinear<number, number>;
-            
-            // Create axes with D3Service
-            const xAxis = D3Service.createAxis({
-                type: 'x',
-                scale: xScale,
-                position: 'bottom'
-            });
-            
-            const yAxis = D3Service.createAxis({
-                type: 'y',
-                scale: yScale,
-                ticks: isMobile ? 3 : 5, // Fewer ticks on mobile
-            });
-            
-            // Render X axis with manual rotation to match the original implementation
-            chart.append('g')
-                .attr('class', 'x-axis')
-                .attr('transform', `translate(0, ${chartHeight})`)
-                .call(g => D3Service.renderAxis(g, xAxis))
-                .selectAll('text')
-                .attr('transform', isMobile ? 'rotate(-70)' : 'rotate(-45)') // More rotation on mobile
-                .attr('text-anchor', 'end')
-                .attr('dx', isMobile ? '-.8em' : '-.8em')
-                .attr('dy', isMobile ? '.15em' : '.15em')
-                .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
-                .attr('fill', 'var(--color-text-primary)');
-            
-            // Render Y axis
-            chart.append('g')
-                .attr('class', 'y-axis')
-                .call(g => D3Service.renderAxis(g, yAxis))
-                .selectAll('text')
-                .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)') // Smaller text on mobile
-                .attr('fill', 'var(--color-text-primary)');
-            
-            // Add axis labels - hide on very small screens
-            if (width > 320) {
-                chart.append('text')
-                    .attr('class', 'x-axis-label')
-                    .attr('text-anchor', 'middle')
-                    .attr('x', chartWidth / 2)
-                    .attr('y', chartHeight + (isMobile ? margin.bottom - 5 : margin.bottom - 10))
-                    .attr('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
-                    .attr('fill', 'var(--color-text-secondary)')
-                    .text(t('viz.categories'));
-                
-                chart.append('text')
-                    .attr('class', 'y-axis-label')
-                    .attr('text-anchor', 'middle')
-                    .attr('transform', `rotate(-90)`)
-                    .attr('x', -chartHeight / 2)
-                    .attr('y', isMobile ? -margin.left + 12 : -margin.left + 15)
-                    .attr('font-size', isMobile ? '10px' : 'var(--font-size-sm)')
-                    .attr('fill', 'var(--color-text-secondary)')
-                    .text(t('viz.number_of_items'));
-            }
-            
-            // Create bars with consistent colors based on originalCategory, not translated category
-            chart.selectAll('.bar')
-                .data(data)
-                .enter()
-                .append('rect')
-                .attr('class', 'bar cursor-pointer')
-                .attr('x', d => xScale(d.category) || 0)
-                .attr('y', d => yScale(d.count))
-                .attr('width', xScale.bandwidth())
-                .attr('height', d => Math.max(0, chartHeight - yScale(d.count))) // Ensure height is not negative
-                .attr('fill', (d, i) => colorScale(d.originalCategory))
-                .attr('rx', isMobile ? 2 : 3) // Smaller rounded corners on mobile
-                .attr('ry', isMobile ? 2 : 3)
-                .attr('stroke', 'white')
-                .attr('stroke-width', isMobile ? 0.5 : 1) // Thinner stroke on mobile
-                .on('mouseenter', function(event, d) {
-                    if (!isMounted) return;
-                    // Highlight bar on hover
-                    d3.select(this)
-                        .transition()
-                        .duration(200)
-                        .attr('fill', d3.rgb(colorScale(d.originalCategory)).brighter(0.5).toString());
-                    handleShowTooltip(event, d);
-                })
-                .on('mousemove', function(event, d) {
-                    if (!isMounted) return;
-                    handleShowTooltip(event, d);
-                })
-                .on('mouseleave', function(event, d) {
-                    if (!isMounted || !baseVisualization) return;
-                    // Restore original color
-                    d3.select(this)
-                        .transition()
-                        .duration(200)
-                        .attr('fill', colorScale(d.originalCategory));
-                    baseVisualization.hideTooltip();
-                });
-            
-            // Add value labels on top of bars - only if bar is large enough
-            chart.selectAll('.bar-label')
-                .data(data)
-                .enter()
-                .append('text')
-                .attr('class', 'bar-label')
-                .attr('x', d => (xScale(d.category) || 0) + xScale.bandwidth() / 2)
-                .attr('y', d => yScale(d.count) - 5)
-                .attr('text-anchor', 'middle')
-                .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)')
-                .attr('fill', 'var(--color-text-secondary)')
-                .attr('display', d => {
-                    // Hide labels on very small bars or on small screens
-                    const barHeight = chartHeight - yScale(d.count);
-                    return (barHeight < 15 && isMobile) ? 'none' : 'block';
-                })
-                .text(d => d.count);
-        } catch (e) {
-            console.error('Error creating bar chart:', e);
-        }
-    }
-    
     // Update visualization when data changes
     $: if (isMounted && $itemsStore.items && container) {
-        createBarChart();
+        renderBarChart();
     }
-
-    let initializationPromise: Promise<void>;
-
-    onMount(() => {
-        // Set mounted flag first
-        isMounted = true;
-
-        // Create initialization promise
-        initializationPromise = (async () => {
-            try {
-                // Wait for the next tick to ensure container is bound
-                await tick();
-                
-                // Double check container after tick
-                if (!container) {
-                    console.error('Container element not found in onMount');
-                    return;
-                }
-
-                // Initialize resize hook
-                resizeHook = useD3Resize({
-                    container,
-                    onResize: () => {
-                        if (isMounted && container) {
-                            const { width: newWidth, height: newHeight } = resizeHook.dimensions;
-                            width = newWidth;
-                            height = newHeight;
-                            createBarChart();
-                        }
-                    }
-                });
-                
-                // Subscribe to language changes
-                languageUnsubscribe = languageStore.subscribe(value => {
-                    if (!isMounted) return;
-                    currentLang = value;
-                    
-                    if (container) {
-                        updateTitleHtml();
-                        
-                        if ($itemsStore.items && $itemsStore.items.length > 0) {
-                            createBarChart();
-                        }
-                    }
-                });
-                
-                // Initialize data
-                if ($itemsStore.items && $itemsStore.items.length > 0) {
-                    createBarChart();
-                } else {
-                    // Load items if not already loaded
-                    itemsStore.loadItems();
-                }
-            } catch (error) {
-                console.error('Error during initialization:', error);
-            }
-        })();
-
-        // Return cleanup function
-        return () => {
-            try {
-                isMounted = false;
-                
-                if (resizeHook) {
-                    resizeHook.cleanup();
-                }
-                
-                if (languageUnsubscribe) {
-                    languageUnsubscribe();
-                }
-                
-                if (container) {
-                    d3.select(container).selectAll('*').remove();
-                }
-            } catch (e) {
-                console.error('Error during cleanup:', e);
-            }
-        };
-    });
 
     // Add onDestroy to ensure cleanup
     onDestroy(() => {
@@ -409,6 +326,11 @@
                 languageUnsubscribe();
             }
             
+            if (barChartInstance) {
+                barChartInstance.destroy();
+                barChartInstance = null;
+            }
+            
             if (container) {
                 d3.select(container).selectAll('*').remove();
             }
@@ -418,15 +340,16 @@
     });
 </script>
 
-<div class="w-full h-full flex flex-col index-visualization-container">
+<div class="w-full flex flex-col index-visualization-container" style="height: 600px;">
     <BaseVisualization
         titleHtml={titleHtml}
         descriptionTranslationKey={indexDescriptionKey}
         theme="default"
-        className="index-visualization"
+        className="index-visualization flex-1"
         bind:this={baseVisualization}
     >
-        <div class="chart-container relative flex-1 bg-card rounded p-md overflow-hidden min-h-400" bind:this={container}>
+        <!-- Set a fixed height with CSS utility classes -->
+        <div class="chart-container relative flex-1 bg-card rounded p-md overflow-hidden" style="height: 500px;" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
