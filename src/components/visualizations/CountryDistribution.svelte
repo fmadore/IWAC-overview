@@ -106,7 +106,7 @@
     
     // Function to get the title with current count and proper formatting
     function updateTitleHtml() {
-        if (!isMounted) return;
+        if (!isMounted || isCanceled) return;
         
         try {
             if (totalItems > 0) {
@@ -124,22 +124,35 @@
         }
     }
 
-    // Track if component is mounted
+    // Track if component is mounted - add a canceled flag to help with async operations
     let isMounted = false;
+    let isCanceled = false;
 
-    // Initialize visualization when data changes - IMPORTANT: avoid reactive dependencies that might cause effect_orphan error
-    // The reactive statement below was causing the error, let's change it to a more controlled approach
-    // $: if (isMounted && $itemsStore.items && container) {
-    //    updateVisualization();
-    // }
-    
-    // Instead, we'll manually control when visualization updates are triggered
-    $: if ($itemsStore.items) {
-        handleItemsUpdate();
+    // Track store subscriptions
+    let itemsUnsubscribe: () => void;
+
+    // Create a function to explicitly handle store subscription updates
+    function setupSubscriptions() {
+        if (isMounted) {
+            // Add explicit subscription to itemsStore
+            itemsUnsubscribe = itemsStore.subscribe(state => {
+                if (isMounted && document.body.contains(container)) {
+                    console.log("ItemsStore updated, handling change");
+                    if (state.items && state.items.length > 0) {
+                        updateVisualization();
+                    }
+                }
+            });
+        }
     }
-    
+
     // Handle updates when items change
     function handleItemsUpdate() {
+        if (isCanceled) {
+            console.log("Component unmounted during items update, aborting");
+            return;
+        }
+        
         if (isMounted && container && document.body.contains(container)) {
             updateVisualization();
         }
@@ -150,6 +163,7 @@
     onMount(() => {
         // Set mounted flag first
         isMounted = true;
+        isCanceled = false;
         console.log("CountryDistribution component mounted");
 
         // Create initialization promise
@@ -157,6 +171,12 @@
             try {
                 // Wait for the next tick to ensure container is bound
                 await tick();
+                
+                // Check if component still mounted after tick
+                if (isCanceled || !isMounted) {
+                    console.log("Component unmounted after tick, aborting initialization");
+                    return;
+                }
                 
                 // Double check container after tick
                 if (!container) {
@@ -228,9 +248,19 @@
                     }
                 });
                 
+                // Set up explicit itemsStore subscription
+                setupSubscriptions();
+                
                 // Initialize data
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
                     console.log("Processing initial data");
+                    
+                    // Check if component still mounted before processing
+                    if (isCanceled || !isMounted) {
+                        console.log("Component unmounted before processing data, aborting");
+                        return;
+                    }
+                    
                     hierarchyData = processData($itemsStore.items as Item[]);
                     
                     if (hierarchyData.children && hierarchyData.children.length > 0) {
@@ -256,11 +286,24 @@
                     
                     // Wait for next tick before updating visualization
                     await tick();
+                    
+                    // Check if component still mounted after second tick
+                    if (isCanceled || !isMounted) {
+                        console.log("Component unmounted after second tick, aborting visualization");
+                        return;
+                    }
+                    
                     if (isMounted && container && document.body.contains(container)) {
                         console.log("Updating visualization after initialization");
                         updateVisualization();
                     }
                 } else {
+                    // Check if component still mounted before loading items
+                    if (isCanceled || !isMounted) {
+                        console.log("Component unmounted before loading items, aborting");
+                        return;
+                    }
+                    
                     console.log("Loading items from store");
                     itemsStore.loadItems();
                 }
@@ -274,6 +317,7 @@
             try {
                 console.log("CountryDistribution component unmounting");
                 isMounted = false;
+                isCanceled = true; // Mark as canceled to prevent further async operations
                 
                 if (resizeHook) {
                     resizeHook.cleanup();
@@ -281,6 +325,10 @@
                 
                 if (languageUnsubscribe) {
                     languageUnsubscribe();
+                }
+                
+                if (itemsUnsubscribe) {
+                    itemsUnsubscribe();
                 }
                 
                 if (container) {
@@ -303,6 +351,12 @@
 
     // Function to process data into hierarchical structure
     function processData(items: Item[]): HierarchyDatum {
+        // Check if component has been unmounted during async operation
+        if (isCanceled) {
+            console.log("Component unmounted during data processing, aborting");
+            return { name: "root", children: [] };
+        }
+        
         // Filter and group items hierarchically
         const hierarchicalData = groupHierarchically(
             items as unknown as OmekaItem[],
@@ -524,7 +578,7 @@
         const { id } = event.detail;
         
         // Safety check - ensure the component is still mounted
-        if (!isMounted || !document.body.contains(container)) {
+        if (!isMounted || isCanceled || !document.body.contains(container)) {
             console.log("Component not mounted, ignoring breadcrumb click");
             return;
         }
@@ -574,6 +628,12 @@
     // Create or update the visualization
     function updateVisualization() {
         try {
+            // First check if component is still mounted
+            if (!isMounted || isCanceled) {
+                console.log("Component unmounted, skipping visualization update");
+                return;
+            }
+            
             if (!container) {
                 console.error('Container element not found');
                 return;
@@ -1244,7 +1304,7 @@
                 <div class="no-data absolute inset-center text-secondary">{$noDataText}</div>
             {:else if !container}
                 <div class="loading absolute inset-center text-secondary">Initializing visualization...</div>
-            {:else if isMounted}
+            {:else if isMounted && !isCanceled}
                 <!-- Always show breadcrumb navigation, use a style similar to TreemapService -->
                 <div class="breadcrumb-wrapper absolute top-0 left-0 right-0 bg-white bg-opacity-90 p-xs z-10 shadow-sm" style="height: 30px;">
                     <div class="px-sm py-xs">
