@@ -127,9 +127,22 @@
     // Track if component is mounted
     let isMounted = false;
 
-    // Initialize visualization when data changes
-    $: if (isMounted && $itemsStore.items && container) {
-        updateVisualization();
+    // Initialize visualization when data changes - IMPORTANT: avoid reactive dependencies that might cause effect_orphan error
+    // The reactive statement below was causing the error, let's change it to a more controlled approach
+    // $: if (isMounted && $itemsStore.items && container) {
+    //    updateVisualization();
+    // }
+    
+    // Instead, we'll manually control when visualization updates are triggered
+    $: if ($itemsStore.items) {
+        handleItemsUpdate();
+    }
+    
+    // Handle updates when items change
+    function handleItemsUpdate() {
+        if (isMounted && container && document.body.contains(container)) {
+            updateVisualization();
+        }
     }
 
     let initializationPromise: Promise<void>;
@@ -137,6 +150,7 @@
     onMount(() => {
         // Set mounted flag first
         isMounted = true;
+        console.log("CountryDistribution component mounted");
 
         // Create initialization promise
         initializationPromise = (async () => {
@@ -150,11 +164,13 @@
                     return;
                 }
 
+                console.log("Container is ready, initializing visualization");
+                
                 // Initialize resize hook
                 resizeHook = useD3Resize({
                     container,
                     onResize: () => {
-                        if (isMounted && container) {
+                        if (isMounted && container && document.body.contains(container)) {
                             // Get the latest dimensions from the resize hook
                             const { width: newWidth, height: newHeight } = resizeHook.dimensions;
                             width = newWidth;
@@ -175,35 +191,38 @@
                 
                 // Subscribe to language changes
                 languageUnsubscribe = languageStore.subscribe(value => {
-                    if (!isMounted) return;
+                    if (!isMounted || !document.body.contains(container)) return;
+                    
                     console.log("Language changed to:", value);
                     currentLang = value;
                     
-                    if (container) {
-                        updateTitleHtml();
-                        
-                        // Update root breadcrumb text
+                    // Update root breadcrumb text
+                    if (breadcrumbItems && breadcrumbItems.length > 0) {
                         breadcrumbItems[0].label = t('viz.all_countries');
+                    }
+                    
+                    updateTitleHtml();
+                    
+                    if ($itemsStore.items && $itemsStore.items.length > 0) {
+                        const currentZoomedNode = zoomedNode;
+                        const currentZoomedCountry = currentZoomedNode?.data.originalName;
                         
-                        if ($itemsStore.items && $itemsStore.items.length > 0) {
-                            const currentZoomedNode = zoomedNode;
-                            const currentZoomedCountry = currentZoomedNode?.data.originalName;
+                        zoomedNode = null;
+                        hierarchyData = processData($itemsStore.items as Item[]);
+                        
+                        if (currentZoomedNode && currentZoomedCountry) {
+                            const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
+                            const matchingNode = newRoot.children?.find(node => 
+                                node.data.originalName === currentZoomedCountry
+                            );
                             
-                            zoomedNode = null;
-                            hierarchyData = processData($itemsStore.items as Item[]);
-                            
-                            if (currentZoomedNode && currentZoomedCountry) {
-                                const newRoot = d3.hierarchy<HierarchyDatum>(hierarchyData);
-                                const matchingNode = newRoot.children?.find(node => 
-                                    node.data.originalName === currentZoomedCountry
-                                );
-                                
-                                if (matchingNode) {
-                                    zoomToNode(matchingNode);
-                                    return;
-                                }
+                            if (matchingNode) {
+                                zoomToNode(matchingNode);
+                                return;
                             }
-                            
+                        }
+                        
+                        if (isMounted && container && document.body.contains(container)) {
                             updateVisualization();
                         }
                     }
@@ -211,6 +230,7 @@
                 
                 // Initialize data
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
+                    console.log("Processing initial data");
                     hierarchyData = processData($itemsStore.items as Item[]);
                     
                     if (hierarchyData.children && hierarchyData.children.length > 0) {
@@ -231,12 +251,17 @@
                     width = initialWidth;
                     height = initialHeight;
                     
+                    // Initialize country nodes map
+                    countryNodesMap = new Map();
+                    
                     // Wait for next tick before updating visualization
                     await tick();
-                    if (container) {
+                    if (isMounted && container && document.body.contains(container)) {
+                        console.log("Updating visualization after initialization");
                         updateVisualization();
                     }
                 } else {
+                    console.log("Loading items from store");
                     itemsStore.loadItems();
                 }
             } catch (error) {
@@ -247,6 +272,7 @@
         // Return cleanup function
         return () => {
             try {
+                console.log("CountryDistribution component unmounting");
                 isMounted = false;
                 
                 if (resizeHook) {
@@ -260,6 +286,15 @@
                 if (container) {
                     d3.select(container).selectAll('*').remove();
                 }
+                
+                // Clear all references that might cause memory leaks
+                root = null;
+                zoomedNode = null;
+                selectedNode = null;
+                searchResults = [];
+                countryNodesMap.clear();
+                
+                console.log("CountryDistribution cleanup complete");
             } catch (e) {
                 console.error('Error during cleanup:', e);
             }
@@ -488,6 +523,12 @@
     function handleBreadcrumbNavigation(event: CustomEvent<{ id: string | null }>) {
         const { id } = event.detail;
         
+        // Safety check - ensure the component is still mounted
+        if (!isMounted || !document.body.contains(container)) {
+            console.log("Component not mounted, ignoring breadcrumb click");
+            return;
+        }
+        
         console.log("Breadcrumb navigation requested for ID:", id);
         
         // Root level navigation - show all countries
@@ -498,7 +539,7 @@
         }
         
         // Direct lookup for countries using the map
-        if (countryNodesMap.has(id)) {
+        if (countryNodesMap && countryNodesMap.has(id)) {
             const countryNode = countryNodesMap.get(id);
             console.log("Found country node in map:", countryNode?.data.name);
             zoomToNode(countryNode || null);
@@ -507,7 +548,7 @@
         
         // Category navigation
         // If we're at root level and looking for a category
-        if (root) {
+        if (root && countryNodesMap) {
             // Search through all country nodes for the category
             for (const countryNode of countryNodesMap.values()) {
                 if (!countryNode.children) continue;
@@ -554,7 +595,7 @@
             if (!hierarchyData.children || hierarchyData.children.length === 0) {
                 d3.select(container).select('svg').remove();
                 d3.select(container).append('div')
-                    .attr('class', 'no-data absolute inset-center text-center text-secondary')
+                    .attr('class', 'no-data absolute inset-center text-secondary')
                     .text($noDataText);
                 return;
             }
@@ -1203,17 +1244,19 @@
                 <div class="no-data absolute inset-center text-secondary">{$noDataText}</div>
             {:else if !container}
                 <div class="loading absolute inset-center text-secondary">Initializing visualization...</div>
-            {:else}
+            {:else if isMounted}
                 <!-- Always show breadcrumb navigation, use a style similar to TreemapService -->
                 <div class="breadcrumb-wrapper absolute top-0 left-0 right-0 bg-white bg-opacity-90 p-xs z-10 shadow-sm" style="height: 30px;">
                     <div class="px-sm py-xs">
-                        <BreadcrumbNavigation 
-                            items={breadcrumbItems} 
-                            on:navigate={handleBreadcrumbNavigation} 
-                            separator="/"
-                            navItemClass="text-sm hover:text-primary transition-colors cursor-pointer font-medium"
-                            activeItemClass="text-primary font-bold"
-                        />
+                        {#if breadcrumbItems && breadcrumbItems.length}
+                            <BreadcrumbNavigation 
+                                items={breadcrumbItems} 
+                                on:navigate={handleBreadcrumbNavigation} 
+                                separator="/"
+                                navItemClass="text-sm hover:text-primary transition-colors cursor-pointer font-medium"
+                                activeItemClass="text-primary font-bold"
+                            />
+                        {/if}
                     </div>
                 </div>
             {/if}
