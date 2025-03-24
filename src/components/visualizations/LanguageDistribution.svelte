@@ -39,6 +39,13 @@
     let currentLang: 'en' | 'fr' = 'en';
     let titleHtml = '';
     
+    // Add a new state for language visibility
+    interface LanguageVisibility {
+        language: string;
+        visible: boolean;
+    }
+    let languageVisibility: LanguageVisibility[] = [];
+    
     // Visualization variables
     let width = 0;
     let height = 0;
@@ -99,6 +106,22 @@
 
     // Color scale for pie segments - use the same color scale as the chart will use
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+    
+    // Create a fixed color map to ensure consistency when toggling languages
+    let languageColorMap: Map<string, string> = new Map();
+    
+    // Function to get a consistent color for a language
+    function getLanguageColor(language: string): string {
+        // If we already assigned a color to this language, return it
+        if (languageColorMap.has(language)) {
+            return languageColorMap.get(language)!;
+        }
+        
+        // Otherwise assign a new color and store it
+        const color = colorScale(language);
+        languageColorMap.set(language, color);
+        return color;
+    }
 
     // Create reactive translations
     const allCountriesText = translate('viz.all_countries');
@@ -106,6 +129,7 @@
     const filterByCountryText = translate('viz.filter_by_country');
     const filterByTypeText = translate('viz.filter_by_type');
     const noDataText = translate('viz.no_data');
+    const toggleLanguagesText = translate('viz.toggle_languages');
     const showingItemsText = translate('viz.showing_items', {
         '0': formatNumber(totalItems),
         '1': formatNumber(languageCounts.length)
@@ -289,6 +313,13 @@
             percentage: result.percentage || 0
         }));
         
+        // When data is processed, initialize colors for all languages to ensure consistency
+        processedCounts.forEach(item => {
+            if (!languageColorMap.has(item.language)) {
+                languageColorMap.set(item.language, colorScale(item.language));
+            }
+        });
+        
         // Update total items
         totalItems = processedCounts.reduce((sum, item) => sum + item.count, 0);
         
@@ -394,14 +425,52 @@
             return;
         }
         
+        // Initialize language visibility if not already set
+        if (languageVisibility.length === 0) {
+            languageVisibility = rawData.map(item => ({ 
+                language: item.language, 
+                visible: true 
+            }));
+        } else {
+            // Add any new languages that weren't in the visibility list
+            const existingLanguages = languageVisibility.map(l => l.language);
+            rawData.forEach(item => {
+                if (!existingLanguages.includes(item.language)) {
+                    languageVisibility.push({ language: item.language, visible: true });
+                }
+            });
+        }
+        
         // Map data to the format expected by the pie chart service
-        // and translate the language keys
-        const pieData = rawData.map(item => ({
-            key: item.language,
-            label: t(`lang.${item.language}`) || item.language, // Add label with translated language name
-            value: item.count,
-            percentage: item.percentage
-        }));
+        // and translate the language keys - filter out invisible languages
+        const pieData = rawData
+            .filter(item => {
+                const visibilityItem = languageVisibility.find(v => v.language === item.language);
+                return visibilityItem?.visible ?? true;
+            })
+            .map(item => ({
+                key: item.language,
+                label: t(`lang.${item.language}`) || item.language,
+                value: item.count,
+                percentage: item.percentage
+            }));
+        
+        // If no languages are visible, show no data message
+        if (pieData.length === 0) {
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            
+            // Clean up legend if it exists
+            if (legendHook) {
+                legendHook.cleanup();
+                legendHook = null as unknown as ReturnType<typeof useLegend>;
+            }
+            
+            D3Service.handleNoData(container, t('viz.no_data'));
+            return;
+        }
         
         // Clean up previous chart if it exists
         if (chart) {
@@ -434,7 +503,7 @@
             margin,
             innerRadius: isDonut ? 0.5 : 0, // 0.5 for donut, 0 for pie
             responsive: true,
-            colorScheme: d3.schemeCategory10, // Use the same color scheme as our colorScale
+            colorScheme: (key: string) => getLanguageColor(key), // Use our consistent color mapper
             hoverEffectEnabled: true,
             hoverRadiusIncrease: isMobile ? 5 : 10, // Smaller hover effect on mobile
             showLegend: false, // Don't show the built-in legend
@@ -448,19 +517,24 @@
         
         // Create custom legend using useLegend hook
         if (chart) {
-            // Create legend items from pieData using the same colorScale as the chart
-            const legendItems: LegendItem[] = pieData.map(item => ({
-                key: item.key, 
-                label: item.label,
-                color: colorScale(item.key), // Use the same colorScale instance for consistent colors
-                value: item.value,
-                visible: true
-            }));
+            // Create legend items for all languages (including hidden ones)
+            const legendItems: LegendItem[] = rawData.map(item => {
+                const isVisible = languageVisibility.find(v => v.language === item.language)?.visible ?? true;
+                
+                return {
+                    key: item.language, 
+                    label: t(`lang.${item.language}`) || item.language,
+                    color: getLanguageColor(item.language), // Use our consistent color mapper
+                    value: item.count,
+                    visible: isVisible,
+                    customProperties: { language: item.language }
+                };
+            });
             
             // Initialize legend hook
             legendHook = useLegend({
                 container,
-                title: t('viz.languages'),
+                title: $toggleLanguagesText,
                 items: legendItems,
                 type: 'html',
                 position: 'bottom',
@@ -475,9 +549,15 @@
                 breakpoint: 768,
                 interactive: true,
                 onItemClick: (item) => {
-                    // Currently, pie chart doesn't support toggling slices
-                    // This could be enhanced later
-                    console.log(`Clicked on ${item.label}`);
+                    // Find and toggle the visibility of this language
+                    const langIndex = languageVisibility.findIndex(l => l.language === item.customProperties?.language);
+                    if (langIndex >= 0) {
+                        languageVisibility[langIndex].visible = !languageVisibility[langIndex].visible;
+                        languageVisibility = [...languageVisibility]; // Trigger reactivity
+                        
+                        // Update visualization
+                        updateVisualization();
+                    }
                 }
             });
             
@@ -485,7 +565,7 @@
             legendHook.render();
             
             // Adjust SVG height to accommodate the legend
-            const rowCount = Math.ceil(pieData.length / 5); // Assume about 5 items per row
+            const rowCount = Math.ceil(rawData.length / 5); // Assume about 5 items per row
             const legendHeight = rowCount * 22 + 30; // Approximate height per row + padding
             
             // Find the SVG and adjust its height

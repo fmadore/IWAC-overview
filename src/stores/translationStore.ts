@@ -68,6 +68,7 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.year': 'Year',
         'viz.number_of_items': 'Number of Items',
         'viz.toggle_types': 'Toggle Types',
+        'viz.toggle_languages': 'Toggle Languages',
         'viz.toggled_type': 'Toggled type: {0}',
         'viz.languages': 'Languages',
         
@@ -231,6 +232,7 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.year': 'Année',
         'viz.number_of_items': 'Nombre d\'éléments',
         'viz.toggle_types': 'Basculer les types',
+        'viz.toggle_languages': 'Basculer les langues',
         'viz.toggled_type': 'Type basculé : {0}',
         'viz.languages': 'Langues',
         
