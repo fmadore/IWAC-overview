@@ -19,7 +19,7 @@
     }
 
     // Define translation keys
-    const timelineDescriptionKey = 'viz.timeline_distribution_description';
+    const timelineDescriptionKey = 'viz.growth_since_april_description';
 
     // Filter states
     let selectedCountry: string = 'all';
@@ -89,6 +89,7 @@
     const timelineItemsText = translate('viz.timeline_distribution_items');
     const monthlyAdditionsText = translate('viz.monthly_additions');
     const monthText = translate('viz.month');
+    const growthSinceAprilText = translate('viz.growth_since_april');
     // Add translations for tooltip labels
     const newItemsText = translate('viz.new_items');
     const percentageText = translate('viz.percentage');
@@ -106,10 +107,10 @@
             // Format the number with spaces as thousands separator
             const formattedCount = formatNumber(totalItems);
             // Use the current language's translation with the formatted count
-            return t('viz.timeline_distribution_items', { '0': formattedCount });
+            return t('viz.growth_since_april', { '0': formattedCount });
         } else {
             // Use the basic title without count when data isn't loaded yet
-            return t('viz.timeline_distribution_title');
+            return t('viz.growth_since_april_title');
         }
     }
     
@@ -434,8 +435,11 @@
         console.log('[TimelineDistribution] Total items before filtering:', $itemsStore.items.length);
         
         try {
-            // Define the start date (January 1, 2020 instead of April 2024)
-            const startDate = new Date(2020, 0, 1);
+            // Define the start date (April 2024)
+            const startDate = new Date(2024, 3, 1);
+            
+            // Define the initial baseline count (previously added items before April 2024)
+            const initialBaseline = 8000; // Starting baseline count
             
             // Log a few sample dates to help with debugging
             if ($itemsStore.items.length > 0) {
@@ -447,15 +451,16 @@
             const filteredItems = filterItems($itemsStore.items);
             console.log('[TimelineDistribution] Items after filtering:', filteredItems.length);
 
-        // Process time-based data using the hook
-        const timelineData = processTimeData(
+            // Process time-based data using the hook
+            const timelineData = processTimeData(
                 filteredItems,
-            'created_date',
-            {
-                startDate,
-                includeCumulative: true
-            }
-        );
+                'created_date',
+                {
+                    startDate,
+                    includeCumulative: true,
+                    initialTotal: initialBaseline // Add the initial baseline to the total
+                }
+            );
 
             console.log('[TimelineDistribution] Processed timeline data length:', timelineData.length);
             if (timelineData.length > 0) {
@@ -468,14 +473,14 @@
                 return [];
             }
 
-        // Update total items count
-            totalItems = timelineData[timelineData.length - 1]?.total || 0;
+            // Update total items count, including the initial baseline
+            totalItems = timelineData[timelineData.length - 1]?.total || initialBaseline;
 
-        // Calculate max values for scaling
-        maxMonthlyCount = Math.max(...timelineData.map(d => d.count));
-        maxTotalCount = Math.max(...timelineData.map(d => d.total));
+            // Calculate max values for scaling
+            maxMonthlyCount = Math.max(...timelineData.map(d => d.count));
+            maxTotalCount = Math.max(...timelineData.map(d => d.total));
         
-        return timelineData;
+            return timelineData;
         } catch (error) {
             console.error('[TimelineDistribution] Error processing timeline data:', error);
             return [];
@@ -486,10 +491,10 @@
     function generateFacetOptions() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Define the start date (January 1, 2020)
-        const startDate = new Date(2020, 0, 1); // Use a date in the past to include actual data
+        // Define the start date (April 2024)
+        const startDate = new Date(2024, 3, 1);
         
-        // Filter items after January 2020 without applying country/type filters
+        // Filter items after April 2024 without applying country/type filters
         const { filterItems: filterItemsWithoutFacets } = useDataProcessing({
             filterMissingValues: true,
             requiredFields: ['created_date']
@@ -550,7 +555,7 @@
 
 <div class="w-full h-full flex flex-col gap-md">
     <BaseVisualization
-        title="Timeline Distribution"
+        title="Growth of the Database"
         titleHtml={titleHtml}
         descriptionTranslationKey={timelineDescriptionKey}
         theme="default"

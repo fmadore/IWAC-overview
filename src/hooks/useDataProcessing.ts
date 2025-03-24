@@ -194,14 +194,18 @@ export function useDataProcessing(options: DataProcessingOptions = {}) {
             startDate?: Date;
             endDate?: Date;
             includeCumulative?: boolean;
+            initialTotal?: number;
         } = {}
     ): any[] {
         try {
             const filteredItems = filterItems(items);
-            const { startDate, endDate, includeCumulative = true } = options;
+            const { startDate, endDate, includeCumulative = true, initialTotal = 0 } = options;
 
             console.log('[useDataProcessing] Processing time data for', filteredItems.length, 'items');
             console.log('[useDataProcessing] Date range:', { startDate, endDate });
+            if (initialTotal > 0) {
+                console.log('[useDataProcessing] Using initial total of', initialTotal);
+            }
 
             // Parse dates and filter by date range
             const validItems = filteredItems.filter(item => {
@@ -318,7 +322,7 @@ export function useDataProcessing(options: DataProcessingOptions = {}) {
 
             // Calculate cumulative totals if requested
             if (includeCumulative) {
-                let runningTotal = 0;
+                let runningTotal = initialTotal; // Start with the initial total
                 results.forEach(item => {
                     runningTotal += item.count;
                     item.total = runningTotal;

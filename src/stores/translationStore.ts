@@ -48,9 +48,9 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.language_distribution_description': 'This visualization shows the distribution of items by language. You can filter by country and item type to explore the language distribution across different segments of the collection.',
         
         // Timeline distribution specific
-        'viz.timeline_distribution_title': 'Timeline Distribution',
-        'viz.timeline_distribution_items': 'Growth timeline of {0} items over time',
-        'viz.timeline_distribution_description': 'This visualization shows the growth of the database over time. The blue line represents monthly additions, while the green dotted line shows the cumulative total. You can filter by country and item type to explore growth patterns across different segments of the collection.',
+        'viz.growth_since_april_title': 'Growth Since April 2024',
+        'viz.growth_since_april': 'Growth of {0} items since April 2024',
+        'viz.growth_since_april_description': 'This visualization shows the growth of the database since April 2024. The blue line represents monthly additions, while the green dotted line shows the cumulative total. You can filter by country and item type to explore growth patterns.',
         'viz.time_period': 'Time period',
         'viz.avg_monthly_additions': 'Average monthly additions',
         'viz.peak_growth_months': 'Peak Growth Months',
@@ -208,9 +208,9 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.language_distribution_description': 'Cette visualisation montre la répartition des éléments par langue. Vous pouvez filtrer par pays et par type d\'élément pour explorer la répartition des langues dans différents segments de la collection.',
         
         // Timeline distribution specific
-        'viz.timeline_distribution_title': 'Chronologie',
-        'viz.timeline_distribution_items': 'Chronologie de croissance de {0} éléments au fil du temps',
-        'viz.timeline_distribution_description': 'Cette visualisation montre la croissance de la base de données au fil du temps. La ligne bleue représente les ajouts mensuels, tandis que la ligne pointillée verte montre le total cumulatif. Vous pouvez filtrer par pays et par type d\'élément pour explorer les modèles de croissance dans différents segments de la collection.',
+        'viz.growth_since_april_title': 'Croissance depuis avril 2024',
+        'viz.growth_since_april': 'Croissance de {0} éléments depuis avril 2024',
+        'viz.growth_since_april_description': 'Cette visualisation montre la croissance de la base de données depuis avril 2024. La ligne bleue représente les ajouts mensuels, tandis que la ligne pointillée verte montre le total cumulatif. Vous pouvez filtrer par pays et par type d\'élément pour explorer les modèles de croissance.',
         'viz.time_period': 'Période',
         'viz.avg_monthly_additions': 'Ajouts mensuels moyens',
         'viz.peak_growth_months': 'Mois de croissance maximale',
