@@ -10,6 +10,7 @@ The application includes the following core visualization services:
 2. **[Bar Chart Service](./BARCHART_README.md)** - Creates and manages bar charts
 3. **[Treemap Service](./TREEMAP_README.md)** - Creates and manages treemap visualizations
 4. **[Timeline Chart Service](./TIMELINE_README.md)** - Creates and manages timeline visualizations
+5. **[Pie Chart Service](./PIECHART_README.md)** - Creates and manages pie and donut charts
 
 These services are designed to work together, with the D3 Service providing core functionality that the specialized chart services build upon.
 
@@ -21,19 +22,19 @@ These services are designed to work together, with the D3 Service providing core
 └───────┬───────┘
         │
         ▼
-┌───────────────────────────────────────┐
-│                                       │
-│  ┌─────────────┐ ┌──────────────┐     │
-│  │  Bar Chart  │ │   Treemap    │     │
-│  │   Service   │ │   Service    │     │
-│  └─────────────┘ └──────────────┘     │
-│                                       │
-│  ┌─────────────┐                      │
-│  │  Timeline   │                      │
-│  │   Service   │                      │
-│  └─────────────┘                      │
-│                                       │
-└───────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│                                            │
+│  ┌─────────────┐ ┌──────────────┐          │
+│  │  Bar Chart  │ │   Treemap    │          │
+│  │   Service   │ │   Service    │          │
+│  └─────────────┘ └──────────────┘          │
+│                                            │
+│  ┌─────────────┐ ┌──────────────┐          │
+│  │  Timeline   │ │   Pie Chart  │          │
+│  │   Service   │ │   Service    │          │
+│  └─────────────┘ └──────────────┘          │
+│                                            │
+└────────────────────────────────────────────┘
 ```
 
 ## Existing Visualization Components
@@ -41,7 +42,7 @@ These services are designed to work together, with the D3 Service providing core
 The application includes the following visualization components built using these services:
 
 1. **Index Distribution** - Uses the Bar Chart Service to show how index items are distributed across categories
-2. **Language Distribution** - Uses the D3 Service directly to create a pie chart showing language distribution
+2. **Language Distribution** - Uses the Pie Chart Service to create a pie or donut chart showing language distribution
 3. **Timeline Distribution** - Uses the Timeline Chart Service to show monthly additions and cumulative totals
 4. **Type Distribution** - Uses the D3 Service to create a stacked bar chart showing item types by year
 5. **Word Distribution** - Uses the Treemap Service to show word count distribution by country and item set
@@ -52,6 +53,7 @@ The application includes the following visualization components built using thes
 - **Bar Chart Service**: Use for any vertical or horizontal bar charts, including grouped and stacked variations
 - **Treemap Service**: Use for hierarchical data visualization with nested rectangles
 - **Timeline Service**: Use for time-series data showing changes over time
+- **Pie Chart Service**: Use for showing proportions of a whole or comparing parts of a dataset
 
 ## Data Transformation Utilities
 
@@ -66,86 +68,6 @@ import { BarChartUtils, type BarData } from '../../services/barChart';
 #### mapData
 
 Transforms arbitrary data into the standard BarData format expected by the bar chart service.
-
-```typescript
-const rawData = [
-  { category: 'A', count: 10, otherField: 'info' },
-  { category: 'B', count: 20, otherField: 'info' }
-];
-
-// Convert to BarData format
-const barData = BarChartUtils.mapData(rawData, 'category', 'count');
-// Result:
-// [
-//   { key: 'A', value: 10, otherField: 'info' },
-//   { key: 'B', value: 20, otherField: 'info' }
-// ]
-```
-
-With original key preservation:
-
-```typescript
-const translatedData = [
-  { originalName: 'Category A', translatedName: 'Catégorie A', count: 10 },
-  { originalName: 'Category B', translatedName: 'Catégorie B', count: 20 }
-];
-
-// Convert to BarData with original key preserved
-const barData = BarChartUtils.mapData(
-  translatedData, 
-  'translatedName', 
-  'count', 
-  'originalName'
-);
-// Result:
-// [
-//   { key: 'Catégorie A', value: 10, originalKey: 'Category A', ... },
-//   { key: 'Catégorie B', value: 20, originalKey: 'Category B', ... }
-// ]
-```
-
-#### calculatePercentages
-
-Adds percentage values to each data item based on their proportion of the total value.
-
-```typescript
-const barData = [
-  { key: 'A', value: 30 },
-  { key: 'B', value: 70 }
-];
-
-// Add percentage field to each item
-const dataWithPercentages = BarChartUtils.calculatePercentages(barData);
-// Result:
-// [
-//   { key: 'A', value: 30, percentage: 30 },
-//   { key: 'B', value: 70, percentage: 70 }
-// ]
-```
-
-#### sortByValue
-
-Sorts bar data by their values in ascending or descending order.
-
-```typescript
-const barData = [
-  { key: 'A', value: 10 },
-  { key: 'C', value: 30 },
-  { key: 'B', value: 20 }
-];
-
-// Sort by value in descending order
-const sortedDesc = BarChartUtils.sortByValue(barData, true);
-// Result: [{ key: 'C', value: 30 }, { key: 'B', value: 20 }, { key: 'A', value: 10 }]
-
-// Sort by value in ascending order
-const sortedAsc = BarChartUtils.sortByValue(barData, false);
-// Result: [{ key: 'A', value: 10 }, { key: 'B', value: 20 }, { key: 'C', value: 30 }]
-```
-
-#### Combining Utilities
-
-These utilities can be chained together for complete data transformation:
 
 ```typescript
 function prepareChartData(rawData) {
@@ -163,89 +85,36 @@ function prepareChartData(rawData) {
 }
 ```
 
-## Pie Charts
+### PieChartUtils
 
-While there is no dedicated pie chart service yet, you can create pie charts using the D3 Service directly. Here's an example approach:
+The Pie Chart service also provides utility functions for data transformation and preparation:
 
 ```typescript
-import { D3Service } from '../../services/d3Service';
-import * as d3 from 'd3';
-
-// Inside your component's rendering function
-function createPieChart(data, container) {
-  // Create SVG with proper margins
-  const { svg, chart, chartWidth, chartHeight } = D3Service.createSVG({
-    container,
-    margin: { top: 20, right: 20, bottom: 20, left: 20 }
-  });
-  
-  // Compute the position of each group on the pie
-  const pie = d3.pie<any>()
-    .value(d => d.value)
-    .sort(null); // Do not sort to maintain data order
-  
-  const pieData = pie(data);
-  
-  // Shape helper to build arcs
-  const radius = Math.min(chartWidth, chartHeight) / 2;
-  const arc = d3.arc()
-    .innerRadius(0)
-    .outerRadius(radius);
-  
-  // For label positioning
-  const labelArc = d3.arc()
-    .innerRadius(radius * 0.6)
-    .outerRadius(radius * 0.6);
-  
-  // Create color scale
-  const color = D3Service.createColorScale(data.map(d => d.key));
-  
-  // Create pie chart group
-  const pieGroup = chart.append('g')
-    .attr('transform', `translate(${chartWidth / 2}, ${chartHeight / 2})`);
-  
-  // Create the arcs
-  pieGroup.selectAll('path')
-    .data(pieData)
-    .enter()
-    .append('path')
-    .attr('d', arc as any)
-    .attr('fill', d => color(d.data.key))
-    .attr('stroke', 'white')
-    .attr('stroke-width', 1)
-    .on('mouseenter', (event, d) => {
-      // Handle tooltip display
-    })
-    .on('mouseleave', () => {
-      // Hide tooltip
-    });
-  
-  // Add labels
-  pieGroup.selectAll('text')
-    .data(pieData)
-    .enter()
-    .append('text')
-    .attr('transform', d => `translate(${labelArc.centroid(d as any)})`)
-    .attr('text-anchor', 'middle')
-    .attr('dy', '0.35em')
-    .text(d => d.data.key)
-    .attr('font-size', 'var(--font-size-xs)')
-    .attr('fill', 'var(--color-text-primary)');
-  
-  // Create legend using D3Service
-  D3Service.createLegend(svg, data.map(d => ({
-    key: d.key,
-    color: color(d.key)
-  })), {
-    position: { x: 10, y: chartHeight + 10 },
-    orientation: 'horizontal'
-  });
-  
-  return { svg, chart, pieGroup };
-}
+import { PieChartUtils, type PieChartDataItem } from '../../services/pieChart';
 ```
 
-A dedicated PieChart service is planned for future development to standardize this functionality.
+#### mapData
+
+Transforms arbitrary data into the standard PieChartDataItem format.
+
+```typescript
+function prepareChartData(rawData) {
+  // 1. Map raw data to standard format
+  const pieData = PieChartUtils.mapData(rawData, 'language', 'count');
+  
+  // 2. Calculate percentages
+  const dataWithPercentages = PieChartUtils.calculatePercentages(pieData);
+  
+  // 3. Sort by value (descending)
+  const sortedData = PieChartUtils.sortByValue(dataWithPercentages, true);
+  
+  // 4. Group small segments for better readability
+  const groupedData = PieChartUtils.groupSmallSegments(sortedData, 3);
+  
+  // 5. Return the transformed data
+  return groupedData;
+}
+```
 
 ## Creating New Visualizations
 
@@ -258,6 +127,7 @@ First, determine which existing service best fits your needs:
 - Need to visualize hierarchical data? Use the Treemap Service
 - Need to show categorical data comparisons? Use the Bar Chart Service
 - Need to visualize time-series data? Use the Timeline Chart Service
+- Need to show proportional parts of a whole? Use the Pie Chart Service
 - Need something custom? Use the D3 Service directly
 
 ### 2. Import the Appropriate Service
@@ -271,6 +141,9 @@ import TreemapService, { type TreemapNode } from '../../services/treemap';
 
 // For timelines
 import { TimelineChart, type MonthlyData } from '../../services/timelineChart';
+
+// For pie/donut charts
+import { createPieChart, createDonutChart, type PieChartDataItem } from '../../services/pieChart';
 
 // For custom visualizations using D3 directly
 import { D3Service } from '../../services/d3Service';
@@ -309,6 +182,13 @@ const timelineData: MonthlyData[] = monthlyGroups.map(group => ({
   total: group.runningTotal,
   percentage: group.percentage
 }));
+
+// For pie charts
+const pieData: PieChartDataItem[] = rawData.map(item => ({
+  key: item.language,
+  value: item.count,
+  percentage: item.percentage
+}));
 ```
 
 ### 4. Create the Visualization
@@ -341,6 +221,22 @@ const timeline = new TimelineChart({
 });
 timeline.setTooltipCallbacks({ showTooltip, hideTooltip });
 timeline.render(timelineData);
+
+// For pie charts
+const pieChart = createPieChart(pieData, {
+  container: pieContainer,
+  innerRadius: 0, // 0 for pie chart
+  showLegend: true,
+  // Additional options...
+});
+
+// For donut charts
+const donutChart = createDonutChart(pieData, {
+  container: donutContainer,
+  innerRadius: 0.6, // Controls the size of the hole (0-1)
+  showLegend: true,
+  // Additional options...
+});
 ```
 
 ### 5. Handle Updates and Cleanup
@@ -365,6 +261,15 @@ function updateTreemap(newData) {
 // For timelines
 function updateTimeline(newData) {
   timeline.render(newData);
+}
+
+// For pie/donut charts
+function updatePieChart(newData) {
+  pieChart.update(newData);
+}
+
+function cleanup() {
+  pieChart.destroy();
 }
 ```
 
@@ -398,8 +303,8 @@ When working with visualization services:
 
 Planned improvements to visualization services:
 
-1. **Pie Chart Service**: Dedicated service for creating pie and donut charts
-2. **Network Graph Service**: For visualizing interconnected data
-3. **Map Service**: For geographic visualizations
-4. **Improved animation options**: More control over transitions
-5. **Legend standardization**: Consistent legend integration across all services 
+1. **Network Graph Service**: For visualizing interconnected data
+2. **Map Service**: For geographic visualizations
+3. **Improved animation options**: More control over transitions
+4. **Legend standardization**: Consistent legend integration across all services 
+5. **Enhanced interactivity**: Standardized approach to user interactions 

@@ -257,7 +257,8 @@ export function createLegend(
     itemWidth?: number,
     itemHeight?: number,
     itemMargin?: number,
-    className?: string
+    className?: string,
+    width?: number
   } = {}
 ) {
   const { 
@@ -266,33 +267,81 @@ export function createLegend(
     itemWidth = 20,
     itemHeight = 20,
     itemMargin = 5,
-    className = 'legend'
+    className = 'legend',
+    width = 300 // Default width
   } = options;
   
   const legend = svg.append('g')
     .attr('class', className)
     .attr('transform', `translate(${position.x}, ${position.y})`);
   
+  // Apply appropriate orientation class
+  const orientationClass = orientation === 'horizontal' ? 'legend-horizontal' : 'legend-vertical';
+  legend.classed(orientationClass, true);
+  
   const isHorizontal = orientation === 'horizontal';
   
-  items.forEach((item, i) => {
-    const x = isHorizontal ? i * (itemWidth + itemMargin * 3) : 0;
-    const y = isHorizontal ? 0 : i * (itemHeight + itemMargin);
+  // Create a container for the items
+  const itemsContainer = legend.append('g')
+    .attr('class', 'legend-items');
+  
+  // Check if this is a multi-row legend
+  const isMultiRow = className.includes('multi-row-legend');
+  
+  // For multi-row legends, arrange items in a grid with multiple items per row
+  if (isMultiRow) {
+    const containerWidth = width || 300; // Fallback if width not provided
+    const itemsPerRow = Math.floor((containerWidth - position.x - 20) / (itemWidth + itemMargin * 4));
+    const maxItemsPerRow = Math.max(3, itemsPerRow); // At least 3 items per row
     
-    const g = legend.append('g')
-      .attr('transform', `translate(${x}, ${y})`);
-    
-    g.append('rect')
-      .attr('width', itemWidth)
-      .attr('height', itemHeight)
-      .attr('fill', item.color);
-    
-    g.append('text')
-      .attr('x', itemWidth + itemMargin)
-      .attr('y', itemHeight / 2)
-      .attr('dy', '0.35em')
-      .text(item.key);
-  });
+    items.forEach((item, i) => {
+      const rowIndex = Math.floor(i / maxItemsPerRow);
+      const colIndex = i % maxItemsPerRow;
+      
+      const x = colIndex * (itemWidth + itemMargin * 4);
+      const y = rowIndex * (itemHeight + itemMargin * 2);
+      
+      const g = itemsContainer.append('g')
+        .attr('class', 'legend-item')
+        .attr('transform', `translate(${x}, ${y})`);
+      
+      g.append('rect')
+        .attr('class', 'legend-item-swatch')
+        .attr('width', itemWidth)
+        .attr('height', itemHeight)
+        .attr('fill', item.color);
+      
+      g.append('text')
+        .attr('class', 'legend-item-label')
+        .attr('x', itemWidth + itemMargin)
+        .attr('y', itemHeight / 2)
+        .attr('dy', '0.35em')
+        .text(item.key);
+    });
+  } else {
+    // Standard horizontal or vertical layout
+    items.forEach((item, i) => {
+      const x = isHorizontal ? i * (itemWidth + itemMargin * 3) : 0;
+      const y = isHorizontal ? 0 : i * (itemHeight + itemMargin);
+      
+      const g = itemsContainer.append('g')
+        .attr('class', 'legend-item')
+        .attr('transform', `translate(${x}, ${y})`);
+      
+      g.append('rect')
+        .attr('class', 'legend-item-swatch')
+        .attr('width', itemWidth)
+        .attr('height', itemHeight)
+        .attr('fill', item.color);
+      
+      g.append('text')
+        .attr('class', 'legend-item-label')
+        .attr('x', itemWidth + itemMargin)
+        .attr('y', itemHeight / 2)
+        .attr('dy', '0.35em')
+        .text(item.key);
+    });
+  }
   
   return legend;
 }

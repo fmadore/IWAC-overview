@@ -10,6 +10,8 @@
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import { useLegend, type LegendItem } from '../../hooks/useLegend';
+    import { D3Service } from '../../services/d3Service';
+    import { createDonutChart, PieChartUtils, type PieChartDataItem, type PieChartResult } from '../../services/pieChart';
 
     // Define interfaces for data structures
     interface LanguageCount {
@@ -27,6 +29,7 @@
     // Filter states
     let selectedCountry: string = 'all';
     let selectedType: string = 'all';
+    let isDonut: boolean = true; // New state to toggle between pie and donut
     
     // Data states
     let languageCounts: LanguageCount[] = [];
@@ -40,12 +43,10 @@
     let width = 0;
     let height = 0;
     let container: HTMLDivElement;
+    let chart: PieChartResult | null = null;
     
     // Reference to BaseVisualization component to access its tooltip functions
     let baseVisualization: BaseVisualization;
-    
-    // Legend hook
-    let legendHook: ReturnType<typeof useLegend>;
     
     // Initialize resize hook after container is bound
     let resizeHook: ReturnType<typeof useD3Resize>;
@@ -220,10 +221,6 @@
                     languageUnsubscribe();
                 }
                 
-                if (legendHook) {
-                    legendHook.cleanup();
-                }
-                
                 if (container) {
                     d3.select(container).selectAll('*').remove();
                 }
@@ -244,10 +241,6 @@
             
             if (languageUnsubscribe) {
                 languageUnsubscribe();
-            }
-            
-            if (legendHook) {
-                legendHook.cleanup();
             }
             
             if (container) {
@@ -339,38 +332,54 @@
     }
 
     // Show tooltip with language information
-    function handleShowTooltip(event: MouseEvent, d: d3.PieArcDatum<LanguageCount>) {
+    function handleShowTooltip(event: MouseEvent, d: d3.PieArcDatum<PieChartDataItem>) {
         if (!baseVisualization) return;
         
         const data = d.data;
-        const languageName = t(`lang.${data.language}`) || data.language;
+        const languageName = t(`lang.${data.key}`) || data.key;
         
         const content = createGridTooltipContent(
             languageName,
             [
-                { label: t('viz.items'), value: formatNumber(data.count) },
-                { label: t('viz.percent_of_total'), value: `${data.percentage.toFixed(2)}%` }
+                { label: t('viz.items'), value: formatNumber(data.value) },
+                { label: t('viz.percent_of_total'), value: `${data.percentage?.toFixed(2) || 0}%` }
             ]
         );
         
         baseVisualization.showTooltip(event, content);
     }
 
-    // Create pie chart visualization
+    // Create pie/donut chart visualization using the new service
     function updateVisualization() {
         if (!container) return;
         
         // Process data
-        const data = processData();
-        languageCounts = data || [];
+        const rawData = processData();
+        languageCounts = rawData || [];
         
-        if (!data || data.length === 0) {
-            d3.select(container).select('svg').remove();
+        if (!rawData || rawData.length === 0) {
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            D3Service.handleNoData(container, t('viz.no_data'));
             return;
         }
         
-        // Clear previous chart
-        d3.select(container).select('svg').remove();
+        // Map data to the format expected by the pie chart service
+        // and translate the language keys
+        const pieData = rawData.map(item => ({
+            key: item.language,
+            label: t(`lang.${item.language}`) || item.language, // Add label with translated language name
+            value: item.count,
+            percentage: item.percentage
+        }));
+        
+        // Clean up previous chart if it exists
+        if (chart) {
+            chart.destroy();
+            chart = null;
+        }
         
         // Get current container dimensions
         const containerRect = container.getBoundingClientRect();
@@ -380,105 +389,30 @@
         // Set margins - reduce margins on mobile
         const isMobile = width < 768;
         const margin = isMobile 
-            ? { top: 10, right: 10, bottom: 10, left: 10 }
-            : { top: 20, right: 20, bottom: 20, left: 20 };
-            
-        const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
+            ? { top: 10, right: 10, bottom: 50, left: 10 } // Increase bottom margin for legend
+            : { top: 20, right: 120, bottom: 20, left: 20 }; // Increase right margin to accommodate legend
         
-        // Calculate radius - ensure it's not too large for container
-        const maxRadius = Math.min(chartWidth, chartHeight) / 2;
-        // For mobile, use a slightly smaller radius to ensure it fits
-        const radius = isMobile ? maxRadius * 0.9 : maxRadius;
-        
-        // Create SVG with responsive viewBox
-        const svg = d3.select(container)
-            .append('svg')
-            .attr('width', '100%')
-            .attr('height', '100%')
-            .attr('viewBox', `0 0 ${width} ${height}`)
-            .attr('preserveAspectRatio', 'xMidYMid meet')
-            .append('g')
-            .attr('transform', `translate(${width / 2}, ${height / 2})`);
-        
-        // Create pie layout
-        const pie = d3.pie<LanguageCount>()
-            .value(d => d.count)
-            .sort(null);
-        
-        // Create arc generator
-        const arc = d3.arc<d3.PieArcDatum<LanguageCount>>()
-            .innerRadius(0)
-            .outerRadius(radius);
-        
-        // Create arc generator for hover effect
-        const arcHover = d3.arc<d3.PieArcDatum<LanguageCount>>()
-            .innerRadius(0)
-            .outerRadius(radius + (isMobile ? 5 : 10)); // Smaller hover effect on mobile
-        
-        // Create pie segments
-        const segments = svg.selectAll('path')
-            .data(pie(data))
-            .enter()
-            .append('path')
-            .attr('class', 'cursor-pointer')
-            .attr('d', arc)
-            .attr('fill', d => colorScale(d.data.language))
-            .attr('stroke', 'white')
-            .attr('stroke-width', isMobile ? 1 : 2) // Thinner stroke on mobile
-            .on('mouseenter', function(event, d) {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('d', (d: any) => arcHover(d as d3.PieArcDatum<LanguageCount>)!);
-                handleShowTooltip(event, d);
-            })
-            .on('mousemove', function(event, d) {
-                handleShowTooltip(event, d);
-            })
-            .on('mouseleave', function(event, d) {
-                d3.select(this)
-                    .transition()
-                    .duration(200)
-                    .attr('d', (d: any) => arc(d as d3.PieArcDatum<LanguageCount>)!);
-                baseVisualization.hideTooltip();
-            });
-        
-        // Update the legend with current data using the useLegend hook
-        if (legendHook) {
-            // Update existing legend
-            const legendItems: LegendItem[] = data.map(d => ({
-                key: d.language,
-                color: colorScale(d.language),
-                value: d.count
-            }));
-            legendHook.update(legendItems);
-        } else {
-            // Create new legend
-            legendHook = useLegend({
-                container,
-                titleTranslationKey: 'viz.languages',
-                items: data.map(d => ({
-                    key: d.language,
-                    color: colorScale(d.language),
-                    value: d.count
-                })),
-                type: 'html',
-                position: 'right',
-                maxItems: isMobile ? 6 : data.length, // Show fewer items on mobile
-                showValues: true,
-                valueFormatter: formatNumber,
-                translateKeys: {
-                    itemPrefix: 'lang.',
-                    othersLabel: 'viz.others'
-                },
-                responsive: true,
-                breakpoint: 768
-            });
-            
-            // Render the legend
-            legendHook.render();
-        }
+        // Create chart with the pieChart service
+        chart = createDonutChart(pieData, {
+            container,
+            width,
+            height,
+            margin,
+            innerRadius: isDonut ? 0.5 : 0, // 0.5 for donut, 0 for pie
+            responsive: true,
+            colorScheme: d3.schemeCategory10,
+            hoverEffectEnabled: true,
+            hoverRadiusIncrease: isMobile ? 5 : 10, // Smaller hover effect on mobile
+            showLegend: true,
+            legendPosition: isMobile ? 'bottom' : 'right',
+            legendTitle: t('viz.languages'),
+            showLabels: false,
+            sortValues: true,
+            sortDescending: true,
+            onMouseEnter: handleShowTooltip,
+            onMouseMove: handleShowTooltip,
+            onMouseLeave: () => baseVisualization.hideTooltip()
+        });
     }
     
     // Handle country filter change
@@ -494,6 +428,12 @@
         const select = event.target as HTMLSelectElement;
         selectedType = select.value;
         generateFacetOptions(); // Regenerate facet options with new filter
+        updateVisualization();
+    }
+    
+    // Handle chart type change
+    function handleChartTypeChange() {
+        isDonut = !isDonut;
         updateVisualization();
     }
     
@@ -532,6 +472,18 @@
                         <option value={option.value}>{option.label} ({formatNumber(option.count)})</option>
                     {/each}
                 </select>
+            </div>
+            
+            <div class="flex flex-col gap-xs filter-group">
+                <label for="chart-type" class="text-xs font-bold text-secondary">{t('viz.chart_type')}:</label>
+                <div class="flex items-center">
+                    <button 
+                        on:click={handleChartTypeChange} 
+                        class="p-xs px-sm rounded-sm border border-solid border-default bg-card text-primary hover:bg-hover"
+                    >
+                        {isDonut ? t('viz.pie_chart') : t('viz.donut_chart')}
+                    </button>
+                </div>
             </div>
             
             <div class="ml-auto flex items-end text-sm text-secondary summary">

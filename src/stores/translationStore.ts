@@ -46,6 +46,9 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.language_distribution_title': 'Language Distribution',
         'viz.language_distribution_items': 'Distribution of {0} items by language',
         'viz.language_distribution_description': 'This visualization shows the distribution of items by language. You can filter by country and item type to explore the language distribution across different segments of the collection.',
+        'viz.chart_type': 'Chart Type',
+        'viz.pie_chart': 'Switch to Pie Chart',
+        'viz.donut_chart': 'Switch to Donut Chart',
         
         // Timeline distribution specific
         'viz.growth_since_april_title': 'Growth Since April 2024',
@@ -206,6 +209,9 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.language_distribution_title': 'Répartition par langue',
         'viz.language_distribution_items': 'Répartition de {0} éléments par langue',
         'viz.language_distribution_description': 'Cette visualisation montre la répartition des éléments par langue. Vous pouvez filtrer par pays et par type d\'élément pour explorer la répartition des langues dans différents segments de la collection.',
+        'viz.chart_type': 'Type de graphique',
+        'viz.pie_chart': 'Passer au graphique en secteurs',
+        'viz.donut_chart': 'Passer au graphique en anneau',
         
         // Timeline distribution specific
         'viz.growth_since_april_title': 'Croissance depuis avril 2024',
