@@ -91,10 +91,13 @@
     // Store unsubscribe functions
     let languageUnsubscribe: () => void;
     
+    // Add legend hook reference
+    let legendHook: ReturnType<typeof useLegend>;
+    
     // Track if component is mounted
     let isMounted = false;
 
-    // Color scale for pie segments
+    // Color scale for pie segments - use the same color scale as the chart will use
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
     // Create reactive translations
@@ -221,6 +224,18 @@
                     languageUnsubscribe();
                 }
                 
+                // Clean up legend hook if it exists
+                if (legendHook) {
+                    legendHook.cleanup();
+                    legendHook = null as unknown as ReturnType<typeof useLegend>;
+                }
+                
+                // Clean up chart if it exists
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+                
                 if (container) {
                     d3.select(container).selectAll('*').remove();
                 }
@@ -241,6 +256,12 @@
             
             if (languageUnsubscribe) {
                 languageUnsubscribe();
+            }
+            
+            // Clean up legend hook if it exists
+            if (legendHook) {
+                legendHook.cleanup();
+                legendHook = null as unknown as ReturnType<typeof useLegend>;
             }
             
             if (container) {
@@ -362,6 +383,13 @@
                 chart.destroy();
                 chart = null;
             }
+            
+            // Clean up legend if it exists
+            if (legendHook) {
+                legendHook.cleanup();
+                legendHook = null as unknown as ReturnType<typeof useLegend>;
+            }
+            
             D3Service.handleNoData(container, t('viz.no_data'));
             return;
         }
@@ -381,6 +409,12 @@
             chart = null;
         }
         
+        // Clean up legend if it exists
+        if (legendHook) {
+            legendHook.cleanup();
+            legendHook = null as unknown as ReturnType<typeof useLegend>;
+        }
+        
         // Get current container dimensions
         const containerRect = container.getBoundingClientRect();
         width = containerRect.width;
@@ -390,7 +424,7 @@
         const isMobile = width < 768;
         const margin = isMobile 
             ? { top: 10, right: 10, bottom: 50, left: 10 } // Increase bottom margin for legend
-            : { top: 20, right: 120, bottom: 20, left: 20 }; // Increase right margin to accommodate legend
+            : { top: 20, right: 20, bottom: 20, left: 20 }; // Use symmetrical margins for the chart
         
         // Create chart with the pieChart service
         chart = createDonutChart(pieData, {
@@ -400,12 +434,10 @@
             margin,
             innerRadius: isDonut ? 0.5 : 0, // 0.5 for donut, 0 for pie
             responsive: true,
-            colorScheme: d3.schemeCategory10,
+            colorScheme: d3.schemeCategory10, // Use the same color scheme as our colorScale
             hoverEffectEnabled: true,
             hoverRadiusIncrease: isMobile ? 5 : 10, // Smaller hover effect on mobile
-            showLegend: true,
-            legendPosition: isMobile ? 'bottom' : 'right',
-            legendTitle: t('viz.languages'),
+            showLegend: false, // Don't show the built-in legend
             showLabels: false,
             sortValues: true,
             sortDescending: true,
@@ -413,6 +445,55 @@
             onMouseMove: handleShowTooltip,
             onMouseLeave: () => baseVisualization.hideTooltip()
         });
+        
+        // Create custom legend using useLegend hook
+        if (chart) {
+            // Create legend items from pieData using the same colorScale as the chart
+            const legendItems: LegendItem[] = pieData.map(item => ({
+                key: item.key, 
+                label: item.label,
+                color: colorScale(item.key), // Use the same colorScale instance for consistent colors
+                value: item.value,
+                visible: true
+            }));
+            
+            // Initialize legend hook
+            legendHook = useLegend({
+                container,
+                title: t('viz.languages'),
+                items: legendItems,
+                type: 'html',
+                position: 'bottom',
+                orientation: 'horizontal',
+                className: 'multi-row-legend',
+                showValues: true,
+                valueFormatter: (value) => formatNumber(value),
+                translateKeys: {
+                    itemPrefix: 'lang.',
+                },
+                responsive: true,
+                breakpoint: 768,
+                interactive: true,
+                onItemClick: (item) => {
+                    // Currently, pie chart doesn't support toggling slices
+                    // This could be enhanced later
+                    console.log(`Clicked on ${item.label}`);
+                }
+            });
+            
+            // Render the legend
+            legendHook.render();
+            
+            // Adjust SVG height to accommodate the legend
+            const rowCount = Math.ceil(pieData.length / 5); // Assume about 5 items per row
+            const legendHeight = rowCount * 22 + 30; // Approximate height per row + padding
+            
+            // Find the SVG and adjust its height
+            const svg = d3.select(container).select('svg');
+            if (!svg.empty()) {
+                svg.attr('height', height + legendHeight + 30); // Add extra padding for legend
+            }
+        }
     }
     
     // Handle country filter change
@@ -493,7 +574,7 @@
             </div>
         </div>
         
-        <div class="flex-1 relative min-h-500 bg-card rounded-b shadow overflow-hidden p-md pie-container" bind:this={container}>
+        <div class="chart-container" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -507,6 +588,27 @@
     /* Only keep styles that can't be achieved with utility classes */
     .filter-group {
         min-width: 200px;
+    }
+    
+    /* Add chart container styles to match TypeDistribution */
+    .chart-container {
+        flex: 1;
+        position: relative;
+        background: var(--color-bg-card);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        min-height: 450px;
+        max-height: 600px;
+        height: auto;
+        padding: var(--spacing-md);
+    }
+    
+    /* Add styling for centered elements */
+    :global(.inset-center) {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
     
     /* Responsive adjustments */
