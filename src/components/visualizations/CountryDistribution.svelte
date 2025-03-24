@@ -9,6 +9,7 @@
     import { subcollectionCategories, subcollectionMapping, getCategoryForSubcollection, getTranslatedCategoryName } from '../../types/SubcollectionCategories';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
+    import BreadcrumbNavigation from '../ui/BreadcrumbNavigation.svelte';
 
     // Move all the interface definitions to the top
     interface Item {
@@ -43,6 +44,14 @@
     let searchQuery = '';
     let showLabels = true;
     
+    // Keep a reference to all country nodes for direct access in breadcrumb navigation
+    let countryNodesMap: Map<string, d3.HierarchyNode<HierarchyDatum>> = new Map();
+    
+    // Breadcrumb navigation items
+    let breadcrumbItems: { id: string | null; label: string }[] = [
+        { id: null, label: t('viz.all_countries') }
+    ];
+    
     // Store country colors to maintain consistency when zooming
     let countryColors: Map<string, string> = new Map();
     // Store category colors to maintain consistency
@@ -58,6 +67,7 @@
     const percentTotalText = translate('viz.percent_of_total');
     const clickZoomInText = translate('viz.click_zoom_in');
     const backToAllText = translate('viz.back_to_all');
+    const allCountriesText = translate('viz.all_countries');
     const unknownText = translate('viz.unknown');
     const noSetText = translate('viz.no_set');
     const summaryText = translate('viz.summary');
@@ -171,6 +181,9 @@
                     
                     if (container) {
                         updateTitleHtml();
+                        
+                        // Update root breadcrumb text
+                        breadcrumbItems[0].label = t('viz.all_countries');
                         
                         if ($itemsStore.items && $itemsStore.items.length > 0) {
                             const currentZoomedNode = zoomedNode;
@@ -321,7 +334,7 @@
                     name: translatedCountry,
                     children: nonEmptyCategories,
                     itemCount: countryNode.value,
-                    originalName: countryNode.name
+                    originalName: countryNode.name // Ensure originalName is always the non-translated name
                 };
             })
         };
@@ -353,8 +366,53 @@
     function zoomToNode(node: d3.HierarchyNode<HierarchyDatum> | null) {
         zoomedNode = node as d3.HierarchyRectangularNode<HierarchyDatum> | null;
         
-        // When zooming to a node, ensure it has proper hierarchy data
+        // Update breadcrumb items based on current zoom
         if (zoomedNode) {
+            const isCountry = !zoomedNode.data.isCategory;
+            const isCategory = zoomedNode.data.isCategory;
+            
+            // Reset breadcrumb
+            breadcrumbItems = [
+                { id: null, label: t('viz.all_countries') }
+            ];
+            
+            // Add country level if applicable
+            if (isCategory) {
+                // If we're at a category level, add the parent country first
+                const countryNode = zoomedNode.parent;
+                if (countryNode) {
+                    // For countries, ALWAYS use originalName as the ID (important for correct navigation)
+                    breadcrumbItems.push({
+                        id: countryNode.data.originalName || null,
+                        label: countryNode.data.name
+                    });
+                    console.log("Added country to breadcrumb:", countryNode.data.name, "with ID:", countryNode.data.originalName);
+                }
+            } else {
+                // If we're at country level, no need to add additional breadcrumb item
+                // for the country, as it will be added below
+            }
+            
+            // Add the current node with proper handling for category names
+            if (isCategory && zoomedNode.data.categoryId) {
+                // For categories, we want to use the translated category name
+                const categoryId = zoomedNode.data.categoryId;
+                const categoryName = getTranslatedCategoryName(categoryId, currentLang);
+                
+                breadcrumbItems.push({
+                    id: zoomedNode.data.categoryId || null, // Use category ID as the ID with null fallback
+                    label: categoryName
+                });
+                console.log("Added category to breadcrumb:", categoryName, "with ID:", zoomedNode.data.categoryId);
+            } else {
+                // For countries, use the node name directly
+                breadcrumbItems.push({
+                    id: zoomedNode.data.originalName || null, // Use original name as the ID with null fallback
+                    label: zoomedNode.data.name
+                });
+                console.log("Added item to breadcrumb:", zoomedNode.data.name, "with ID:", zoomedNode.data.originalName);
+            }
+            
             // Check if the node has children to zoom into
             if (!zoomedNode.children || zoomedNode.children.length === 0) {
                 console.warn('Cannot zoom to node without children');
@@ -387,6 +445,11 @@
                 categoryCount = 1; // We're zoomed into a single category
             }
         } else {
+            // Reset breadcrumb to just the root level when zooming out
+            breadcrumbItems = [
+                { id: null, label: t('viz.all_countries') }
+            ];
+            
             // Reset to global statistics when zooming out
             if ($itemsStore.items && $itemsStore.items.length > 0) {
                 // Reprocess data to get fresh statistics
@@ -421,6 +484,52 @@
         updateVisualization();
     }
 
+    // Handle breadcrumb navigation
+    function handleBreadcrumbNavigation(event: CustomEvent<{ id: string | null }>) {
+        const { id } = event.detail;
+        
+        console.log("Breadcrumb navigation requested for ID:", id);
+        
+        // Root level navigation - show all countries
+        if (id === null) {
+            console.log("Navigating to root view");
+            zoomToNode(null);
+            return;
+        }
+        
+        // Direct lookup for countries using the map
+        if (countryNodesMap.has(id)) {
+            const countryNode = countryNodesMap.get(id);
+            console.log("Found country node in map:", countryNode?.data.name);
+            zoomToNode(countryNode || null);
+            return;
+        }
+        
+        // Category navigation
+        // If we're at root level and looking for a category
+        if (root) {
+            // Search through all country nodes for the category
+            for (const countryNode of countryNodesMap.values()) {
+                if (!countryNode.children) continue;
+                
+                // Look for a category node that matches the ID
+                const categoryNode = countryNode.children.find(category => 
+                    category.data.categoryId === id || 
+                    category.data.originalName === id || 
+                    category.data.name === id
+                );
+                
+                if (categoryNode) {
+                    console.log("Found category node:", categoryNode.data.name, "in country:", countryNode.data.name);
+                    zoomToNode(categoryNode);
+                    return;
+                }
+            }
+        }
+        
+        console.log("Could not find a node matching ID:", id);
+    }
+
     // Create or update the visualization
     function updateVisualization() {
         try {
@@ -429,8 +538,13 @@
                 return;
             }
             
-            // Set margins first - reduce top margin to decrease space
-            const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+            // Set margins - add extra top margin if showing breadcrumbs
+            const margin = { 
+                top: 30, // Always keep space for breadcrumb navigation
+                right: 10, 
+                bottom: 10, 
+                left: 10 
+            };
             
             // Get fresh data if not zoomed
             if (!zoomedNode) {
@@ -467,27 +581,7 @@
                 .attr('transform', `translate(${margin.left}, ${margin.top})`);
                 
             // If zoomed in, add a button to zoom out but outside the title area
-            if (zoomedNode) {
-                const button = chart.append('g')
-                    .attr('class', 'zoom-out-button cursor-pointer')
-                    .attr('transform', `translate(0, 0)`)
-                    .on('click', () => zoomToNode(null));
-                    
-                button.append('rect')
-                    .attr('width', 100)
-                    .attr('height', 20)
-                    .attr('rx', 4)
-                    .attr('fill', 'var(--color-primary)')
-                    .attr('opacity', 0.8);
-                    
-                button.append('text')
-                    .attr('x', 50)
-                    .attr('y', 14)
-                    .attr('text-anchor', 'middle')
-                    .attr('fill', 'white')
-                    .attr('font-size', 'var(--font-size-sm)')
-                    .text($backToAllText);
-            }
+            // Removed the Back button - now using breadcrumb navigation instead
             
             // Create treemap layout
             const treemap = d3.treemap<HierarchyDatum>()
@@ -517,6 +611,15 @@
                 localRoot = d3.hierarchy<HierarchyDatum>(hierarchyData)
                     .sum(d => d.value || 0)
                     .sort((a, b) => (b.value || 0) - (a.value || 0));
+                
+                // Store all country nodes in the map for direct access in breadcrumb navigation
+                countryNodesMap.clear();
+                if (localRoot.children) {
+                    localRoot.children.forEach(countryNode => {
+                        const key = countryNode.data.originalName || countryNode.data.name;
+                        countryNodesMap.set(key, countryNode);
+                    });
+                }
             }
             
             // Update the global root variable
@@ -1100,6 +1203,19 @@
                 <div class="no-data absolute inset-center text-secondary">{$noDataText}</div>
             {:else if !container}
                 <div class="loading absolute inset-center text-secondary">Initializing visualization...</div>
+            {:else}
+                <!-- Always show breadcrumb navigation, use a style similar to TreemapService -->
+                <div class="breadcrumb-wrapper absolute top-0 left-0 right-0 bg-white bg-opacity-90 p-xs z-10 shadow-sm" style="height: 30px;">
+                    <div class="px-sm py-xs">
+                        <BreadcrumbNavigation 
+                            items={breadcrumbItems} 
+                            on:navigate={handleBreadcrumbNavigation} 
+                            separator="/"
+                            navItemClass="text-sm hover:text-primary transition-colors cursor-pointer font-medium"
+                            activeItemClass="text-primary font-bold"
+                        />
+                    </div>
+                </div>
             {/if}
         </div>
         
@@ -1114,7 +1230,6 @@
                 <p class="text-sm text-secondary mb-xs">{$subCollectionsText}: <strong class="font-medium">{formatNumber(subCollectionCount)}</strong></p>
                 {#if zoomedNode}
                     <p class="text-sm text-secondary mb-xs">{$currentlyViewingText}: <strong class="font-medium">{zoomedNode.data.name}</strong></p>
-                    <p class="text-sm text-secondary mb-xs">{$clickBackText}</p>
                 {:else}
                     <p class="text-sm text-secondary mb-xs">{$clickZoomInText}</p>
                 {/if}
