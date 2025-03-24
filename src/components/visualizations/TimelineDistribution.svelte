@@ -64,6 +64,31 @@
         }
     });
     
+    // Additional hooks for facet generation
+    const countryFacetHook = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['created_date'],
+        filterFn: (item: OmekaItem) => {
+            // When generating country options, only apply type filter and date filter
+            if (!item.created_date) return false;
+            const itemDate = new Date(item.created_date);
+            if (isNaN(itemDate.getTime()) || itemDate < new Date(2024, 3, 1)) return false;
+            return selectedType === 'all' || item.type === selectedType;
+        }
+    });
+    
+    const typeFacetHook = useDataProcessing({
+        filterMissingValues: true,
+        requiredFields: ['created_date'],
+        filterFn: (item: OmekaItem) => {
+            // When generating type options, only apply country filter and date filter
+            if (!item.created_date) return false;
+            const itemDate = new Date(item.created_date);
+            if (isNaN(itemDate.getTime()) || itemDate < new Date(2024, 3, 1)) return false;
+            return selectedCountry === 'all' || item.country === selectedCountry;
+        }
+    });
+    
     // Store unsubscribe functions
     let languageUnsubscribe: () => void;
     
@@ -408,6 +433,7 @@
     function handleCountryChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedCountry = select.value;
+        generateFacetOptions(); // Regenerate facets when filter changes
         debounceUpdate();
     }
     
@@ -415,6 +441,7 @@
     function handleTypeChange(event: Event) {
         const select = event.target as HTMLSelectElement;
         selectedType = select.value;
+        generateFacetOptions(); // Regenerate facets when filter changes
         debounceUpdate();
     }
     
@@ -491,32 +518,27 @@
     function generateFacetOptions() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) return;
         
-        // Define the start date (April 2024)
-        const startDate = new Date(2024, 3, 1);
+        console.log('[TimelineDistribution] Generating facet options with filters:', 
+            { country: selectedCountry, type: selectedType });
         
-        // Filter items after April 2024 without applying country/type filters
-        const { filterItems: filterItemsWithoutFacets } = useDataProcessing({
-            filterMissingValues: true,
-            requiredFields: ['created_date']
-        });
+        // Filter items for country facet (apply only type filter)
+        const itemsForCountryFacet = countryFacetHook.filterItems($itemsStore.items);
         
-        const filteredItems = filterItemsWithoutFacets($itemsStore.items).filter(item => {
-            if (!item.created_date) return false;
-            const itemDate = new Date(item.created_date);
-            return !isNaN(itemDate.getTime()) && itemDate >= startDate;
-        });
-
-        console.log('[TimelineDistribution] Filtered items for facets:', filteredItems.length);
-
-        // Generate country options using groupAndCount
-        const countryData = groupAndCount(
-            filteredItems,
+        // Filter items for type facet (apply only country filter)
+        const itemsForTypeFacet = typeFacetHook.filterItems($itemsStore.items);
+        
+        console.log('[TimelineDistribution] Items for country facets:', itemsForCountryFacet.length);
+        console.log('[TimelineDistribution] Items for type facets:', itemsForTypeFacet.length);
+        
+        // Generate country options
+        const countryData = countryFacetHook.groupAndCount(
+            itemsForCountryFacet,
             item => item.country || 'Unknown',
-            filteredItems.length
+            itemsForCountryFacet.length
         );
 
         countryOptions = [
-            { value: 'all', label: t('country.all'), count: filteredItems.length },
+            { value: 'all', label: t('country.all'), count: itemsForCountryFacet.length },
             ...countryData
                 .filter(item => item.key !== 'Unknown')
                 .map(item => ({
@@ -527,17 +549,17 @@
                 .sort((a, b) => b.count - a.count)
         ];
 
-        // Generate type options using groupAndCount
-        const typeData = groupAndCount(
-            filteredItems,
+        // Generate type options
+        const typeData = typeFacetHook.groupAndCount(
+            itemsForTypeFacet,
             item => item.type || 'Unknown',
-            filteredItems.length
+            itemsForTypeFacet.length
         );
 
         typeOptions = [
-            { value: 'all', label: t('type.all'), count: filteredItems.length },
+            { value: 'all', label: t('type.all'), count: itemsForTypeFacet.length },
             ...typeData
-                .filter(item => item.key !== 'Unknown')
+                .filter(item => item.key !== 'Unknown' && item.count > 0)  // Filter out empty categories
                 .map(item => ({
                     value: item.key,
                     label: t(`type.${item.key}`),
@@ -545,6 +567,11 @@
                 }))
                 .sort((a, b) => b.count - a.count)
         ];
+        
+        console.log('[TimelineDistribution] Updated facet options:', { 
+            countryOptions: countryOptions.length,
+            typeOptions: typeOptions.length
+        });
     }
 
     // Update when filters change, but only if initialized
