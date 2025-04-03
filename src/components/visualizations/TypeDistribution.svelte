@@ -651,11 +651,10 @@
             // Render the legend
             legendHook.render();
             
-            // Set appropriate SVG height to accommodate the chart and legend
-            // Estimate legend height based on number of types
-            const rowCount = Math.ceil(typeCounts.length / 5); // Assume about 5 items per row
-            const legendHeight = rowCount * 22 + 30; // Approximate height per row + padding
-            svg.attr('height', height + legendHeight + 30); // Add extra padding for legend
+            // Set appropriate SVG height to accommodate the chart
+            // The height variable already accounts for the chart area and margins.
+            // The legend is rendered outside the SVG, so no extra height is needed here.
+            svg.attr('height', height);
             
         } catch (error) {
             console.error('Error updating visualization:', error);
