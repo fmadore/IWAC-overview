@@ -27,8 +27,8 @@ const itemsStore = {
         // Create new load promise
         loadPromise = (async () => {
             try {
-                const basePath = import.meta.env.DEV ? '' : '/IWAC-overview';
-                const response = await fetch(`${basePath}/items.json`);
+                // Use Vite's built-in BASE_URL which respects the 'base' config
+                const response = await fetch(`${import.meta.env.BASE_URL}items.json`);
                 const items = await response.json();
                 set({ items, loading: false, error: null });
                 return items;
