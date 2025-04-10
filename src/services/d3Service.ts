@@ -207,9 +207,10 @@ export function renderAxis(selection: d3.Selection<SVGGElement, unknown, null, u
   // Apply text rotation if specified
   if (rotate) {
     selection.selectAll('text')
-      .style('text-anchor', rotate > 45 ? 'end' : 'middle')
-      .attr('dy', rotate > 45 ? '0.15em' : '0.35em')
-      .attr('dx', rotate > 45 ? '-0.8em' : '0')
+      // Adjust logic for negative rotation
+      .style('text-anchor', rotate < 0 ? 'end' : (rotate > 0 ? 'start' : 'middle')) 
+      .attr('dx', rotate < 0 ? '-0.8em' : (rotate > 0 ? '0.8em' : '0'))
+      .attr('dy', rotate !== 0 ? '0.15em' : '0.71em') // Use 0.15em for rotated, adjust default dy slightly if needed
       .attr('transform', `rotate(${rotate})`);
   }
 }

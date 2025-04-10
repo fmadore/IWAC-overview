@@ -228,8 +228,8 @@
                 barCornerRadius: 3,
                 xAxisLabel: t('viz.categories'),
                 yAxisLabel: t('viz.number_of_items'),
-                // Make rotation even steeper to avoid overlapping
-                xAxisRotation: -75,
+                // Change rotation to -45 degrees
+                xAxisRotation: -45,
                 // Limit the number of ticks based on available width
                 xAxisTicks: Math.max(3, Math.floor(width / 120)),
                 yAxisTicks: isMobile ? 3 : 5,
@@ -388,13 +388,6 @@
     :global(.index-distribution-chart text) {
         font-family: var(--font-family-base);
         font-size: var(--font-size-xs);
-    }
-    
-    :global(.index-distribution-chart .x-axis text) {
-        text-anchor: end;
-        font-size: var(--font-size-xs);
-        fill: var(--color-text-secondary);
-        transform: translateY(5px); /* Move text down a bit to avoid cutting off */
     }
     
     :global(.index-distribution-chart .y-axis text) {

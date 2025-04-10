@@ -207,7 +207,7 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
                 .attr('class', 'x-axis-label')
                 .attr('text-anchor', 'middle')
                 .attr('x', chartWidth / 2)
-                .attr('y', chartHeight + (isMobile ? margin.bottom * 0.5 : margin.bottom * 0.4))
+                .attr('y', chartHeight + (isMobile ? margin.bottom * 0.6 : margin.bottom * 0.7))
                 .text(xAxisLabel);
         }
     }
