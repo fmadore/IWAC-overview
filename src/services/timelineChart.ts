@@ -299,7 +299,7 @@ export class TimelineChart {
             chart1.append('text')
                 .attr('class', 'text-xs text-secondary')
                 .attr('transform', 'rotate(-90)')
-                .attr('y', -40)
+                .attr('y', -50)
                 .attr('x', -chartHeight / 2)
                 .attr('text-anchor', 'middle')
                 .text(translations?.monthlyAdditions || 'Monthly Additions');
@@ -464,7 +464,7 @@ export class TimelineChart {
             chart2.append('text')
                 .attr('class', 'text-xs text-secondary')
                 .attr('transform', 'rotate(-90)')
-                .attr('y', -40)
+                .attr('y', -50)
                 .attr('x', -chartHeight / 2)
                 .attr('text-anchor', 'middle')
                 .text(translations?.totalItems || 'Total Items');

@@ -58,6 +58,7 @@
         sortByCount: true,
         sortDescending: true,
         filterFn: (item: OmekaItem) => {
+            if (item.type === "Notice d'autorité") return false;
             if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
             if (selectedType !== 'all' && item.type !== selectedType) return false;
             return true;
@@ -69,7 +70,7 @@
         filterMissingValues: true,
         requiredFields: ['created_date'],
         filterFn: (item: OmekaItem) => {
-            // When generating country options, only apply type filter and date filter
+            if (item.type === "Notice d'autorité") return false;
             if (!item.created_date) return false;
             const itemDate = new Date(item.created_date);
             if (isNaN(itemDate.getTime()) || itemDate < new Date(2024, 3, 1)) return false;
@@ -81,7 +82,7 @@
         filterMissingValues: true,
         requiredFields: ['created_date'],
         filterFn: (item: OmekaItem) => {
-            // When generating type options, only apply country filter and date filter
+            if (item.type === "Notice d'autorité") return false;
             if (!item.created_date) return false;
             const itemDate = new Date(item.created_date);
             if (isNaN(itemDate.getTime()) || itemDate < new Date(2024, 3, 1)) return false;
@@ -146,22 +147,25 @@
     }
 
     // Update title immediately when items count changes
-    $: {
-        if ($itemsStore.items && $itemsStore.items.length > 0) {
-            console.log('[TimelineDistribution] Items loaded, updating title');
-            totalItems = $itemsStore.items.filter(item => {
-                // Apply country filter if not 'all'
-                if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
-                
-                // Apply type filter if not 'all'
-                if (selectedType !== 'all' && item.type !== selectedType) return false;
-                
-                return true;
-            }).length;
-            
-            updateTitleHtml();
-        }
-    }
+    // $: {
+    //     if ($itemsStore.items && $itemsStore.items.length > 0) {
+    //         console.log('[TimelineDistribution] Items loaded, updating title');
+    //         totalItems = $itemsStore.items.filter(item => {
+    //             // Exclude specific type globally
+    //             if (item.type === "Notice d'autorité") return false;
+    //
+    //             // Apply country filter if not 'all'
+    //             if (selectedCountry !== 'all' && item.country !== selectedCountry) return false;
+    //             
+    //             // Apply type filter if not 'all'
+    //             if (selectedType !== 'all' && item.type !== selectedType) return false;
+    //             
+    //             return true;
+    //         }).length;
+    //         
+    //         updateTitleHtml();
+    //     }
+    // }
 
     // Update title when language changes
     $: $languageStore, updateTitleHtml();
@@ -412,6 +416,9 @@
             // Render the chart
             timelineChart.render(data);
             console.log('[TimelineDistribution] Chart rendered with', data.length, 'data points');
+            
+            // Update the title HTML after data processing is complete
+            updateTitleHtml();
         } catch (error) {
             console.error('[TimelineDistribution] Error updating visualization:', error);
             
