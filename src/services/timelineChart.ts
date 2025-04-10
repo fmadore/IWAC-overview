@@ -264,13 +264,14 @@ export class TimelineChart {
             .attr('stroke-width', 0.5);
             
         // Create x-axis for monthly chart
+        const numTicks = Math.max(2, Math.floor(chartWidth / (isMobile ? 60 : 80))); // Dynamic ticks
         const xAxis = d3.axisBottom(xScale)
-            .ticks(isMobile ? 6 : 12)
-            .tickFormat(d => {
+            .ticks(numTicks)
+            .tickFormat(d => { // Locale-aware formatting
                 const date = d as Date;
-                return isMobile ? 
-                    `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2)}` : 
-                    d3.timeFormat('%Y-%m')(date);
+                return currentLang === 'fr' ? 
+                    date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }) : 
+                    d3.timeFormat("%b '%y")(date);
             });
         
         chart1.append('g')
@@ -429,19 +430,20 @@ export class TimelineChart {
             .attr('stroke-width', 0.5);
             
         // Create x-axis for total chart
-        const xAxis = d3.axisBottom(xScale)
-            .ticks(isMobile ? 6 : 12)
-            .tickFormat(d => {
+        const numTicksTotal = Math.max(2, Math.floor(chartWidth / (isMobile ? 60 : 80))); // Dynamic ticks
+        const xAxisTotal = d3.axisBottom(xScale)
+            .ticks(numTicksTotal)
+            .tickFormat(d => { // Locale-aware formatting
                 const date = d as Date;
-                return isMobile ? 
-                    `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2)}` : 
-                    d3.timeFormat('%Y-%m')(date);
+                return currentLang === 'fr' ? 
+                    date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }) : 
+                    d3.timeFormat("%b '%y")(date);
             });
         
         chart2.append('g')
             .attr('class', 'x-axis')
             .attr('transform', `translate(0, ${chartHeight})`)
-            .call(xAxis)
+            .call(xAxisTotal)
             .selectAll('text')
             .attr('class', 'text-xs text-primary')
             .attr('text-anchor', 'end')
