@@ -51,6 +51,8 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.donut_chart': 'Switch to Donut Chart',
         
         // Timeline distribution specific
+        'viz.items_added_since_april': 'Added {0} items since April 2024',
+        'viz.items_added_since_april_title': 'Growth since April 2024',
         'viz.growth_since_april_title': 'Growth Since April 2024',
         'viz.growth_since_april': 'Growth of {0} items since April 2024',
         'viz.growth_since_april_description': 'This visualization shows the growth of the database since April 2024. The blue line represents monthly additions, while the green dotted line shows the cumulative total. You can filter by country and item type to explore growth patterns.',
@@ -215,6 +217,8 @@ const translations: Record<Language, Record<string, string>> = {
         'viz.donut_chart': 'Passer au graphique en anneau',
         
         // Timeline distribution specific
+        'viz.items_added_since_april': '{0} éléments ajoutés depuis avril 2024',
+        'viz.items_added_since_april_title': 'Croissance depuis avril 2024',
         'viz.growth_since_april_title': 'Croissance depuis avril 2024',
         'viz.growth_since_april': 'Croissance de {0} éléments depuis avril 2024',
         'viz.growth_since_april_description': 'Cette visualisation montre la croissance de la base de données depuis avril 2024. La ligne bleue représente les ajouts mensuels, tandis que la ligne pointillée verte montre le total cumulatif. Vous pouvez filtrer par pays et par type d\'élément pour explorer les modèles de croissance.',

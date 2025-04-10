@@ -30,6 +30,7 @@
     let countryOptions: FacetOption[] = [];
     let typeOptions: FacetOption[] = [];
     let totalItems: number = 0;
+    let growthSinceStart: number = 0;
     let maxMonthlyCount: number = 0;
     let maxTotalCount: number = 0;
     let currentLang: 'en' | 'fr' = 'en';
@@ -128,15 +129,15 @@
     
     // Function to get the title with the current count
     function getTitle() {
-        // Only show count if we have data
-        if (totalItems > 0) {
+        // Only show count if we have data and growth is positive
+        if (growthSinceStart > 0) {
             // Format the number with spaces as thousands separator
-            const formattedCount = formatNumber(totalItems);
-            // Use the current language's translation with the formatted count
-            return t('viz.growth_since_april', { '0': formattedCount });
+            const formattedGrowth = formatNumber(growthSinceStart);
+            // Use the new translation key with the formatted growth
+            return t('viz.items_added_since_april', { '0': formattedGrowth });
         } else {
-            // Use the basic title without count when data isn't loaded yet
-            return t('viz.growth_since_april_title');
+            // Use a corresponding basic title when data isn't loaded yet or growth is zero/negative
+            return t('viz.items_added_since_april_title');
         }
     }
     
@@ -473,7 +474,7 @@
             const startDate = new Date(2024, 3, 1);
             
             // Define the initial baseline count (previously added items before April 2024)
-            const initialBaseline = 8000; // Starting baseline count
+            const initialBaseline = 8874; // Updated baseline count
             
             // Log a few sample dates to help with debugging
             if ($itemsStore.items.length > 0) {
@@ -509,6 +510,8 @@
 
             // Update total items count, including the initial baseline
             totalItems = timelineData[timelineData.length - 1]?.total || initialBaseline;
+            // Calculate the growth since the start date
+            growthSinceStart = totalItems - initialBaseline;
 
             // Calculate max values for scaling
             maxMonthlyCount = Math.max(...timelineData.map(d => d.count));
