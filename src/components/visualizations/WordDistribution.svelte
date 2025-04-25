@@ -7,10 +7,12 @@
     import { t, translate, languageStore } from '../../stores/translationStore';
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
     import BaseVisualization from './BaseVisualization.svelte';
+    import WordDistributionSummary from './WordDistributionSummary.svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import TreemapService, { type TreemapNode, type TreemapOptions } from '../../services/treemap';
+    import { createWordDistributionHierarchy } from '../../utils/dataTransformers';
 
     const COMPONENT_ID = 'WordDistributionRefactored';
     let isMounted = false;
@@ -24,6 +26,7 @@
     let totalItems = 0;
     let hierarchyData: TreemapNode = { name: 'root', children: [] };
     let zoomedNode: d3.HierarchyNode<TreemapNode> | null = null;
+    let grandTotalWordCount = 0;
     let titleHtml = '';
     let currentLang: 'en' | 'fr' = 'en';
     // Store country colors to maintain consistency when zooming
@@ -47,10 +50,7 @@
     const unknownText = translate('viz.unknown');
     const noSetText = translate('viz.no_set');
     const backToAllText = translate('viz.back_to_all');
-    const currentlyViewingText = translate('viz.currently_viewing');
-    const clickBackText = translate('viz.click_back_to_return');
     const totalItemsWithWordCountText = translate('viz.total_items_with_word_count');
-    const summaryText = translate('viz.summary');
     const wordsText = translate('viz.words');
     const itemsText = translate('viz.items');
     const percentOfCountryText = translate('viz.percent_of_country');
@@ -58,12 +58,11 @@
     const itemSetSummaryText = translate('viz.item_set_summary');
 
     // Initialize data processing hook
-    const { filterItems, groupAndCount, groupHierarchically } = useDataProcessing({
+    const { filterItems } = useDataProcessing({
         filterMissingValues: true,
         requiredFields: ['word_count', 'country'],
-        calculatePercentages: true,
-        sortByCount: true,
-        sortDescending: true
+        filterFn: (item: OmekaItem): boolean => 
+            !!(item.word_count !== undefined && item.word_count > 0 && item.country)
     });
 
     // Function to format numbers with spaces as thousands separator
@@ -97,105 +96,26 @@
         }
     }
 
-    // Process data
-    function processData() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) return { name: 'root', children: [] };
-        
-        // Create filter function for the data processing hook
-        const filterFn = (item: OmekaItem) => {
-            // Must have word_count field and it must be greater than 0
-            if (item.word_count === undefined || item.word_count === 0) return false;
-            // Must have a valid country value
-            if (!item.country) return false;
-            return true;
-        };
-
-        // Initialize data processing with the filter
-        const { filterItems: processWithFilter } = useDataProcessing({
-            filterMissingValues: true,
-            requiredFields: ['word_count', 'country'],
-            filterFn
-        });
-
-        // Filter items
-        const filteredItems = processWithFilter($itemsStore.items);
-        
-        // Update total counts
-        totalItems = filteredItems.length;
-        totalWordCount = filteredItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
-        
-        // Update title HTML
-        updateTitleHtml();
-        
-        // Create hierarchical structure manually to correctly calculate word counts
-        const countryMap = new Map<string, {
-            words: number, 
-            items: number, 
-            sets: Map<string, {words: number, items: number}>
-        }>();
-        
-        // First pass: group and sum word counts by country and set
-        filteredItems.forEach(item => {
-            const country = item.country || 'Unknown';
-            const set = item.item_set_title || 'No Set';
-            const wordCount = item.word_count || 0;
-            
-            // Initialize or update country data
-            if (!countryMap.has(country)) {
-                countryMap.set(country, {
-                    words: 0,
-                    items: 0,
-                    sets: new Map()
-                });
-            }
-            
-            const countryData = countryMap.get(country)!;
-            countryData.words += wordCount;
-            countryData.items += 1;
-            
-            // Initialize or update set data
-            if (!countryData.sets.has(set)) {
-                countryData.sets.set(set, {
-                    words: 0,
-                    items: 0
-                });
-            }
-            
-            const setData = countryData.sets.get(set)!;
-            setData.words += wordCount;
-            setData.items += 1;
-        });
-        
-        // Convert to hierarchical structure
-        const root: TreemapNode = {
-            name: 'Word Distribution',
-            children: Array.from(countryMap.entries()).map(([countryName, countryData]) => ({
-                name: countryName,
-                wordCount: countryData.words,
-                itemCount: countryData.items,
-                children: Array.from(countryData.sets.entries()).map(([setName, setData]) => ({
-                    name: setName,
-                    value: setData.words, // Use word count as value for treemap sizing
-                    wordCount: setData.words,
-                    itemCount: setData.items
-                }))
-            }))
-        };
-
-        // Ensure children array exists before sorting
-        if (root.children) {
-            // Sort countries by word count descending
-            root.children.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
-
-            // Sort item sets within each country by word count descending
-            root.children.forEach(country => {
-                if (country.children) {
-                    country.children.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
-                }
-            });
+    // Process data using the external transformer
+    function prepareVisualizationData() {
+        if (!$itemsStore.items || $itemsStore.items.length === 0) {
+            totalItems = 0;
+            totalWordCount = 0;
+            updateTitleHtml();
+            return { name: 'root', children: [] };
         }
+
+        const hierarchy = createWordDistributionHierarchy($itemsStore.items);
+
+        // Recalculate totals based on the processed hierarchy root
+        totalItems = hierarchy.children?.reduce((sum, country) => sum + (country.itemCount || 0), 0) || 0;
+        totalWordCount = hierarchy.children?.reduce((sum, country) => sum + (country.wordCount || 0), 0) || 0;
         
-        return root;
+        // Store the grand total when data is first processed
+        grandTotalWordCount = totalWordCount;
+
+        updateTitleHtml();
+        return hierarchy;
     }
 
     // Zoom to a node
@@ -213,9 +133,7 @@
             // Reset to global statistics when zooming out
             if ($itemsStore.items && $itemsStore.items.length > 0) {
                 // Use filterItems from the hook to get filtered items
-                const filteredItems = filterItems($itemsStore.items).filter(item => 
-                    item.word_count !== undefined && item.word_count > 0 && item.country
-                );
+                const filteredItems = filterItems($itemsStore.items);
                 
                 totalItems = filteredItems.length;
                 totalWordCount = filteredItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
@@ -246,8 +164,8 @@
             const percentOfCountry = countryWordCount && countryWordCount > 0 ? 
                 ((wordCount / countryWordCount) * 100).toFixed(1) + '%' : 'N/A';
                 
-            const percentOfTotal = totalWordCount > 0 ? 
-                ((wordCount / totalWordCount) * 100).toFixed(1) + '%' : 'N/A';
+            const percentOfTotal = grandTotalWordCount > 0 ? 
+                ((wordCount / grandTotalWordCount) * 100).toFixed(1) + '%' : 'N/A';
             
             const content = createGridTooltipContent(
                 `${country} > ${itemSet}`,
@@ -273,19 +191,15 @@
     }
 
     // Create or update the visualization
-    function updateVisualization() {
+    function updateVisualization(dataToRender: TreemapNode = hierarchyData) {
         try {
             if (!container) {
                 console.error('Container element not found');
                 return;
             }
             
-            // Get fresh data if not zoomed
-            if (!zoomedNode) {
-                hierarchyData = processData();
-            }
-            
-            if (!hierarchyData.children || hierarchyData.children.length === 0) {
+            // Use the passed data, handle empty case
+            if (!dataToRender.children || dataToRender.children.length === 0) {
                 d3.select(container).select('svg').remove();
                 d3.select(container).append('div')
                     .attr('class', 'absolute inset-center text-secondary')
@@ -294,7 +208,7 @@
             }
             
             // Create treemap using TreemapService
-            TreemapService.createTreemap(hierarchyData, {
+            TreemapService.createTreemap(dataToRender, {
                 container,
                 height: 500, // Explicitly set fixed height
                 colorMap: countryColors,
@@ -328,9 +242,17 @@
         
         logDebug(COMPONENT_ID, 'Items store changed', { itemCount: items?.length || 0 });
         
-        // Only update if the component is still mounted
+        // Only update if the component is still mounted and not zoomed
         if (document.body.contains(container)) {
-            updateVisualization();
+            if (!zoomedNode) {
+                hierarchyData = prepareVisualizationData(); // Recalculate data
+                updateVisualization(hierarchyData); // Update with new data
+            } else {
+                // If zoomed, we might need to update if the underlying data changes
+                // For simplicity now, we only update if zoom level changes or language changes
+                // A more complex approach might recalculate the zoomed view based on new items
+                // updateVisualization(hierarchyData); // Re-render potentially stale zoomed view
+            }
         }
     }
 
@@ -394,7 +316,8 @@
                 
                 // Create visualization if data is available
                 if ($itemsStore.items && $itemsStore.items.length > 0) {
-                    updateVisualization();
+                    hierarchyData = prepareVisualizationData(); // Initial data prep
+                    updateVisualization(hierarchyData);
                 } else {
                     // Load items if not already loaded
                     itemsStore.loadItems();
@@ -486,32 +409,25 @@
         className="word-visualization-compact-header"
     >
         <div 
-            class="flex-1 min-h-500 relative bg-card rounded shadow" 
+            class="flex-1 min-h-500 relative overflow-hidden bg-card rounded shadow" 
             bind:this={container}
-            style="height: 500px; max-height: 500px; overflow: hidden; position: relative;"
+            style="height: 500px; max-height: 500px;"
         >
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
                 <div class="absolute inset-center text-error">{$itemsStore.error}</div>
             {/if}
+            <!-- SVG will be rendered here by TreemapService -->
         </div>
         
-        <div class="p-md bg-card rounded shadow mt-md">
-            <div>
-                <h3 class="mt-0 mb-sm text-primary text-md font-medium border-b border-solid border-default pb-xs">{$summaryText}</h3>
-                <p class="my-xs text-sm text-secondary">{$totalItemsWithWordCountText}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
-                <p class="my-xs text-sm text-secondary">{$totalWordsText}: <strong class="font-medium">{formatNumber(totalWordCount)}</strong></p>
-                {#if totalItems > 0}
-                    <p class="my-xs text-sm text-secondary">{$avgWordsPerItemText}: <strong class="font-medium">{formatNumber(Math.round(totalWordCount / totalItems))}</strong></p>
-                {/if}
-                {#if zoomedNode}
-                    <p class="my-xs text-sm text-secondary">{$currentlyViewingText}: <strong class="font-medium">{zoomedNode.data.name}</strong></p>
-                    <p class="my-xs text-sm text-secondary">{$clickBackText}</p>
-                {:else}
-                    <p class="my-xs text-sm text-secondary">{$clickZoomInText}</p>
-                {/if}
-            </div>
-        </div>
+        <!-- Use the new summary component -->
+        <WordDistributionSummary 
+            {totalItems}
+            {totalWordCount}
+            {zoomedNode}
+            {formatNumber}
+        />
+        
     </BaseVisualization>
 </div> 
