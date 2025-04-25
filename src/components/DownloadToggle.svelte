@@ -328,11 +328,20 @@
             if (fontFamilies.size > 0) {
                 // Check for Google Fonts in document
                 const googleFontsLinks = Array.from(document.querySelectorAll('link'))
-                    .filter(link => 
-                        link.href && 
-                        (link.href.includes('fonts.googleapis.com') || 
-                         link.href.includes('fonts.gstatic.com'))
-                    );
+                    .filter(link => {
+                        if (!link.href) return false;
+                        try {
+                            const url = new URL(link.href);
+                            // Check protocol and hostname explicitly
+                            return url.protocol === 'https:' && 
+                                   (url.hostname === 'fonts.googleapis.com' || 
+                                    url.hostname === 'fonts.gstatic.com');
+                        } catch (e) {
+                            // Invalid URL, ignore
+                            console.warn(`Invalid font URL detected: ${link.href}`, e);
+                            return false;
+                        }
+                    });
                 
                 if (googleFontsLinks.length > 0) {
                     // Add a comment indicating fonts are embedded
