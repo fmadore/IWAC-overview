@@ -3,6 +3,20 @@
  *
  * This file contains utility classes for text styling including font sizes, weights,
  * alignment, decoration, and text transformations.
+ * 
+ * DUAL TYPOGRAPHY APPROACH - UTILITY SIDE:
+ * These utility classes are designed to work WITH semantic HTML styling from base/typography.css
+ * 
+ * SPECIFICITY & USAGE:
+ * - These classes have higher specificity than semantic element styles
+ * - Use these to override default semantic styling when needed
+ * - Apply directly to elements: <h1 class="text-sm font-normal">Custom sized heading</h1>
+ * - Combine with .typography-reset class if you need complete control
+ * 
+ * COMMON PATTERNS:
+ * - <h2 class="text-lg">Smaller than default h2</h2>
+ * - <p class="text-sm text-muted">Small secondary text</p>
+ * - <div class="typography-reset text-md font-medium">Custom text block</div>
  */
 
 /* Font Family */

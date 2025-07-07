@@ -115,10 +115,18 @@ import './styles/index.css';
    - Dark mode variables are defined but commented out in `default-theme.css`
    - When implementing dark mode, uncomment the dark mode section and ensure all components support it
 
-2. **Typography Dual Approach**
-   - `base/typography.css` styles semantic HTML elements (h1, p, etc.)
-   - `utilities/typography.css` provides utility classes (.text-lg, .font-bold, etc.)
-   - This is intentional but monitor for conflicts between semantic and utility styling
+2. **Dual Typography Approach** ✅ **ADDRESSED**
+   - `base/typography.css` styles semantic HTML elements (h1, p, etc.) - **DEFAULT STYLING**
+   - `utilities/typography.css` provides utility classes (.text-lg, .font-bold, etc.) - **OVERRIDE STYLING**
+   - **NEW**: Added `.typography-reset` class for complete utility control
+   - **NEW**: Added helper classes (`.heading-as-text`, `.text-as-heading`, `.no-typography-margins`)
+   - **NEW**: Comprehensive documentation in `TYPOGRAPHY_EXAMPLES.css`
+   
+   **Decision Tree for Typography:**
+   - Content following design system → Use semantic elements (h1, h2, p)
+   - Need small adjustments → Add utility classes to semantic elements
+   - Need complete control → Use `.typography-reset` + utility classes
+   - Building reusable components → Create component classes using utilities
 
 3. **Legacy Compatibility Variables**
    - Lines 117-126 in `global.css` provide backward compatibility
@@ -147,3 +155,27 @@ To ensure the CSS architecture remains coherent:
 5. **Component Isolation**: Ensure components don't leak styles to others
 
 This clean architecture ensures your IWAC application has consistent, maintainable styling without conflicts or duplicates.
+
+## 🚀 **Typography Quick Reference**
+
+### When to Use Each Approach
+
+| Use Case | Approach | Example |
+|----------|----------|---------|
+| Blog content, articles | **Semantic** | `<h1>Title</h1> <p>Content</p>` |
+| Small styling tweaks | **Hybrid** | `<h2 class="text-lg">Custom sized heading</h2>` |
+| UI components | **Utility** | `<div class="text-sm font-medium">Button text</div>` |
+| Complex components | **Reset + Utility** | `<div class="typography-reset"><h1 class="text-2xl">...</h1></div>` |
+
+### Available Helper Classes
+
+- `.typography-reset` - Removes all semantic typography styling
+- `.heading-as-text` - Makes headings look like body text
+- `.text-as-heading` - Makes text look like headings
+- `.no-typography-margins` - Removes all margins from typography elements
+
+### File Reference
+
+- `base/typography.css` - Semantic HTML element defaults
+- `utilities/typography.css` - Utility classes for custom styling  
+- `TYPOGRAPHY_EXAMPLES.css` - Comprehensive usage documentation and patterns

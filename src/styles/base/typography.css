@@ -3,7 +3,58 @@
  * 
  * This file defines the base typography styles for the application.
  * It applies the typography variables from theme.css to elements.
+ * 
+ * DUAL TYPOGRAPHY APPROACH:
+ * This file provides semantic HTML element styling (h1, p, etc.)
+ * while utilities/typography.css provides utility classes (.text-lg, .font-bold)
+ * 
+ * SPECIFICITY RULES:
+ * - Semantic elements get default styling here
+ * - Utility classes in utilities/typography.css will override these defaults
+ * - Use utility classes when you need to deviate from semantic defaults
+ * 
+ * USAGE GUIDELINES:
+ * - Use semantic elements (h1, h2, p) for content that follows the design system
+ * - Use utility classes (.text-lg, .font-medium) for components that need custom styling
+ * - Utility classes should be additive, not replace the entire semantic style
  */
+
+/* TYPOGRAPHY RESET FOR UTILITY OVERRIDE COMPATIBILITY */
+/* These classes allow utility classes to properly override semantic element styling */
+
+.typography-reset h1,
+.typography-reset h2,
+.typography-reset h3,
+.typography-reset h4,
+.typography-reset h5,
+.typography-reset h6 {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  margin: 0;
+  color: inherit;
+  text-transform: none;
+  letter-spacing: inherit;
+}
+
+.typography-reset p {
+  margin: 0;
+  line-height: inherit;
+}
+
+.typography-reset ul,
+.typography-reset ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.typography-reset li {
+  margin: 0;
+}
+
+/* SEMANTIC TYPOGRAPHY STYLING */
+/* Default styles for semantic HTML elements */
 
 h1, h2, h3, h4, h5, h6 {
   font-weight: var(--font-weight-bold);
@@ -111,4 +162,47 @@ ol {
 
 li {
   margin-bottom: var(--spacing-xs);
-} 
+}
+
+/* SEMANTIC OVERRIDE HELPERS */
+/* These classes help bridge semantic elements with utility classes */
+
+/* Heading that behaves like body text */
+.heading-as-text {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+  margin: 0;
+  color: var(--color-text-primary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Text that behaves like a heading */
+.text-as-heading {
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Reset margins for tight layouts */
+.no-typography-margins h1,
+.no-typography-margins h2,
+.no-typography-margins h3,
+.no-typography-margins h4,
+.no-typography-margins h5,
+.no-typography-margins h6,
+.no-typography-margins p,
+.no-typography-margins ul,
+.no-typography-margins ol {
+  margin: 0;
+}
+
+.no-typography-margins ul,
+.no-typography-margins ol {
+  padding-left: 0;
+}
+
+/* ENHANCED SEMANTIC ELEMENTS */
+/* Semantic elements with enhanced utility-compatible styling */
