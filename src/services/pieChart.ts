@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import { D3Service } from './d3Service';
 import { useLegend, type LegendItem } from '../hooks/useLegend';
+import { getColorPalette } from '../utils/colorPalette';
 
 /**
  * Interface for pie chart data items
@@ -74,7 +75,7 @@ const DEFAULT_OPTIONS: Partial<PieChartOptions> = {
   margin: { top: 20, right: 20, bottom: 20, left: 20 },
   innerRadius: 0, // 0 for pie chart, > 0 for donut chart
   responsive: true,
-  colorScheme: d3.schemeCategory10,
+  colorScheme: getColorPalette('primary'), // Use modern color palette
   animationDuration: 500,
   hoverEffectEnabled: true,
   hoverRadiusIncrease: 10,
@@ -185,10 +186,10 @@ export function createPieChart(
     .data(pieData)
     .enter()
     .append('path')
-    .attr('class', 'pie-segment cursor-pointer')
+    .attr('class', 'pie-segment pie-slice-modern cursor-pointer')
     .attr('d', arc as any)
     .attr('fill', d => colorFunction(d.data.key))
-    .attr('stroke', 'white')
+    .attr('stroke', 'var(--color-bg-card)')
     .attr('stroke-width', 2);
 
   // Add hover effect if enabled
@@ -282,7 +283,7 @@ export function createPieChart(
     const legendY = isMobile ? height - legendSpace.height : margin.top + 20;
     
     const legend = svg.append('g')
-      .attr('class', 'legend')
+      .attr('class', 'legend legend-modern')
       .attr('transform', `translate(${legendX}, ${legendY})`);
     
     // Add legend title if provided
@@ -446,9 +447,9 @@ export function createPieChart(
     // Add new segments
     updatedSegments.enter()
       .append('path')
-      .attr('class', 'pie-segment cursor-pointer')
+      .attr('class', 'pie-segment pie-slice-modern cursor-pointer')
       .attr('fill', d => colorFunction(d.data.key))
-      .attr('stroke', 'white')
+      .attr('stroke', 'var(--color-bg-card)')
       .attr('stroke-width', 2)
       .attr('d', arc as any)
       .style('opacity', 0)

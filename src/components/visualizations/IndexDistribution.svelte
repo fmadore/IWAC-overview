@@ -69,8 +69,12 @@
     // Define translation keys
     const indexDescriptionKey = 'viz.index_distribution_description';
 
-    // Create a reused color scale
-    const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+    // Import modern color palette
+    import { getColorPalette } from '../../utils/colorPalette';
+    
+    // Create a modern color scale
+    const modernColors = getColorPalette('primary');
+    const colorScale = d3.scaleOrdinal(modernColors);
 
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -214,18 +218,18 @@
                 left: 60
             };
             
-            // Create the bar chart with the BarChart service
+            // Create the bar chart with the BarChart service using modern styling
             barChartInstance = createBarChart({
                 container,
                 width,
                 height,
                 data: barData,
                 margin,
-                className: 'index-distribution-chart',
+                className: 'index-distribution-chart chart-modern',
                 isMobile,
                 barColors: colorScale,
                 barPadding: 0.2,
-                barCornerRadius: 3,
+                barCornerRadius: 6, // More rounded corners for modern look
                 xAxisLabel: t('viz.categories'),
                 yAxisLabel: t('viz.number_of_items'),
                 // Change rotation to -45 degrees
@@ -239,7 +243,7 @@
                     return d.length > 15 ? d.substring(0, 12) + '...' : d;
                 },
                 valueFormatter: formatNumber,
-                // Event handlers for tooltips
+                // Event handlers for tooltips with modern styling
                 onBarMouseEnter: (event: MouseEvent, d: BarData) => {
                     if (!isMounted) return;
                     const categoryData = categoryCounts.find(c => c.category === d.key);
@@ -370,7 +374,7 @@
         className="index-visualization"
         bind:this={baseVisualization}
     >
-        <div class="relative bg-card rounded p-md overflow-hidden min-h-400 w-full chart-container" bind:this={container}>
+        <div class="relative bg-card rounded p-md overflow-hidden min-h-400 w-full chart-container chart-modern" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary loading">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -381,6 +385,7 @@
 </div>
 
 <style>
+    /* Modern chart styling */
     :global(.index-distribution-chart) {
         height: 100%;
     }
@@ -388,9 +393,10 @@
     :global(.index-distribution-chart text) {
         font-family: var(--font-family-base);
         font-size: var(--font-size-xs);
+        fill: var(--color-text-secondary);
     }
     
-    :global(.index-distribution-chart .y-axis text) {
+    :global(.index-distribution-chart .axis-modern text) {
         font-size: var(--font-size-xs);
         fill: var(--color-text-secondary);
     }
@@ -401,10 +407,38 @@
         font-weight: var(--font-weight-medium);
     }
     
+    :global(.index-distribution-chart .bar-modern) {
+        transition: all var(--transition-fast);
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+    
+    :global(.index-distribution-chart .bar-modern:hover) {
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+        transform: translateY(-1px);
+    }
+    
     :global(.index-distribution-chart .bar-label) {
         font-size: var(--font-size-xs);
         fill: var(--color-text-secondary);
     }
     
-    /* Removed fixed height definition for chart-container as we're using min-h-500 utility class */
+    /* Modern grid lines */
+    :global(.index-distribution-chart .grid line) {
+        stroke: var(--color-border-light);
+        stroke-dasharray: 2,2;
+        opacity: 0.6;
+    }
+    
+    /* Loading and error states with modern styling */
+    .loading, .error {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-md);
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.9);
+    }
+    
+    .error {
+        background: rgba(245, 101, 101, 0.1);
+        border: 1px solid var(--color-error-light);
+    }
 </style> 

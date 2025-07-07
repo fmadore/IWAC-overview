@@ -17,6 +17,14 @@
 @import './utilities/layout.css';
 @import './utilities/borders.css';
 
+/* Components */
+@import './components/buttons.css';
+@import './components/cards.css';
+@import './components/alerts.css';
+@import './components/badges.css';
+@import './components/legend.css';
+@import './components/visualizations.css';
+
 /* CSS Reset and base styles */
 *, *::before, *::after {
   box-sizing: border-box;

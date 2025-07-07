@@ -343,21 +343,21 @@
 <TranslationContext>
   <main class="container mx-auto p-md">
     <header class="mb-lg">
-      <div class="flex justify-between items-center mb-md">
-        <h1 class="m-0 text-xl text-primary">{@html $appTitle}</h1>
-        <div class="flex gap-md items-center">
+      <div class="flex justify-between items-center mb-md header-top">
+        <h1 class="m-0 text-2xl font-bold text-primary header-title">{@html $appTitle}</h1>
+        <div class="flex gap-md items-center header-actions">
           <DownloadToggle />
           <FullScreenToggle />
           <LanguageToggle />
         </div>
       </div>
       <nav>
-        <ul class="flex p-0 m-0 border-b list-style-none app-tabs tabs-container" bind:this={tabsContainer}>
+        <ul class="flex p-0 m-0 border-b border-solid border-default list-style-none app-tabs tabs-container" bind:this={tabsContainer}>
           <div class="tab-scroll-left-indicator"></div>
           <div class="tab-scroll-indicator"></div>
           {#each tabLabels as tab}
             <li 
-              class="py-sm px-md cursor-pointer transition tab-item tab-flexible tabs-mobile {activeTab === tab.id ? 'active' : ''}"
+              class="py-sm px-md cursor-pointer transition-colors tab-item tab-flexible tabs-mobile {activeTab === tab.id ? 'active' : ''}"
               on:click={() => handleTabChange(tab.id)}
               on:keydown={(e) => e.key === 'Enter' && handleTabChange(tab.id)}
               role="tab"
@@ -371,13 +371,13 @@
       </nav>
     </header>
 
-    <div class="bg-card rounded shadow p-md content-container">
+    <div class="bg-card rounded shadow p-md min-h-500">
       {#if $itemsStore.loading}
-        <div class="flex justify-center items-center font-lg loading-container">
+        <div class="flex justify-center items-center text-lg h-full">
           {t('ui.loading')}
         </div>
       {:else if $itemsStore.error}
-        <div class="flex justify-center items-center font-lg text-error loading-container">
+        <div class="flex justify-center items-center text-lg text-error h-full">
           {$itemsStore.error}
         </div>
       {:else}
@@ -406,11 +406,14 @@
 
 <style>
   /* 
-   * We keep only the global CSS variable mappings for backwards compatibility.
-   * All component-specific styles now use utility classes where possible.
+   * App.svelte - Main application styles
+   * 
+   * This component primarily uses utility classes from our design system.
+   * Custom styles here are only for complex interactions that can't be achieved with utilities.
    */
+
+  /* Legacy variable mappings for backwards compatibility - will be phased out */
   :global(:root) {
-    /* Legacy variable mappings - these will be phased out gradually */
     --primary-color: var(--color-primary);
     --secondary-color: var(--color-secondary);
     --text-color: var(--color-text-primary);
@@ -421,69 +424,151 @@
     --text-color-light: var(--color-text-light);
     --text-color-primary: var(--color-text-primary);
     --text-color-secondary: var(--color-text-secondary);
-    --border-radius-sm: var(--border-radius-sm);
-    --border-radius-md: var(--border-radius-md);
-    --border-radius-lg: var(--border-radius-lg);
+    --border-radius-sm: var(--radius-sm);
+    --border-radius-md: var(--radius-md);
+    --border-radius-lg: var(--radius-lg);
     --font-family-primary: var(--font-family-base);
     --primary-color-faded: var(--color-primary-300);
     --divider-color: var(--color-border-light);
     --font-size-xxl: var(--font-size-2xl);
   }
 
-  /* Custom styles that can't be replaced with utility classes */
+  /* Tab navigation styles - uses design system variables */
   .app-tabs {
-    border-bottom: var(--border-width-thin) solid var(--color-border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .app-tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
   }
 
   .tab-item {
     border-bottom: var(--border-width-normal) solid transparent;
     transition: all var(--transition-fast) var(--ease-out);
-    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    position: relative;
   }
 
   .tab-item:hover {
     background-color: var(--color-bg-hover);
   }
 
+  .tab-item:focus {
+    outline: var(--border-width-normal) solid var(--color-primary);
+    outline-offset: -2px;
+  }
+
   .tab-item.active {
-    border-bottom: var(--border-width-normal) solid var(--color-primary);
+    border-bottom-color: var(--color-primary);
     font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
   }
 
-  .content-container {
-    min-height: 500px;
+  /* Tab scroll indicators */
+  .tab-scroll-indicator,
+  .tab-scroll-left-indicator {
+    position: absolute;
+    top: 0;
+    width: var(--spacing-md);
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity var(--transition-fast);
   }
 
-  .loading-container {
-    height: 500px;
-    font-size: var(--font-size-lg);
+  .tab-scroll-indicator {
+    right: 0;
+    background: linear-gradient(to left, var(--color-bg-page), transparent);
   }
 
-  /* Utility classes used in this component:
-   * - container: max-width and centering
-   * - mx-auto: horizontal margin auto
-   * - p-md: padding medium
-   * - mb-lg: margin-bottom large
-   * - flex: display flex
-   * - justify-between: justify-content space-between
-   * - items-center: align-items center
-   * - gap-md: gap medium
-   * - m-0: margin 0
-   * - text-xl: font-size extra large
-   * - text-primary: text color primary
-   * - p-0: padding 0
-   * - border-b: border bottom
-   * - py-sm: padding top/bottom small
-   * - px-md: padding left/right medium
-   * - list-style-none: remove list bullet points
-   * - cursor-pointer: cursor pointer
-   * - transition: default transition
-   * - bg-card: background color card
-   * - rounded: border-radius medium
-   * - shadow: box-shadow medium
-   * - p-md: padding medium
-   * - justify-center: justify-content center
-   * - font-lg: font-size large
-   * - text-error: text color error
+  .tab-scroll-left-indicator {
+    left: 0;
+    background: linear-gradient(to right, var(--color-bg-page), transparent);
+  }
+
+  .tabs-container:not(.tab-scroll-active) .tab-scroll-indicator {
+    opacity: 0;
+  }
+
+  .tabs-container:not(.tab-scroll-not-at-start) .tab-scroll-left-indicator {
+    opacity: 0;
+  }
+
+  /* Mobile tab adjustments */
+  @media (max-width: 768px) {
+    .tab-item {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-sm);
+    }
+    
+    /* Mobile header improvements */
+    header {
+      margin-bottom: var(--spacing-md);
+    }
+    
+    /* Make the header more compact on mobile */
+    .header-top {
+      flex-direction: column;
+      gap: var(--spacing-sm);
+      align-items: flex-start;
+    }
+    
+    .header-title {
+      font-size: var(--font-size-xl);
+      line-height: var(--line-height-tight);
+    }
+    
+    .header-actions {
+      align-self: flex-end;
+      gap: var(--spacing-sm);
+    }
+    
+    /* Make the container more compact on mobile */
+    main {
+      padding: var(--spacing-sm);
+    }
+    
+    /* Improve tabs container for mobile */
+    .tabs-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    .tabs-container::-webkit-scrollbar {
+      display: none;
+    }
+  }
+  
+  /* Extra small mobile devices */
+  @media (max-width: 480px) {
+    .header-title {
+      font-size: var(--font-size-lg);
+    }
+    
+    .header-actions {
+      gap: var(--spacing-xs);
+    }
+    
+    main {
+      padding: var(--spacing-xs);
+    }
+  }
+
+  /* 
+   * Utility classes used in this component:
+   * Layout: container, mx-auto, p-md, mb-lg, flex, justify-between, items-center, gap-md
+   * Typography: m-0, text-2xl, font-bold, text-primary, text-lg, text-error
+   * Spacing: py-sm, px-md, p-0, border-b, border-solid, border-default
+   * Interactive: cursor-pointer, transition-colors
+   * Display: list-style-none, bg-card, rounded, shadow, min-h-500, h-full, justify-center
+   * 
+   * This demonstrates the utility-first approach while maintaining necessary custom styles
+   * for complex tab navigation behavior and responsive design.
    */
 </style>

@@ -104,8 +104,12 @@
     // Track if component is mounted
     let isMounted = false;
 
-    // Color scale for pie segments - use the same color scale as the chart will use
-    const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+    // Import modern color palette
+    import { getColorPalette } from '../../utils/colorPalette';
+    
+    // Modern color scale for pie segments
+    const modernColors = getColorPalette('primary');
+    const colorScale = d3.scaleOrdinal(modernColors);
     
     // Create a fixed color map to ensure consistency when toggling languages
     let languageColorMap: Map<string, string> = new Map();
@@ -495,7 +499,7 @@
             ? { top: 10, right: 10, bottom: 50, left: 10 } // Increase bottom margin for legend
             : { top: 20, right: 20, bottom: 20, left: 20 }; // Use symmetrical margins for the chart
         
-        // Create chart with the pieChart service
+        // Create chart with the pieChart service using modern styling
         chart = createDonutChart(pieData, {
             container,
             width,
@@ -505,7 +509,7 @@
             responsive: true,
             colorScheme: (key: string) => getLanguageColor(key), // Use our consistent color mapper
             hoverEffectEnabled: true,
-            hoverRadiusIncrease: isMobile ? 5 : 10, // Smaller hover effect on mobile
+            hoverRadiusIncrease: isMobile ? 8 : 12, // Enhanced hover effect for modern feel
             showLegend: false, // Don't show the built-in legend
             showLabels: false,
             sortValues: true,
@@ -614,7 +618,7 @@
         className="language-visualization"
         bind:this={baseVisualization}
     >
-        <div class="flex flex-wrap gap-md p-md bg-card rounded-t border-b border-solid border-default filters">
+        <div class="flex flex-wrap gap-md p-md bg-card rounded-t border-b border-solid border-default filters glass-overlay">
             <div class="flex flex-col gap-xs filter-group">
                 <label for="country-filter" class="text-xs font-bold text-secondary">{$filterByCountryText}:</label>
                 <select id="country-filter" on:change={handleCountryChange} bind:value={selectedCountry} 
@@ -654,7 +658,7 @@
             </div>
         </div>
         
-        <div class="chart-container" bind:this={container}>
+        <div class="chart-container chart-modern" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -665,30 +669,94 @@
 </div>
 
 <style>
-    /* Only keep styles that can't be achieved with utility classes */
+    /* Modern styling for language distribution */
     .filter-group {
         min-width: 200px;
     }
     
-    /* Add chart container styles to match TypeDistribution */
+    /* Modern filter styling */
+    .filters {
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid var(--color-border-light);
+    }
+    
+    /* Modern chart container with enhanced styling */
     .chart-container {
         flex: 1;
         position: relative;
         background: var(--color-bg-card);
         border-radius: var(--radius-md);
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-lg);
         min-height: 450px;
         max-height: 600px;
         height: auto;
         padding: var(--spacing-md);
+        transition: box-shadow var(--transition-fast);
     }
     
-    /* Add styling for centered elements */
+    .chart-container:hover {
+        box-shadow: var(--shadow-xl);
+    }
+    
+    /* Modern pie slice styling */
+    :global(.chart-container .pie-slice-modern) {
+        transition: all var(--transition-fast);
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+    
+    :global(.chart-container .pie-slice-modern:hover) {
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+    }
+    
+    /* Modern legend styling */
+    :global(.chart-container .legend-modern) {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* Add styling for centered elements with modern backdrop */
     :global(.inset-center) {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-md);
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.9);
+    }
+    
+    /* Modern select styling */
+    .filter-group select {
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .filter-group select:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .filter-group select:focus {
+        box-shadow: var(--shadow-glow);
+        border-color: var(--color-primary);
+        outline: none;
+    }
+    
+    /* Modern button styling */
+    .filter-group button {
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .filter-group button:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
     }
     
     /* Responsive adjustments */

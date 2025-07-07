@@ -13,6 +13,7 @@
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import TreemapService, { type TreemapNode, type TreemapOptions } from '../../services/treemap';
     import { createWordDistributionHierarchy } from '../../utils/dataTransformers';
+    import { getColorPalette } from '../../utils/colorPalette';
 
     const COMPONENT_ID = 'WordDistributionRefactored';
     let isMounted = false;
@@ -29,8 +30,11 @@
     let grandTotalWordCount = 0;
     let titleHtml = '';
     let currentLang: 'en' | 'fr' = 'en';
-    // Store country colors to maintain consistency when zooming
+    // Store country colors to maintain consistency when zooming - use modern palette
     let countryColors: Map<string, string> = new Map();
+    
+    // Initialize modern color palette
+    const modernColors = getColorPalette('primary');
     
     // Initialize tooltip hook
     const { showTooltip, hideTooltip } = useTooltip({
@@ -96,7 +100,7 @@
         }
     }
 
-    // Process data using the external transformer
+    // Process data using the external transformer with modern colors
     function prepareVisualizationData() {
         if (!$itemsStore.items || $itemsStore.items.length === 0) {
             totalItems = 0;
@@ -106,6 +110,16 @@
         }
 
         const hierarchy = createWordDistributionHierarchy($itemsStore.items);
+
+        // Assign modern colors to countries
+        if (hierarchy.children) {
+            hierarchy.children.forEach((country, index) => {
+                if (!countryColors.has(country.name)) {
+                    const colorIndex = index % modernColors.length;
+                    countryColors.set(country.name, modernColors[colorIndex]);
+                }
+            });
+        }
 
         // Recalculate totals based on the processed hierarchy root
         totalItems = hierarchy.children?.reduce((sum, country) => sum + (country.itemCount || 0), 0) || 0;
@@ -207,7 +221,7 @@
                 return;
             }
             
-            // Create treemap using TreemapService
+            // Create treemap using TreemapService with modern styling
             TreemapService.createTreemap(dataToRender, {
                 container,
                 height: 500, // Explicitly set fixed height
@@ -409,7 +423,7 @@
         className="word-visualization-compact-header"
     >
         <div 
-            class="flex-1 min-h-500 relative overflow-hidden bg-card rounded shadow" 
+            class="flex-1 min-h-500 relative overflow-hidden bg-card rounded shadow chart-modern" 
             bind:this={container}
             style="height: 500px; max-height: 500px;"
         >
@@ -430,4 +444,121 @@
         />
         
     </BaseVisualization>
-</div> 
+</div>
+
+<style>
+    /* Modern styling for word distribution treemap */
+    
+    /* Enhanced chart container with modern effects */
+    :global(.chart-modern) {
+        transition: all var(--transition-normal) var(--ease-out);
+        border: 1px solid var(--color-border-light);
+    }
+    
+    :global(.chart-modern:hover) {
+        box-shadow: var(--shadow-xl);
+        transform: translateY(-2px);
+    }
+    
+    /* Modern treemap styling */
+    :global(.treemap-rect-modern) {
+        stroke: var(--color-bg-card);
+        stroke-width: 2;
+        rx: 4;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
+        transition: all var(--transition-fast) var(--ease-out);
+    }
+    
+    :global(.treemap-rect-modern:hover) {
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        stroke-width: 3;
+        transform: scale(1.02);
+    }
+    
+    /* Modern text styling for treemap labels */
+    :global(.treemap-text) {
+        font-weight: var(--font-weight-medium);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+    }
+    
+    /* Modern breadcrumb styling */
+    :global(.breadcrumb-nav) {
+        background: var(--color-bg-card);
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-xs) var(--spacing-sm);
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: blur(4px);
+    }
+    
+    :global(.breadcrumb-link) {
+        color: var(--color-primary);
+        text-decoration: none;
+        font-weight: var(--font-weight-medium);
+        transition: color var(--transition-fast);
+    }
+    
+    :global(.breadcrumb-link:hover) {
+        color: var(--color-primary-dark);
+        text-decoration: underline;
+    }
+    
+    /* Modern loading and error states */
+    :global(.absolute.inset-center) {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-md);
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--shadow-md);
+        font-weight: var(--font-weight-medium);
+    }
+    
+    /* Enhanced tooltip styling for treemap */
+    :global(.tooltip-modern) {
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(8px);
+        color: var(--color-text-light);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        font-size: var(--font-size-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    /* Modern zoom controls */
+    :global(.zoom-out-button) {
+        background: var(--color-primary);
+        color: var(--color-text-light);
+        border: none;
+        border-radius: var(--radius-md);
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    :global(.zoom-out-button:hover) {
+        background: var(--color-primary-dark);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+    
+    /* Animation for treemap elements */
+    :global(.treemap-rect) {
+        animation: fadeInScale var(--transition-normal) var(--ease-out);
+    }
+    
+    @keyframes fadeInScale {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+</style> 

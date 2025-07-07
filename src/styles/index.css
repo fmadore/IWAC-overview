@@ -13,6 +13,7 @@
 @import './utilities/spacing.css';
 @import './utilities/layout.css';
 @import './utilities/typography.css';
+@import './utilities/borders.css';
 
 /* Components */
 /* Note: The component files below need to be created if they don't exist yet.
@@ -22,4 +23,5 @@
 @import './components/cards.css';
 @import './components/alerts.css';
 @import './components/badges.css';
-@import './components/legend.css'; 
+@import './components/legend.css';
+@import './components/visualizations.css'; 

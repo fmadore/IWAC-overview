@@ -76,24 +76,27 @@ h4, h5, h6 {
 
 /* Buttons */
 button {
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-sm);
   border: var(--border-width-thin) solid transparent;
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-medium);
   font-family: var(--font-family-base);
-  background-color: var(--color-bg-card);
+  background-color: transparent;
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: border-color var(--transition-fast) var(--ease-out);
+  transition: all var(--transition-fast) var(--ease-out);
 }
 
 button:hover {
   border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 button:focus,
 button:focus-visible {
-  outline: var(--border-width-normal) auto var(--color-primary);
+  outline: var(--border-width-normal) solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* Common component reset styles */
@@ -111,7 +114,7 @@ img, svg {
 .card {
   padding: var(--spacing-lg);
   background-color: var(--color-bg-card);
-  border-radius: var(--border-radius-md);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
 }
 
@@ -120,7 +123,7 @@ img, svg {
   padding: var(--spacing-2xs) var(--spacing-xs);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  border-radius: var(--border-radius-full);
+  border-radius: var(--radius-full);
   background-color: var(--color-bg-card-alt);
   color: var(--color-text-secondary);
 }
@@ -142,7 +145,7 @@ img, svg {
 
 .alert {
   padding: var(--spacing-md);
-  border-radius: var(--border-radius-md);
+  border-radius: var(--radius-md);
   margin-bottom: var(--spacing-md);
 }
 

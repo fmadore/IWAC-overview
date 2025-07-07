@@ -10,6 +10,7 @@
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import BreadcrumbNavigation from '../ui/BreadcrumbNavigation.svelte';
+    import { getColorPalette } from '../../utils/colorPalette';
 
     // Move all the interface definitions to the top
     interface Item {
@@ -52,10 +53,13 @@
         { id: null, label: t('viz.all_countries') }
     ];
     
-    // Store country colors to maintain consistency when zooming
+    // Store country colors to maintain consistency when zooming - use modern palette
     let countryColors: Map<string, string> = new Map();
     // Store category colors to maintain consistency
     let categoryColors: Map<string, string> = new Map();
+    
+    // Initialize modern color palette
+    const modernColors = getColorPalette('primary');
     
     // Define translation keys
     const countryDescriptionKey = 'viz.country_distribution_description';
@@ -266,7 +270,7 @@
                     if (hierarchyData.children && hierarchyData.children.length > 0) {
                         const colorScale = d3.scaleOrdinal<string>()
                             .domain(hierarchyData.children.map(d => d.originalName || d.name))
-                            .range(d3.schemeCategory10);
+                            .range(modernColors);
                             
                         hierarchyData.children.forEach(country => {
                             const originalName = country.originalName || country.name;
@@ -1295,7 +1299,7 @@
         className="country-distribution"
         bind:this={baseVisualization}
     >
-        <div class="chart-container relative flex-1 min-h-450 bg-card rounded p-md overflow-hidden" bind:this={container}>
+        <div class="chart-container relative flex-1 min-h-450 bg-card rounded p-md overflow-hidden chart-modern" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="loading absolute inset-center text-secondary">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -1306,7 +1310,7 @@
                 <div class="loading absolute inset-center text-secondary">Initializing visualization...</div>
             {:else if isMounted && !isCanceled}
                 <!-- Always show breadcrumb navigation, use a style similar to TreemapService -->
-                <div class="breadcrumb-wrapper absolute top-0 left-0 right-0 bg-white bg-opacity-90 p-xs z-10 shadow-sm" style="height: 30px;">
+                <div class="breadcrumb-wrapper absolute top-0 left-0 right-0 bg-white bg-opacity-90 p-xs z-10 shadow-sm glass-overlay" style="height: 30px;">
                     <div class="px-sm py-xs">
                         {#if breadcrumbItems && breadcrumbItems.length}
                             <BreadcrumbNavigation 
@@ -1322,7 +1326,7 @@
             {/if}
         </div>
         
-        <div class="stats bg-card shadow rounded p-md">
+        <div class="stats bg-card shadow rounded p-md stats-modern">
             <div class="stat-summary">
                 <h3 class="text-primary font-medium border-b pb-xs mb-sm">{$summaryText}</h3>
                 <p class="text-sm text-secondary mb-xs">{$totalItemsText}: <strong class="font-medium">{formatNumber(totalItems)}</strong></p>
@@ -1342,7 +1346,75 @@
 </div>
 
 <style>
-    /* Only keep styles that can't be achieved with utility classes */
+    /* Modern styling for country distribution */
+    
+    /* Enhanced chart container with modern effects */
+    :global(.chart-modern) {
+        transition: all var(--transition-normal) var(--ease-out);
+        border: 1px solid var(--color-border-light);
+    }
+    
+    :global(.chart-modern:hover) {
+        box-shadow: var(--shadow-xl);
+        transform: translateY(-2px);
+    }
+    
+    /* Modern glassmorphism for breadcrumb */
+    .breadcrumb-wrapper {
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid var(--color-border-light);
+        transition: all var(--transition-fast);
+    }
+    
+    /* Modern stats container */
+    .stats-modern {
+        background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card-alt) 100%);
+        border: 1px solid var(--color-border-light);
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-fast);
+    }
+    
+    .stats-modern:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+    }
+    
+    /* Modern treemap rect styling */
+    :global(.treemap-rect) {
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
+        transition: all var(--transition-fast) var(--ease-out);
+    }
+    
+    :global(.treemap-rect:hover) {
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        stroke-width: 2px;
+        transform: scale(1.02);
+    }
+    
+    /* Modern breadcrumb navigation */
+    :global(.breadcrumb-nav) {
+        font-weight: var(--font-weight-medium);
+    }
+    
+    :global(.breadcrumb-nav a) {
+        color: var(--color-primary);
+        transition: color var(--transition-fast);
+    }
+    
+    :global(.breadcrumb-nav a:hover) {
+        color: var(--color-primary-dark);
+    }
+    
+    /* Loading and error states with modern styling */
+    :global(.absolute.inset-center) {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-md);
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--shadow-md);
+        font-weight: var(--font-weight-medium);
+    }
     
     @keyframes pulse {
         0% { stroke-opacity: 0.6; }

@@ -12,32 +12,27 @@
 </script>
 
 <button 
-    class="btn btn-primary text-sm"
+    class="btn btn-primary text-sm px-md py-sm"
     on:click={toggleLanguage}
+    aria-label={$toggleText}
 >
     {$toggleText}
 </button>
 
 <style>
-    :global(.btn.btn-primary) {
-        background-color: var(--color-primary);
-        color: var(--color-text-light);
-    }
-    
-    :global(.btn.btn-primary:hover) {
-        background-color: var(--color-primary-dark);
-    }
-    
-    :global(.btn.btn-primary:focus) {
-        outline: none;
-        box-shadow: 0 0 0 2px var(--color-primary-300);
-    }
-    
-    /* Mobile optimizations */
-    @media (max-width: 768px) {
-        :global(.btn) {
-            min-height: 42px;
-            font-size: 14px;
-        }
-    }
+    /* 
+     * LanguageToggle.svelte - Language toggle button component
+     * 
+     * This component primarily uses utility classes from our design system.
+     * Mobile optimizations are now handled by the button component CSS.
+     */
+
+    /* 
+     * Utility classes used in this component:
+     * - btn: Base button component class
+     * - btn-primary: Primary button variant
+     * - text-sm: Small text size
+     * - px-md: Horizontal padding medium
+     * - py-sm: Vertical padding small
+     */
 </style> 

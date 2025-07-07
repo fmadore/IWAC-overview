@@ -5,8 +5,6 @@
  * extend beyond what can be easily achieved with utility classes.
  */
 
-/* Base button styles can be added here if needed beyond what's in global.css */
-
 /* Button variants */
 .btn {
   display: inline-flex;
@@ -15,7 +13,14 @@
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);
   font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-md);
+  border: var(--border-width-thin) solid transparent;
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
   transition: all var(--transition-fast) var(--ease-out);
+  text-decoration: none;
+  outline: none;
 }
 
 .btn-primary {
@@ -27,6 +32,12 @@
 .btn-primary:hover {
   background-color: var(--color-primary-dark);
   border-color: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-primary:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .btn-secondary {
@@ -38,6 +49,12 @@
 .btn-secondary:hover {
   background-color: var(--color-secondary-dark);
   border-color: var(--color-secondary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:focus {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
 }
 
 .btn-outline {
@@ -48,6 +65,12 @@
 
 .btn-outline:hover {
   background-color: var(--color-primary-50);
+  transform: translateY(-1px);
+}
+
+.btn-outline:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .btn-ghost {
@@ -58,6 +81,12 @@
 
 .btn-ghost:hover {
   background-color: var(--color-bg-hover);
+  transform: translateY(-1px);
+}
+
+.btn-ghost:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* Button sizes */
@@ -82,12 +111,61 @@
 .btn-icon {
   padding: var(--spacing-sm);
   border-radius: var(--radius-full);
+  aspect-ratio: 1;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
 }
 
 .btn-icon-sm {
   padding: var(--spacing-xs);
+  min-width: 2rem;
+  min-height: 2rem;
 }
 
 .btn-icon-lg {
   padding: var(--spacing-md);
+  min-width: 3rem;
+  min-height: 3rem;
+}
+
+/* Mobile responsive button styles */
+@media (max-width: 768px) {
+  .btn {
+    min-height: 2.75rem; /* 44px - better touch target */
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .btn-icon {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: var(--spacing-sm);
+  }
+  
+  .btn-sm {
+    min-height: 2.25rem; /* 36px */
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .btn-lg {
+    min-height: 3rem; /* 48px */
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  /* Better focus visibility on mobile */
+  .btn:focus {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  
+  /* Reduce hover transform on mobile to avoid issues */
+  .btn:hover {
+    transform: none;
+  }
+  
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .btn-outline:hover,
+  .btn-ghost:hover {
+    transform: none;
+  }
 }

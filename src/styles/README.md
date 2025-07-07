@@ -1,15 +1,15 @@
 # CSS Architecture Documentation
 
-This document provides an overview of the CSS architecture for this project, including how the styles are organized, naming conventions, and best practices for implementation.
+This document provides an overview of the CSS architecture for the **IWAC Database Overview** application, including how the styles are organized, naming conventions, and best practices for developing data visualization components.
 
 ## Overview
 
-The CSS architecture follows a utility-first approach with a focus on scalability, maintainability, and consistency. It is organized into the following categories:
+The CSS architecture follows a utility-first approach with a focus on scalability, maintainability, and consistency. It is specifically designed to support data visualization components for the Islam West Africa Collection (IWAC) database. The architecture is organized into the following categories:
 
-1. **Theme Variables** - CSS custom properties for consistent design tokens
-2. **Utility Classes** - Small, single-purpose classes that can be composed
-3. **Components** - Component-specific styles when utilities aren't sufficient
-4. **Documentation** - Style guide for visual reference
+1. **Theme Variables** - CSS custom properties for consistent design tokens and color palettes
+2. **Utility Classes** - Small, single-purpose classes that can be composed together
+3. **Component Styles** - Specialized styles for visualizations, UI components, and interactive elements
+4. **Data Visualization Support** - Enhanced styling for charts, legends, tooltips, and responsive layouts
 
 ## Structure
 
@@ -27,192 +27,745 @@ src/styles/
 │   ├── colors.css            # Text, background, and border color utilities
 │   ├── spacing.css           # Margin, padding, and gap utilities
 │   ├── typography.css        # Font, text alignment, and styling utilities
-│   ├── layout.css            # Display, flexbox, grid, positioning, z-index utilities (includes viz helpers)
+│   ├── layout.css            # Display, flexbox, grid, positioning utilities
 │   └── borders.css           # Border width, style, radius, and shadow utilities
 ├── components/
 │   ├── buttons.css           # Button component styles
 │   ├── cards.css             # Card component styles
 │   ├── alerts.css            # Alert component styles
 │   ├── badges.css            # Badge component styles
-│   └── legend.css            # Legend component styles for data visualizations
-└── docs/
-    ├── styleguide.html       # Style guide document
-    └── styleguide.css        # Styles specific to the style guide
+│   ├── legend.css            # Legend component styles for data visualizations
+│   └── visualizations.css    # Modern chart and visualization styling
+└── README.md                 # This documentation file
 ```
+
+## Key Features for Data Visualization
+
+### Color System
+- **Modern Color Palettes**: Designed specifically for data visualization with accessible color combinations
+- **Themed Variables**: Consistent color tokens for charts, legends, and interactive elements
+- **Visualization-Specific Colors**: Predefined color scales for different chart types (bar charts, pie charts, treemaps, timelines)
+
+### Responsive Design
+- **Adaptive Layouts**: Components that work across desktop and mobile devices
+- **Flexible Containers**: Chart containers that resize based on screen size
+- **Mobile-First**: Optimized for mobile viewing with touch-friendly interactions
+
+### Interactive Elements
+- **Hover Effects**: Smooth transitions and visual feedback for chart elements
+- **Tooltips**: Styled tooltip components for displaying data details
+- **Legend Interactions**: Interactive legends with hover states and disable/enable functionality
 
 ## Usage
 
 ### Importing Styles
 
-There are two main entry points:
-- `main.css`: Imports theme variables, base styles (`global.css`), and utility classes. Note: It currently contains some redundant reset/base styles.
-- `index.css`: Imports everything from `main.css` **plus** component-specific styles (`components/*.css`) and the base reset/typography (`base/reset.css`, `base/typography.css`). **This is the recommended entry point for most use cases.**
+There are two main entry points for different use cases:
+
+- **`index.css`** (Recommended): Imports all styles including component-specific styles, base styles, and visualizations. Use this for the full application.
+- **`main.css`** (Minimal): Imports only theme variables, base styles, and utility classes. Use this for lightweight implementations.
+
+In your main Svelte component or entry point:
+```javascript
+import './styles/index.css';
+```
+
+### Working with Data Visualizations
+
+This CSS system is specifically designed to support the IWAC visualization components:
+
+#### Chart Containers
+```html
+<div class="chart-modern">
+  <!-- Your D3.js or visualization content -->
+</div>
+```
+
+#### Responsive Legends
+```html
+<div class="legend legend-horizontal">
+  <div class="legend-items">
+    <div class="legend-item">
+      <div class="legend-item-swatch" style="background-color: #5B6EE8;"></div>
+      <span class="legend-item-label">Category Name</span>
+    </div>
+  </div>
+</div>
+```
+
+#### Tooltips
+```html
+<div class="tooltip-modern">
+  <div class="tooltip-content">
+    <strong>Value:</strong> 42
+  </div>
+</div>
+```
 
 ### Theme Variables
 
-Theme variables are defined as CSS custom properties (variables) in `themes/default-theme.css` and are organized by category. They provide a consistent set of values to be used throughout the application.
+Theme variables are defined as CSS custom properties in `themes/default-theme.css` and are organized by category. They provide a consistent design system optimized for data visualization.
+
+#### Color System
+The theme includes specialized color palettes for different visualization types:
 
 ```css
-/* Example of using theme variables */
-.custom-element {
-  color: var(--color-primary);
-  font-size: var(--font-size-lg);
-  padding: var(--spacing-md);
-}
+/* Brand colors */
+--color-primary: #5B6EE8;
+--color-secondary: #FF6B9D;
+
+/* Visualization accent colors (10 color palette) */
+--color-accent-1: #5B6EE8;  /* Primary blue */
+--color-accent-2: #FF6B9D;  /* Pink */
+--color-accent-3: #4ECDC4;  /* Teal */
+--color-accent-4: #FFD93D;  /* Yellow */
+/* ... and more */
+
+/* Background colors for charts and cards */
+--color-bg-card: #FFFFFF;
+--color-bg-page: #FAFBFD;
 ```
 
-The theme includes variables for:
-- Colors (brand, background, text, borders, status)
-- Typography (font families, sizes, weights, line heights, letter spacing)
-- Spacing
-- Layout (container sizes)
-- Borders and radius
-- Shadows
-- Animations and transitions
-- Z-index layers
+#### Typography for Data Display
+```css
+/* Font sizes optimized for data labels */
+--font-size-xs: 0.75rem;   /* Chart labels */
+--font-size-sm: 0.875rem;  /* Legend text */
+--font-size-md: 1rem;      /* Default */
+--font-size-lg: 1.125rem;  /* Chart titles */
+```
 
-*Note:* For backwards compatibility, `base/global.css` includes mappings from older variable names (e.g., `--primary-color`) to the current theme variables.
+#### Spacing System
+```css
+/* Consistent spacing for charts and UI elements */
+--spacing-xs: 0.5rem;   /* Tight spacing */
+--spacing-sm: 0.75rem;  /* Small spacing */
+--spacing-md: 1rem;     /* Default spacing */
+--spacing-lg: 1.5rem;   /* Large spacing */
+```
+
+### Using Colors in JavaScript/TypeScript
+
+For programmatic color usage (e.g., in D3.js visualizations), colors are also available through the `colorPalette.ts` utility:
+
+```typescript
+import { getColorPalette, modernColorScale } from '../utils/colorPalette';
+
+// Get a specific palette
+const colors = getColorPalette('primary', 5);
+
+// Use the default modern color scale
+const chartColors = modernColorScale;
+```
 
 ### Utility Classes
 
-Utility classes are small, single-purpose classes that can be composed together to create complex UI components. Apply these directly in your HTML/Svelte components.
+Utility classes are small, single-purpose classes that can be composed together to create complex UI components. They are especially useful for styling visualization containers and interactive elements.
 
+#### Layout Utilities for Visualizations
 ```html
-<!-- Example of using utility classes -->
-<div class="flex items-center justify-between p-md bg-primary text-white rounded shadow">
-  <h2 class="text-lg font-bold">Title</h2>
-  <button class="bg-accent text-white p-sm rounded cursor-pointer">Button</button>
+<!-- Responsive chart container -->
+<div class="flex flex-col items-center p-lg bg-card rounded-lg shadow-md">
+  <h3 class="text-lg font-bold mb-sm">Chart Title</h3>
+  <div class="w-full min-h-500">
+    <!-- D3.js chart content -->
+  </div>
+</div>
+
+<!-- Side-by-side layout with legend -->
+<div class="flex flex-row items-start gap-md">
+  <div class="flex-1">
+    <!-- Chart -->
+  </div>
+  <div class="legend legend-vertical">
+    <!-- Legend items -->
+  </div>
+</div>
+```
+
+#### Color Utilities
+```html
+<!-- Text colors -->
+<span class="text-primary">Primary text</span>
+<span class="text-secondary">Secondary text</span>
+
+<!-- Background colors -->
+<div class="bg-primary text-light p-sm rounded">Primary background</div>
+<div class="bg-card border border-default p-md rounded">Card background</div>
+```
+
+#### Interactive States
+```html
+<!-- Hover effects -->
+<button class="bg-primary text-light p-sm rounded cursor-pointer hover:bg-primary-dark">
+  Interactive Button
+</button>
+
+<!-- Focus states -->
+<div class="border border-default rounded focusable">
+  Focusable element
 </div>
 ```
 
 ### Component Classes
 
-For more complex UI elements, we provide component-specific classes in the `components/` directory that encapsulate multiple styles:
+For complex UI elements, we provide component-specific classes that encapsulate multiple styles and are optimized for the IWAC visualization interface.
 
+#### Visualization Components (`components/visualizations.css`)
 ```html
-<!-- Example of using component classes -->
-<button class="btn btn-primary">Primary Button</button>
+<!-- Modern chart container with hover effects -->
+<div class="chart-modern">
+  <svg class="w-full h-full">
+    <!-- Chart content -->
+  </svg>
+</div>
+
+<!-- Tooltip styling -->
+<div class="tooltip-modern visible">
+  <div class="tooltip-content">
+    <strong>Country:</strong> Canada<br>
+    <strong>Items:</strong> 42
+  </div>
+</div>
+
+<!-- Loading skeleton -->
+<div class="chart-skeleton"></div>
+```
+
+#### Legend Components (`components/legend.css`)
+```html
+<!-- Horizontal legend for desktop -->
+<div class="legend legend-horizontal">
+  <div class="legend-title">Categories</div>
+  <div class="legend-items">
+    <div class="legend-item">
+      <div class="legend-item-swatch" style="background-color: #5B6EE8;"></div>
+      <span class="legend-item-label">Audio</span>
+      <span class="legend-item-value">(42)</span>
+    </div>
+  </div>
+</div>
+
+<!-- Compact legend for mobile -->
+<div class="legend legend-mobile compact-legend">
+  <div class="legend-items">
+    <!-- Legend items -->
+  </div>
+</div>
+```
+
+#### UI Components
+```html
+<!-- Navigation buttons -->
+<button class="btn btn-primary">Primary Action</button>
+<button class="btn btn-outline">Secondary Action</button>
+
+<!-- Information cards -->
 <div class="card card-hover">
-  <div class="card-header">Card Title</div>
-  <div class="card-body">Card content goes here</div>
+  <div class="card-header">
+    <h3>Visualization Title</h3>
+  </div>
+  <div class="card-body">
+    <!-- Chart content -->
+  </div>
 </div>
-<div class="alert alert-success">
-  <div class="alert-content">Success message</div>
+
+<!-- Status indicators -->
+<div class="alert alert-info">
+  <div class="alert-content">Loading data...</div>
 </div>
+
+<!-- Data badges -->
+<span class="badge badge-primary">New</span>
+<span class="badge badge-success">Active</span>
 ```
 
 ## Naming Conventions
 
-The utilities generally follow these naming patterns:
+The utilities follow consistent naming patterns optimized for data visualization development:
 
-- **Colors**: `.text-{color}`, `.bg-{color}`, `.border-{color}` (e.g., `.text-primary`, `.bg-card`, `.border-default`)
-- **Spacing**: `.m-{size}`, `.p-{size}`, `.gap-{size}` (e.g., `.mt-sm`, `.px-md`, `.gap-lg`)
-- **Typography**: `.text-{size}`, `.font-{weight}`, `.text-{alignment}` (e.g., `.text-lg`, `.font-bold`, `.text-center`)
-- **Layout**:
-    - Display: `.block`, `.flex`, `.grid`, `.hidden`
-    - Flexbox: `.items-{position}`, `.justify-{position}` (e.g., `.items-center`, `.justify-between`)
-    - Grid: `.grid-cols-{n}`, `.col-span-{n}`
-    - Positioning: `.relative`, `.absolute`, `.fixed`, `.sticky`, `.top-0`, `.inset-center`
-- **Borders**: `.border-{width}`, `.rounded-{size}`, `.shadow-{size}` (e.g., `.border`, `.rounded-md`, `.shadow-lg`)
-- **Interactivity**: `.cursor-{type}`, `.pointer-events-none` (e.g., `.cursor-pointer`)
-- **Lists**: `.list-style-none`
-- **Z-index**: `.z-{level}` (e.g., `.z-10`, `.z-dropdown`, `.z-tooltip`)
+### Color Classes
+- **Text Colors**: `.text-{color}` (e.g., `.text-primary`, `.text-secondary`)
+- **Background Colors**: `.bg-{color}` (e.g., `.bg-card`, `.bg-primary-light`)
+- **Border Colors**: `.border-{color}` (e.g., `.border-default`, `.border-primary`)
 
-*Note:* `utilities/layout.css` also contains helper classes specifically for chart and visualization layouts (e.g., `.chart-container`, `.visualization-container`, `.legend-desktop`, `.legend-mobile`).
+### Spacing Classes
+- **Margin**: `.m-{size}`, `.mt-{size}`, `.mr-{size}`, `.mb-{size}`, `.ml-{size}`, `.mx-{size}`, `.my-{size}`
+- **Padding**: `.p-{size}`, `.pt-{size}`, `.pr-{size}`, `.pb-{size}`, `.pl-{size}`, `.px-{size}`, `.py-{size}`
+- **Gap**: `.gap-{size}` (for flexbox and grid)
 
-## Best Practices
+Sizes: `2xs`, `xs`, `sm`, `md`, `lg`, `xl`, `2xl`, `3xl`
 
-1. **Composition over inheritance** - Combine multiple utility classes rather than creating custom CSS.
-2. **Consistency** - Stick to the predefined variables and utilities whenever possible.
-3. **Limit custom CSS** - Only create custom CSS for complex components that cannot be easily created with utilities. Place these in the relevant `components/*.css` file.
-4. **Dark Mode** - Use the theme variables with CSS variables for easier theme switching (currently disabled in `default-theme.css`).
-5. **Responsive Design** - Rely on the utility classes for consistent responsive layouts. Add responsive prefixes (e.g., `md:flex`) if needed (requires setup with a processor like PostCSS/Tailwind if not already configured).
-6. **Accessibility** - Use proper semantic markup and utility classes (like `.sr-only`) to enhance accessibility.
-7. **Document usage** - Include comments in components that list which utility classes are being used, especially for complex compositions.
+### Typography Classes
+- **Font Sizes**: `.text-{size}` (e.g., `.text-lg`, `.text-xl`)
+- **Font Weights**: `.font-{weight}` (e.g., `.font-bold`, `.font-medium`)
+- **Text Alignment**: `.text-{alignment}` (e.g., `.text-center`, `.text-left`)
 
-## Interactive Elements
+### Layout Classes
+- **Display**: `.block`, `.flex`, `.grid`, `.hidden`
+- **Flexbox**: `.items-{position}`, `.justify-{position}`, `.flex-{direction}`
+- **Grid**: `.grid-cols-{n}`, `.col-span-{n}`
+- **Positioning**: `.relative`, `.absolute`, `.fixed`, `.sticky`
 
-For interactive elements, we provide several utility classes to enhance usability:
+### Border and Visual Classes
+- **Border Width**: `.border-{width}` (e.g., `.border`, `.border-2`)
+- **Border Radius**: `.rounded-{size}` (e.g., `.rounded`, `.rounded-lg`)
+- **Box Shadow**: `.shadow-{size}` (e.g., `.shadow-md`, `.shadow-lg`)
 
-- **Cursor utilities**: Use `.cursor-pointer` for clickable elements, `.cursor-text` for text inputs, etc.
-- **Z-index system**: Structured z-index utilities from `.z-below` (-1) to `.z-tooltip` (1070) defined in `default-theme.css` and corresponding utility classes (`.z-10`, `.z-dropdown`, etc.) in `layout.css`.
-- **Transition utilities**: Simple transitions for hover/focus states (variables in `default-theme.css`, usage may require custom CSS or component styles).
+### Interactive Classes
+- **Cursor**: `.cursor-{type}` (e.g., `.cursor-pointer`, `.cursor-not-allowed`)
+- **Hover States**: Use with CSS or component classes for interactive feedback
 
-Example for a button:
+## Best Practices for IWAC Development
+
+### 1. **Composition Over Custom CSS**
+Use utility classes and component classes together rather than writing custom CSS:
+
 ```html
-<button class="btn btn-primary cursor-pointer transition hover:bg-primary-dark">
-  Click me
+<!-- Good: Using utilities and components -->
+<div class="chart-modern p-lg">
+  <div class="flex items-center justify-between mb-md">
+    <h3 class="text-lg font-bold">Country Distribution</h3>
+    <button class="btn btn-outline btn-sm">Export</button>
+  </div>
+  <div class="min-h-500">
+    <!-- Chart content -->
+  </div>
+</div>
+
+<!-- Avoid: Custom CSS when utilities exist -->
+<div class="custom-chart-container">
+  <!-- Custom styles in separate CSS file -->
+</div>
+```
+
+### 2. **Consistent Color Usage**
+Use the predefined color palette for data visualization:
+
+```typescript
+// In D3.js visualizations
+import { getColorPalette } from '../utils/colorPalette';
+
+const colors = getColorPalette('primary', dataCategories.length);
+```
+
+### 3. **Responsive Design Patterns**
+Design for mobile-first, then enhance for desktop:
+
+```html
+<!-- Mobile-first responsive chart -->
+<div class="chart-modern">
+  <!-- Mobile legend -->
+  <div class="legend legend-mobile compact-legend">
+    <!-- Legend items -->
+  </div>
+  
+  <!-- Chart area -->
+  <div class="min-h-500">
+    <!-- Chart content -->
+  </div>
+</div>
+```
+
+### 4. **Accessibility Considerations**
+- Use semantic HTML elements
+- Provide proper ARIA labels for interactive elements
+- Ensure sufficient color contrast
+- Include `.sr-only` text for screen readers
+
+```html
+<button class="btn btn-primary" aria-label="Export chart data">
+  <span class="sr-only">Export chart data</span>
+  <span aria-hidden="true">📊</span>
 </button>
 ```
 
-## Component Usage
+### 5. **Interactive State Management**
+Use CSS classes for different interaction states:
 
-The component CSS files provide pre-styled elements for common UI patterns:
+```html
+<!-- Interactive legend items -->
+<div class="legend-item cursor-pointer">
+  <div class="legend-item-swatch"></div>
+  <span class="legend-item-label">Category Name</span>
+</div>
 
-### Buttons (`components/buttons.css`)
-Multiple button variants are available including:
-- Base: `.btn`
-- Variants: `.btn-primary`, `.btn-secondary`, `.btn-outline`, `.btn-ghost`
-- Size variations: `.btn-sm`, `.btn-lg`
-- Icon buttons: `.btn-icon` (with size modifiers `.btn-icon-sm`, `.btn-icon-lg`)
+<!-- Disabled state -->
+<div class="legend-item legend-item.disabled">
+  <div class="legend-item-swatch"></div>
+  <span class="legend-item-label">Disabled Category</span>
+</div>
+```
 
-### Cards (`components/cards.css`)
-Cards for containing content with variants like:
-- Base: `.card`
-- Appearance: `.card-flat`, `.card-hover`
-- Sections: `.card-header`, `.card-body`, `.card-footer`
-- Media: `.card-media-top`, `.card-media-bottom`
-- Sizes: `.card-sm`, `.card-md`, `.card-lg`
-- Interactivity: `.card-interactive`
+### 6. **Performance Optimization**
+- Use the minimal `main.css` entry point if you don't need all component styles
+- Leverage CSS variables for dynamic color changes
+- Minimize custom CSS by using existing utilities
 
-### Alerts (`components/alerts.css`)
-Notification elements with variants including:
-- Base: `.alert`
-- Types: `.alert-info`, `.alert-success`, `.alert-warning`, `.alert-error`
-- Sizes: `.alert-sm`, `.alert-lg`
-- Layout helpers: `.alert-icon`, `.alert-content`, `.alert-title`, `.alert-close`
-- Animation: `.alert-animate`
+### 7. **Documentation and Comments**
+Document complex utility combinations in your Svelte components:
 
-### Badges (`components/badges.css`)
-Small labeling elements with:
-- Base: `.badge`
-- Color variants: `.badge-primary`, `.badge-secondary`, `.badge-success`, `.badge-error`, `.badge-warning`, `.badge-info`
-- Outline: `.badge-outline`
-- Sizes: `.badge-sm`, `.badge-lg`
-- Shapes: `.badge-rounded`, `.badge-square` (base is `.badge-full`)
-- Special types: `.badge-with-icon`, `.badge-notification`, `.badge-status` (with status variants like `.badge-status-online`)
+```html
+<!-- 
+  Chart container with modern styling:
+  - chart-modern: Modern chart appearance with hover effects
+  - p-lg: Large padding for breathing room
+  - bg-card: Card background color
+  - shadow-md: Medium shadow for depth
+-->
+<div class="chart-modern p-lg bg-card shadow-md">
+  <!-- Chart content -->
+</div>
+```
 
-### Legends (`components/legend.css`)
-Data visualization legends with extensive customization:
-- Base container: `.legend`
-- Positioning: `.legend-top`, `.legend-bottom`, `.legend-left`, `.legend-right` (used alongside layout utilities)
-- Orientations: `.legend-horizontal`, `.legend-vertical`
-- Items: `.legend-items`, `.legend-item`, `.legend-item-swatch`, `.legend-item-label`, `.legend-item-value`
-- States: `.legend-item.disabled`
-- Responsive variants: `.legend-mobile` (often used with layout utilities like `.legend-grid-mobile`, `.legend-color-mobile`, etc.)
-- Layouts: `.legend-grid`, `.types-legend`, `.compact-legend`, `.multi-row-legend`
-- Appearance: `.legend-background`, `.legend-boxed`
-- Components: `.legend-title`, `.legend-heading`
+## Working with Data Visualizations
 
-## Working with Popups and Tooltips
+### Chart Types and Styling
 
-For elements like popups, tooltips, and dropdown menus:
+The IWAC application includes several visualization types, each with specific styling considerations:
 
-- Use positioning utilities like `.absolute` or `.fixed`.
-- Use directional utilities like `.top-100`, `.left-0`, etc.
-- Apply appropriate z-index utilities like `.z-popover` or `.z-dropdown`.
-- Add borders (`.border`, `.border-solid`, `.border-default`) and shadows (`.shadow`, `.shadow-lg`).
-- Style using background (`.bg-card`), padding (`.p-sm`), and border-radius (`.rounded`).
+#### 1. **Treemap (Country Distribution)**
+```html
+<div class="chart-modern">
+  <svg class="w-full h-full">
+    <g class="treemap-container">
+      <rect class="treemap-rect-modern" 
+            fill="#5B6EE8" 
+            stroke="#ffffff" 
+            stroke-width="2">
+      </rect>
+    </g>
+  </svg>
+</div>
+```
+
+#### 2. **Pie Chart (Language Distribution)**
+```html
+<div class="chart-modern">
+  <svg class="w-full h-full">
+    <g class="pie-chart-container">
+      <path class="pie-slice-modern" 
+            fill="#FF6B9D" 
+            d="M0,0 L50,0 A50,50 0 0,1 35.36,35.36 Z">
+      </path>
+    </g>
+  </svg>
+</div>
+```
+
+#### 3. **Bar Chart (Index Distribution)**
+```html
+<div class="chart-modern">
+  <svg class="w-full h-full">
+    <g class="bar-chart-container">
+      <rect class="bar-modern" 
+            fill="#4ECDC4" 
+            x="0" y="0" 
+            width="50" height="100">
+      </rect>
+    </g>
+  </svg>
+</div>
+```
+
+#### 4. **Timeline (Time Distribution)**
+```html
+<div class="chart-modern">
+  <svg class="w-full h-full">
+    <g class="timeline-container">
+      <rect class="timeline-bar timeline-modern" 
+            fill="#FFD93D" 
+            x="0" y="0" 
+            width="10" height="80">
+      </rect>
+    </g>
+  </svg>
+</div>
+```
+
+### Responsive Chart Containers
+
+Use these container patterns for responsive charts:
+
+```html
+<!-- Desktop layout with side legend -->
+<div class="flex flex-row gap-lg">
+  <div class="flex-1">
+    <div class="chart-modern min-h-500">
+      <!-- Chart content -->
+    </div>
+  </div>
+  <div class="legend legend-vertical">
+    <!-- Legend items -->
+  </div>
+</div>
+
+<!-- Mobile layout with bottom legend -->
+<div class="flex flex-col gap-md">
+  <div class="chart-modern min-h-500">
+    <!-- Chart content -->
+  </div>
+  <div class="legend legend-horizontal legend-mobile">
+    <!-- Legend items -->
+  </div>
+</div>
+```
+
+### Tooltip Implementation
+
+```html
+<div class="tooltip-modern" id="chart-tooltip">
+  <div class="tooltip-content">
+    <div class="text-sm font-medium">Country: <span id="tooltip-country"></span></div>
+    <div class="text-sm">Items: <span id="tooltip-count"></span></div>
+  </div>
+</div>
+```
+
+### Loading States
+
+```html
+<!-- Loading skeleton -->
+<div class="chart-skeleton"></div>
+
+<!-- Loading with message -->
+<div class="chart-modern">
+  <div class="flex items-center justify-center min-h-500">
+    <div class="alert alert-info">
+      <div class="alert-content">Loading visualization data...</div>
+    </div>
+  </div>
+</div>
+```
+
+## Component Reference
+
+### Visualization Components (`components/visualizations.css`)
+
+This file contains modern styling for data visualization components:
+
+- **`.chart-modern`**: Modern chart container with hover effects and shadows
+- **`.tooltip-modern`**: Styled tooltips with backdrop blur and smooth animations
+- **`.bar-modern`**, **`.pie-slice-modern`**, **`.timeline-modern`**, **`.treemap-rect-modern`**: Enhanced styling for different chart types
+- **`.chart-skeleton`**: Loading skeleton with animated gradient
+- **`.data-point`**: Animated data points with staggered entrance animations
+- **`.gradient-bg-animated`**: Animated gradient backgrounds
+- **`.glow-effect`**: Subtle glow effects for interactive elements
+
+### Legend Components (`components/legend.css`)
+
+Comprehensive legend styling for data visualizations:
+
+- **Base**: `.legend`, `.legend-items`, `.legend-item`
+- **Positioning**: `.legend-top`, `.legend-bottom`, `.legend-left`, `.legend-right`
+- **Orientations**: `.legend-horizontal`, `.legend-vertical`
+- **Layouts**: `.legend-grid`, `.compact-legend`, `.multi-row-legend`, `.types-legend`
+- **Elements**: `.legend-item-swatch`, `.legend-item-label`, `.legend-item-value`
+- **States**: `.legend-item.disabled`
+- **Responsive**: `.legend-mobile`, `.legend-grid-mobile`
+
+### UI Components
+
+#### Buttons (`components/buttons.css`)
+- **Base**: `.btn`
+- **Variants**: `.btn-primary`, `.btn-secondary`, `.btn-outline`, `.btn-ghost`
+- **Sizes**: `.btn-sm`, `.btn-lg`
+- **Special**: `.btn-icon`, `.btn-disabled`
+
+#### Cards (`components/cards.css`)
+- **Base**: `.card`
+- **Variants**: `.card-flat`, `.card-hover`, `.card-interactive`
+- **Sections**: `.card-header`, `.card-body`, `.card-footer`
+- **Sizes**: `.card-sm`, `.card-md`, `.card-lg`
+
+#### Alerts (`components/alerts.css`)
+- **Base**: `.alert`
+- **Types**: `.alert-info`, `.alert-success`, `.alert-warning`, `.alert-error`
+- **Sizes**: `.alert-sm`, `.alert-lg`
+- **Elements**: `.alert-icon`, `.alert-content`, `.alert-title`, `.alert-close`
+
+#### Badges (`components/badges.css`)
+- **Base**: `.badge`
+- **Variants**: `.badge-primary`, `.badge-secondary`, `.badge-success`, `.badge-error`
+- **Sizes**: `.badge-sm`, `.badge-lg`
+- **Shapes**: `.badge-rounded`, `.badge-square`
+- **Special**: `.badge-with-icon`, `.badge-notification`, `.badge-status`
+
+## Development Workflow
+
+### Creating New Visualizations
+
+When adding new visualization components to the IWAC application:
+
+1. **Use the existing color palette**:
+   ```typescript
+   import { getColorPalette } from '../utils/colorPalette';
+   const colors = getColorPalette('primary', dataLength);
+   ```
+
+2. **Follow the chart container pattern**:
+   ```html
+   <div class="chart-modern p-lg">
+     <div class="flex items-center justify-between mb-md">
+       <h3 class="text-lg font-bold">{title}</h3>
+       <div class="flex gap-sm">
+         <!-- Controls -->
+       </div>
+     </div>
+     <div class="min-h-500">
+       <!-- Chart content -->
+     </div>
+   </div>
+   ```
+
+3. **Include responsive legends**:
+   ```html
+   <div class="legend legend-horizontal">
+     <div class="legend-items">
+       <!-- Legend items -->
+     </div>
+   </div>
+   ```
+
+### Extending Component Styles
+
+When you need to add new component styles:
+
+1. **Create a new CSS file in `components/`** (e.g., `components/modals.css`)
+2. **Add the import to `index.css`**:
+   ```css
+   @import './components/modals.css';
+   ```
+3. **Follow the existing naming patterns**
+4. **Use theme variables for consistency**
+
+### Testing Visual Changes
+
+1. **Test responsive behavior** across different screen sizes
+2. **Check color contrast** for accessibility
+3. **Verify interactive states** (hover, focus, active)
+4. **Test with real data** from the IWAC database
+
+### Performance Considerations
+
+- **Use CSS variables** for dynamic color changes instead of inline styles
+- **Leverage existing utilities** instead of creating custom CSS
+- **Minimize the number of unique classes** by composing utilities
+- **Use the minimal `main.css`** entry point if you don't need all component styles
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Colors not displaying correctly**:
+   - Check that you're importing the correct CSS entry point (`index.css` or `main.css`)
+   - Verify theme variables are loaded before component styles
+
+2. **Layout issues on mobile**:
+   - Use responsive utilities and mobile-first design patterns
+   - Test with the `.legend-mobile` classes for legends
+
+3. **Tooltips not positioning correctly**:
+   - Ensure proper z-index with `.z-tooltip` or similar
+   - Use absolute positioning with appropriate parent containers
+
+4. **Chart animations not working**:
+   - Check that `.data-point` classes are applied correctly
+   - Verify CSS transitions are not being overridden
+
+### Debugging CSS
+
+1. **Use browser developer tools** to inspect applied styles
+2. **Check for CSS specificity conflicts**
+3. **Verify theme variables** are resolving to expected values
+4. **Test utility class combinations** in isolation
+
+## Migration Guide
+
+If you're migrating from older CSS patterns:
+
+1. **Replace custom color values** with theme variables:
+   ```css
+   /* Before */
+   color: #5B6EE8;
+   
+   /* After */
+   color: var(--color-primary);
+   ```
+
+2. **Use utility classes** instead of custom CSS:
+   ```css
+   /* Before */
+   .custom-spacing { padding: 16px; margin-bottom: 24px; }
+   
+   /* After */
+   <!-- Use: p-md mb-lg -->
+   ```
+
+3. **Adopt component classes** for complex elements:
+   ```css
+   /* Before */
+   .my-button { /* lots of custom styles */ }
+   
+   /* After */
+   <!-- Use: btn btn-primary -->
+   ```
 
 ## Contributing
 
-When extending this system:
+When extending the CSS system for the IWAC application:
 
-1. Add new utilities to the appropriate file based on their category (e.g., new spacing utilities go in `utilities/spacing.css`).
-2. Maintain the naming convention for consistency.
-3. If creating a new reusable UI element, create a new file in `components/` (e.g., `components/modals.css`) and import it in `index.css`.
-4. Document any significant additions or changes in this README.
+### Adding New Utilities
 
-## Style Guide
+1. **Identify the appropriate category** (colors, spacing, typography, layout, borders)
+2. **Add to the relevant utility file** (e.g., new color utilities go in `utilities/colors.css`)
+3. **Follow the existing naming convention**
+4. **Update theme variables** if needed in `themes/default-theme.css`
+5. **Test across different visualization types**
 
-For visual examples and testing of the CSS system, see the style guide located at `src/styles/docs/styleguide.html`. Open this file in your browser. 
+### Creating New Components
+
+1. **Create a new CSS file** in `components/` (e.g., `components/modals.css`)
+2. **Import it in `index.css`**:
+   ```css
+   @import './components/modals.css';
+   ```
+3. **Use theme variables** for consistency
+4. **Follow the component naming pattern**: `.component-name`, `.component-name-variant`
+5. **Include responsive considerations**
+
+### Documentation Requirements
+
+1. **Update this README** with new components or significant changes
+2. **Add code examples** for new patterns
+3. **Document any breaking changes**
+4. **Include accessibility considerations**
+
+### Testing Guidelines
+
+1. **Test all visualization types**: Country Distribution, Language Distribution, Index Distribution, Timeline, Type Distribution, Word Distribution
+2. **Verify responsive behavior** on mobile and desktop
+3. **Check accessibility** with screen readers and keyboard navigation
+4. **Test with actual IWAC data** to ensure realistic scenarios
+
+## Resources
+
+### External Libraries Used
+- **D3.js**: For data visualization rendering
+- **Svelte**: Component framework
+- **TypeScript**: Type safety
+
+### Browser Support
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+- Mobile browsers (iOS Safari, Chrome Mobile)
+- Responsive design for various screen sizes
+
+### Related Documentation
+- **Main Application README**: `../../README.md`
+- **Color Palette Utility**: `../utils/colorPalette.ts`
+- **Visualization Components**: `../components/visualizations/`
+- **Theme Configuration**: `./themes/default-theme.css`
+
+---
+
+*This documentation is specific to the IWAC Database Overview application. For questions or contributions, please refer to the main project documentation.* 

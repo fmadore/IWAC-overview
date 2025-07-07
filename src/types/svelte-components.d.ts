@@ -26,7 +26,20 @@ declare module 'src/components/visualizations/BaseVisualization.svelte' {
     descriptionTranslationKey?: string;
     showDescription?: boolean;
     titleHtml?: string;
-  }, {}, {}> {}
+    ariaLabel?: string;
+    enableResizeObserver?: boolean;
+    theme?: 'default' | 'light' | 'dark' | 'custom';
+    customBackground?: string;
+    customTextColor?: string;
+    minHeight?: string;
+    padding?: string;
+    className?: string;
+    modernStyle?: boolean;
+    enableTooltip?: boolean;
+    tooltipBackgroundColor?: string;
+    tooltipTextColor?: string;
+    tooltipMaxWidth?: string;
+  }, { resize: CustomEvent<{ width: number; height: number }> }, { default: {} }> {}
 }
 
 declare module 'src/components/visualizations/CountryDistribution.svelte' {
@@ -61,5 +74,7 @@ declare module 'src/components/visualizations/VisualizationHeader.svelte' {
     showDescription?: boolean;
     descriptionTranslationKey?: string;
     titleHtml?: string;
+    descriptionId: string;
+    className?: string;
   }, {}, {}> {}
 } 

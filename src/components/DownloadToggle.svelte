@@ -523,12 +523,12 @@
 </script>
 
 <button 
-    class="btn btn-primary btn-icon"
+    class="btn btn-primary btn-icon p-sm"
     on:click={downloadVisualization} 
     title={t('ui.download_visualization')}
     aria-label={t('ui.download_visualization')}
 >
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="block">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="7 10 12 15 17 10"></polyline>
         <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -536,37 +536,19 @@
 </button>
 
 <style>
-    /* Button styling */
-    :global(.btn.btn-primary) {
-        background-color: var(--color-primary);
-        color: var(--color-text-light);
-    }
-    
-    :global(.btn.btn-primary:hover) {
-        background-color: var(--color-primary-dark);
-    }
-    
-    :global(.btn.btn-primary:focus) {
-        outline: none;
-        box-shadow: 0 0 0 2px var(--color-primary-300);
-    }
-    
-    :global(.btn-icon) {
-        min-width: 36px;
-        min-height: 36px;
-    }
-    
-    /* Only keep styles that can't be achieved with utility classes */
-    svg {
-        display: block;
-    }
-    
-    /* Mobile optimizations */
-    @media (max-width: 768px) {
-        :global(.btn-icon) {
-            min-width: 42px;
-            min-height: 42px;
-            padding: var(--spacing-sm);
-        }
-    }
+    /* 
+     * DownloadToggle.svelte - Download visualization button component
+     * 
+     * This component primarily uses utility classes from our design system.
+     * Mobile optimizations are now handled by the button component CSS.
+     */
+
+    /* 
+     * Utility classes used in this component:
+     * - btn: Base button component class
+     * - btn-primary: Primary button variant  
+     * - btn-icon: Icon button variant
+     * - p-sm: Small padding
+     * - block: Display block (applied to SVG)
+     */
 </style> 

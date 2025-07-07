@@ -11,6 +11,7 @@
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import { useLegend, type LegendItem } from '../../hooks/useLegend';
+    import { getColorPalette } from '../../utils/colorPalette';
 
     const COMPONENT_ID = 'TypeDistribution';
     let isMounted = false;
@@ -53,6 +54,9 @@
     
     // Add state for type visibility
     let typeVisibility: TypeVisibility[] = [];
+    
+    // Initialize modern color palette
+    const modernColors = getColorPalette('primary');
     
     // Initialize tooltip hook
     const { showTooltip, hideTooltip } = useTooltip({
@@ -939,7 +943,7 @@
         </div>
         
         <!-- Chart container below the controls -->
-        <div class="chart-container" bind:this={container}>
+        <div class="chart-container chart-modern" bind:this={container}>
             {#if $itemsStore.loading}
                 <div class="absolute inset-center text-secondary z-50">{t('ui.loading')}</div>
             {:else if $itemsStore.error}
@@ -965,26 +969,40 @@
         margin-bottom: var(--spacing-sm);
     }
     
-    /* Make the facets and year range side by side */
+    /* Make the facets and year range side by side with modern styling */
     .facets, .year-range {
         flex: 1;
         background-color: var(--color-bg-card);
         border-radius: var(--radius-md);
         box-shadow: var(--shadow-md);
         padding: var(--spacing-sm);
+        border: 1px solid var(--color-border-light);
+        transition: all var(--transition-fast);
     }
     
-    /* Make the chart container take up remaining space */
+    .facets:hover, .year-range:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-1px);
+    }
+    
+    /* Make the chart container take up remaining space with modern styling */
     .chart-container {
         flex: 1;
         position: relative;
         background: var(--color-bg-card);
         border-radius: var(--radius-md);
         box-shadow: var(--shadow-md);
+        border: 1px solid var(--color-border-light);
+        transition: all var(--transition-normal) var(--ease-out);
         /* Reasonable height that allows the chart to be visible without being too tall */
         min-height: 450px;
         max-height: 600px;
         height: auto;
+    }
+    
+    .chart-container:hover {
+        box-shadow: var(--shadow-xl);
+        transform: translateY(-2px);
     }
     
     h3 {
@@ -1014,26 +1032,31 @@
     .facet-option {
         display: flex;
         align-items: center;
-        padding: var(--spacing-xs) 0;
+        padding: var(--spacing-xs) var(--spacing-sm);
         cursor: pointer;
         border-radius: var(--radius-sm);
-        transition: background-color var(--transition-fast);
+        transition: all var(--transition-fast);
         font-size: var(--font-size-sm);
+        border: 1px solid transparent;
     }
     
     .facet-option:hover {
         background-color: var(--color-bg-hover);
+        border-color: var(--color-border-light);
+        transform: translateX(2px);
     }
     
     .facet-option.selected {
         font-weight: bold;
         color: var(--color-primary);
+        background-color: var(--color-primary-50);
+        border-color: var(--color-primary-light);
     }
     
     .facet-checkbox {
-        width: 14px;
-        height: 14px;
-        border: 1px solid var(--color-border);
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--color-border);
         border-radius: var(--radius-sm);
         margin-right: var(--spacing-sm);
         display: flex;
@@ -1041,12 +1064,16 @@
         justify-content: center;
         color: var(--color-primary);
         flex-shrink: 0;
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-xs);
     }
     
     .facet-option.selected .facet-checkbox {
         background-color: var(--color-primary);
         border-color: var(--color-primary);
         color: white;
+        box-shadow: var(--shadow-sm);
+        transform: scale(1.1);
     }
     
     .facet-label {
@@ -1084,35 +1111,61 @@
         width: 100%;
         pointer-events: none;
         appearance: none;
-        height: 4px;
+        height: 6px;
         left: 0;
         right: 0;
         top: 50%;
         transform: translateY(-50%);
-        background: var(--color-border-light);
+        background: linear-gradient(90deg, var(--color-border-light), var(--color-primary-100));
+        border-radius: var(--radius-full);
         outline: none;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
     }
     
     input[type="range"]::-webkit-slider-thumb {
         pointer-events: auto;
         appearance: none;
-        width: 16px;
-        height: 16px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
         background: var(--color-primary);
         cursor: pointer;
-        border: none;
+        border: 2px solid white;
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-fast);
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: var(--shadow-lg);
     }
     
     input[type="range"]::-moz-range-thumb {
         pointer-events: auto;
         appearance: none;
-        width: 16px;
-        height: 16px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
         background: var(--color-primary);
         cursor: pointer;
-        border: none;
+        border: 2px solid white;
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-fast);
+    }
+    
+    input[type="range"]::-moz-range-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    /* Modern loading and error states */
+    :global(.absolute.inset-center) {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-md);
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--shadow-md);
+        font-weight: var(--font-weight-medium);
     }
     
     /* Add header compact styles */

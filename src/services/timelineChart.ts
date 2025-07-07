@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import { createGridTooltipContent } from '../hooks/useTooltip';
+import { getColorPalette } from '../utils/colorPalette';
 
 // Define interfaces for data structures
 export interface MonthlyData {
@@ -115,7 +116,7 @@ export class TimelineChart {
                 .attr('width', validWidth)
                 .attr('height', validHeight)
                 .attr('viewBox', `0 0 ${validWidth} ${validHeight}`)
-                .attr('class', 'timeline-chart');
+                .attr('class', 'timeline-chart timeline-modern');
             
             // Calculate chart dimensions
             const chartWidth = validWidth - margin.left - margin.right;
@@ -152,7 +153,7 @@ export class TimelineChart {
                 .attr('markerHeight', 5)
                 .append('circle')
                 .attr('r', 3)
-                .attr('fill', 'var(--color-primary)');
+                .attr('fill', 'var(--color-accent-1)');
                 
             // Render monthly additions chart
             this.renderMonthlyChart(svg, timelineData, margin, chartWidth, chartHeight, xScale, isMobile);
@@ -200,7 +201,7 @@ export class TimelineChart {
             .attr('y1', 0)
             .attr('x2', -80)
             .attr('y2', 0)
-            .attr('stroke', 'var(--color-primary)')
+            .attr('stroke', 'var(--color-accent-1)')
             .attr('stroke-width', 2)
             .attr('marker-end', 'url(#circle)');
             
@@ -216,7 +217,7 @@ export class TimelineChart {
             .attr('y1', 20)
             .attr('x2', -80)
             .attr('y2', 20)
-            .attr('stroke', 'var(--color-secondary)')
+            .attr('stroke', 'var(--color-accent-2)')
             .attr('stroke-width', 2)
             .attr('stroke-dasharray', '4 2');
             
@@ -251,7 +252,7 @@ export class TimelineChart {
             
         // Create grid lines for monthly chart
         chart1.append('g')
-            .attr('class', 'grid')
+            .attr('class', 'grid chart-grid-modern')
             .selectAll('line')
             .data(yScaleMonthly.ticks(isMobile ? 3 : 5))
             .enter()
@@ -260,8 +261,9 @@ export class TimelineChart {
             .attr('x2', chartWidth)
             .attr('y1', d => yScaleMonthly(d))
             .attr('y2', d => yScaleMonthly(d))
-            .attr('stroke', 'var(--color-border-default)')
-            .attr('stroke-width', 0.5);
+            .attr('stroke', 'var(--color-border-light)')
+            .attr('stroke-width', 0.5)
+            .attr('stroke-dasharray', '1,3');
             
         // Create x-axis for monthly chart
         const numTicks = Math.max(2, Math.floor(chartWidth / (isMobile ? 60 : 80))); // Dynamic ticks
@@ -275,11 +277,11 @@ export class TimelineChart {
             });
         
         chart1.append('g')
-            .attr('class', 'x-axis')
+            .attr('class', 'x-axis axis-modern')
             .attr('transform', `translate(0, ${chartHeight})`)
             .call(xAxis)
             .selectAll('text')
-            .attr('class', 'text-xs text-primary')
+            .attr('class', 'text-xs text-secondary')
             .attr('text-anchor', 'end')
             .attr('dx', '-.8em')
             .attr('dy', '.15em')
@@ -290,10 +292,10 @@ export class TimelineChart {
             .ticks(isMobile ? 3 : 5);
         
         chart1.append('g')
-            .attr('class', 'y-axis')
+            .attr('class', 'y-axis axis-modern')
             .call(yAxis)
             .selectAll('text')
-            .attr('class', 'text-xs text-primary');
+            .attr('class', 'text-xs text-secondary');
             
         // Add y-axis label for monthly chart (only on non-mobile)
         if (!isMobile) {
@@ -316,9 +318,10 @@ export class TimelineChart {
         chart1.append('path')
             .datum(data)
             .attr('fill', 'none')
-            .attr('stroke', 'var(--color-primary)')
+            .attr('stroke', 'var(--color-accent-1)')
             .attr('stroke-width', isMobile ? 1.5 : 2)
-            .attr('d', lineMonthly);
+            .attr('d', lineMonthly)
+            .attr('class', 'timeline-bar');
             
         // Add interactive dots
         this.addMonthlyDots(chart1, data, xScale, yScaleMonthly, isMobile);
@@ -348,9 +351,9 @@ export class TimelineChart {
             .attr('cx', d => xScale(d.date))
             .attr('cy', d => yScale(d.count))
             .attr('r', isMobile ? 3 : 4)
-            .attr('fill', 'var(--color-primary)')
-            .attr('stroke', 'white')
-            .attr('stroke-width', 1)
+            .attr('fill', 'var(--color-accent-1)')
+            .attr('stroke', 'var(--color-bg-card)')
+            .attr('stroke-width', 2)
             .on('mouseenter', function(event: any, d: MonthlyData) {
                 d3.select(this)
                     .transition()

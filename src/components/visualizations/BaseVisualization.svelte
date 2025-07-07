@@ -36,6 +36,7 @@
     export let minHeight: string = '400px';
     export let padding: string = 'var(--spacing-md)';
     export let className: string = '';
+    export let modernStyle: boolean = true; // Enable modern styling by default
     
     // Tooltip configuration
     export let enableTooltip: boolean = true;
@@ -126,17 +127,17 @@
         description={description}
         {descriptionTranslationKey}
         bind:showDescription
-        {descriptionId}
+        descriptionId={descriptionId}
         className="z-above"
     />
     
-    <div class="w-full flex-1 flex flex-col relative z-base visualization-content" 
+    <div class="w-full flex-1 flex flex-col relative z-base visualization-content {modernStyle ? 'chart-modern' : ''}" 
          role="presentation" 
          bind:this={contentContainer}
     >
         <slot>
             <!-- Default content if no slot is provided -->
-            <div class="empty-visualization" aria-live="polite" style={containerStyle}>
+            <div class="empty-visualization {modernStyle ? 'chart-skeleton' : ''}" aria-live="polite" style={containerStyle}>
                 {#if $itemsStore.loading}
                     <div class="text-center text-secondary">
                         {t('ui.loading')}
@@ -176,9 +177,9 @@
     /* Theme variations */
     .light {
         --color-bg-card: #ffffff;
-        --color-text-primary: #333333;
-        --color-text-secondary: #666666;
-        --color-error: #e53935;
+        --color-text-primary: #1A202C;
+        --color-text-secondary: #4A5568;
+        --color-error: #F56565;
     }
     
     .dark {

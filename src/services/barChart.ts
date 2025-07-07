@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import { D3Service } from './d3Service';
+import { getColorPalette } from '../utils/colorPalette';
 
 /**
  * Interface for generic bar data
@@ -151,8 +152,11 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
             colorScale = options.barColors;
         }
     } else {
-        // Default color scale
-        colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10);
+        // Use modern color palette instead of default d3 colors
+        const modernColors = getColorPalette('primary', data.length);
+        colorScale = d3.scaleOrdinal<string>()
+            .domain(data.map(d => d[options.keyField || 'key']))
+            .range(modernColors);
     }
     
     // Determine max value for y-scale
@@ -194,12 +198,12 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
         });
         
         chart.append('g')
-            .attr('class', 'x-axis')
+            .attr('class', 'x-axis axis-modern')
             .attr('transform', `translate(0, ${chartHeight})`)
             .call(g => D3Service.renderAxis(g, xAxis))
             .selectAll('text')
             .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)')
-            .attr('fill', 'var(--color-text-primary)');
+            .attr('fill', 'var(--color-text-secondary)');
         
         // Add X-axis label if provided
         if (xAxisLabel) {
@@ -222,11 +226,11 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
         });
         
         chart.append('g')
-            .attr('class', 'y-axis')
+            .attr('class', 'y-axis axis-modern')
             .call(g => D3Service.renderAxis(g, yAxis))
             .selectAll('text')
             .attr('font-size', isMobile ? '8px' : 'var(--font-size-xs)')
-            .attr('fill', 'var(--color-text-primary)');
+            .attr('fill', 'var(--color-text-secondary)');
         
         // Add Y-axis label if provided
         if (yAxisLabel) {
@@ -245,7 +249,7 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
         .data(data)
         .enter()
         .append('rect')
-        .attr('class', 'bar')
+        .attr('class', 'bar bar-modern')
         .attr('x', d => xScale(d[keyField]) || 0)
         .attr('y', d => yScale(d[valueField]))
         .attr('width', xScale.bandwidth())
@@ -381,7 +385,7 @@ export function createBarChart(options: BarChartOptions): BarChartResult {
         // Add new bars
         const enterBars = updateBars.enter()
             .append('rect')
-            .attr('class', 'bar')
+            .attr('class', 'bar bar-modern')
             .attr('x', d => xScale(d[keyField]) || 0)
             .attr('y', chartHeight)
             .attr('width', xScale.bandwidth())

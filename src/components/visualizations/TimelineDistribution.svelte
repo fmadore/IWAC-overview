@@ -10,6 +10,7 @@
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
     import { TimelineChart, type MonthlyData } from '../../services/timelineChart';
+    import { getColorPalette } from '../../utils/colorPalette';
 
     // Define interfaces for data structures
     interface FacetOption {
@@ -320,7 +321,7 @@
         };
     });
 
-    // Initialize the timeline chart
+    // Initialize the timeline chart with modern styling
     function initializeTimelineChart() {
         try {
             console.log('[TimelineDistribution] Initializing timeline chart with dimensions:', { width, height });
@@ -350,7 +351,7 @@
                 hideTooltip
             });
             
-            console.log('[TimelineDistribution] Timeline chart initialized');
+            console.log('[TimelineDistribution] Timeline chart initialized with modern styling');
         } catch (error) {
             console.error('[TimelineDistribution] Error initializing timeline chart:', error);
         }
@@ -598,7 +599,7 @@
         theme="default"
         className="timeline-visualization"
     >
-        <div class="flex flex-wrap gap-md p-md bg-card rounded-t border-b border-solid border-default filters">
+        <div class="flex flex-wrap gap-md p-md bg-card rounded-t border-b border-solid border-default filters glass-overlay">
             <div class="flex flex-col gap-xs filter-group">
                 <label for="country-filter" class="text-xs font-bold text-secondary">{$filterByCountryText}:</label>
                 <select id="country-filter" on:change={handleCountryChange} value={selectedCountry} class="p-xs px-sm rounded-sm border border-solid border-default bg-card text-primary text-sm">
@@ -625,7 +626,7 @@
         </div>
         
         <div 
-            class="flex-1 relative min-h-500 bg-card rounded-b p-md chart-container overflow-hidden"
+            class="flex-1 relative min-h-500 bg-card rounded-b p-md chart-container chart-modern overflow-hidden"
             style="height: 500px;"
             bind:this={container}
         >
@@ -677,9 +678,122 @@
 </div>
 
 <style>
-    /* Only keep styles that can't be achieved with utility classes */
+    /* Modern styling for timeline distribution */
     .filter-group {
         min-width: 200px;
+    }
+    
+    /* Modern filter styling */
+    .filters {
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid var(--color-border-light);
+        transition: all var(--transition-fast);
+    }
+    
+    /* Modern chart container with enhanced styling */
+    .chart-container {
+        min-height: 400px;
+        height: 500px;
+        width: 100%;
+        transition: box-shadow var(--transition-fast);
+    }
+    
+    .chart-container:hover {
+        box-shadow: var(--shadow-xl);
+    }
+    
+    /* Modern timeline chart styling */
+    :global(.timeline-chart.timeline-modern) {
+        background: var(--color-bg-card);
+    }
+    
+    :global(.timeline-modern .timeline-bar) {
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        transition: all var(--transition-fast);
+    }
+    
+    :global(.timeline-modern .timeline-bar:hover) {
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+        transform: scaleY(1.02);
+    }
+    
+    :global(.timeline-modern .axis-modern text) {
+        fill: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+    }
+    
+    :global(.timeline-modern .grid line) {
+        stroke: var(--color-border-light);
+        stroke-dasharray: 2,2;
+        opacity: 0.6;
+    }
+    
+    /* Modern select and form styling */
+    .filter-group select {
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .filter-group select:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .filter-group select:focus {
+        box-shadow: var(--shadow-glow);
+        border-color: var(--color-primary);
+        outline: none;
+    }
+    
+    /* Modern stats cards */
+    .stats {
+        background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card-alt) 100%);
+        border: 1px solid var(--color-border-light);
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-fast);
+    }
+    
+    .stats:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+    }
+    
+    .stat-summary, .peak-months {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(4px);
+        border-radius: var(--radius-md);
+        transition: all var(--transition-fast);
+    }
+    
+    .stat-summary:hover, .peak-months:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateY(-1px);
+    }
+    
+    /* Loading spinner with modern styling */
+    .loading-spinner {
+        display: inline-block;
+        width: 1.5rem;
+        height: 1.5rem;
+        border: 3px solid var(--color-border-light);
+        border-radius: 50%;
+        border-top-color: var(--color-primary);
+        animation: spin 1s ease-in-out infinite;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Modern loading and error states */
+    :global(.absolute.inset-center) {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-md);
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--shadow-md);
     }
     
     /* Responsive adjustments */
@@ -697,27 +811,5 @@
         .stats {
             grid-template-columns: 1fr !important;
         }
-    }
-    
-    /* Ensure the chart container has minimum dimensions */
-    .chart-container {
-        min-height: 400px;
-        height: 500px;
-        width: 100%;
-    }
-    
-    /* Loading spinner */
-    .loading-spinner {
-        display: inline-block;
-        width: 1.5rem;
-        height: 1.5rem;
-        border: 3px solid rgba(0, 0, 0, 0.1);
-        border-radius: 50%;
-        border-top-color: var(--color-primary);
-        animation: spin 1s ease-in-out infinite;
-    }
-    
-    @keyframes spin {
-        to { transform: rotate(360deg); }
     }
 </style> 
