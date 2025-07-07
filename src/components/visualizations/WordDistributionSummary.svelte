@@ -1,7 +1,7 @@
 <script lang="ts">
     import { translate } from '../../stores/translationStore';
     import type { HierarchyNode } from 'd3-hierarchy'; // Import specific type
-    import type { TreemapNode } from '../../services/treemap'; // Assuming TreemapNode is the data type
+    import type { TreemapNode } from '../../services/treemap/index'; // Assuming TreemapNode is the data type
 
     // Props for the summary component
     export let totalItems: number;

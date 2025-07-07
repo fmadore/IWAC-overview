@@ -18,6 +18,20 @@ export const colorPalettes = {
     '#EE5A6F', // Coral
   ],
   
+  // Professional palette - balanced and sophisticated
+  professional: [
+    '#2563eb', // Professional blue
+    '#dc2626', // Professional red
+    '#059669', // Professional green
+    '#d97706', // Professional orange
+    '#7c3aed', // Professional purple
+    '#0891b2', // Professional cyan
+    '#be185d', // Professional pink
+    '#4b5563', // Professional gray
+    '#65a30d', // Professional lime
+    '#c2410c', // Professional amber
+  ],
+  
   // Pastel palette - soft and modern
   pastel: [
     '#B5C7FF', // Soft blue

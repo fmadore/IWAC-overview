@@ -1,3 +1,22 @@
+<!--
+  WordDistribution Component - Refactored to use Modular Treemap API
+  
+  This component has been updated to use the new modular TreemapVisualization class
+  instead of the legacy TreemapService.createTreemap() method.
+  
+  Key improvements:
+  - Better separation of concerns with modular architecture
+  - Type-safe configuration with TreemapConfiguration
+  - Proper cleanup and memory management
+  - More maintainable and testable code structure
+  
+  Migration changes:
+  - TreemapService.createTreemap() → TreemapVisualization class
+  - Options object → TreemapConfiguration interface
+  - Added proper cleanup with treemapVisualization.destroy()
+  - Improved configuration management with updateConfig()
+-->
+
 <script lang="ts">
     import { onMount, onDestroy, tick } from 'svelte';
     import * as d3 from 'd3';
@@ -11,7 +30,7 @@
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
     import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
-    import TreemapService, { type TreemapNode, type TreemapOptions } from '../../services/treemap';
+    import { TreemapVisualization, type TreemapNode, type TreemapConfiguration } from '../../services/treemap/index';
     import { createWordDistributionHierarchy } from '../../utils/dataTransformers';
     import { getColorPalette } from '../../utils/colorPalette';
 
@@ -33,8 +52,12 @@
     // Store country colors to maintain consistency when zooming - use modern palette
     let countryColors: Map<string, string> = new Map();
     
-    // Initialize modern color palette
-    const modernColors = getColorPalette('primary');
+    // Treemap visualization instance
+    let treemapVisualization: TreemapVisualization | null = null;
+    
+    // Initialize professional color palette and create D3 scale
+    const modernColors = getColorPalette('professional');
+    const colorScale = d3.scaleOrdinal<string>().range(modernColors);
     
     // Initialize tooltip hook
     const { showTooltip, hideTooltip } = useTooltip({
@@ -113,7 +136,7 @@
 
         // Assign modern colors to countries
         if (hierarchy.children) {
-            hierarchy.children.forEach((country, index) => {
+            hierarchy.children.forEach((country: TreemapNode, index: number) => {
                 if (!countryColors.has(country.name)) {
                     const colorIndex = index % modernColors.length;
                     countryColors.set(country.name, modernColors[colorIndex]);
@@ -122,8 +145,8 @@
         }
 
         // Recalculate totals based on the processed hierarchy root
-        totalItems = hierarchy.children?.reduce((sum, country) => sum + (country.itemCount || 0), 0) || 0;
-        totalWordCount = hierarchy.children?.reduce((sum, country) => sum + (country.wordCount || 0), 0) || 0;
+        totalItems = hierarchy.children?.reduce((sum: number, country: TreemapNode) => sum + (country.itemCount || 0), 0) || 0;
+        totalWordCount = hierarchy.children?.reduce((sum: number, country: TreemapNode) => sum + (country.wordCount || 0), 0) || 0;
         
         // Store the grand total when data is first processed
         grandTotalWordCount = totalWordCount;
@@ -204,7 +227,9 @@
         }
     }
 
-    // Create or update the visualization
+    // Create or update the visualization using the new modular API
+    // MIGRATION NOTE: Updated from TreemapService.createTreemap() to TreemapVisualization class
+    // Benefits: Better separation of concerns, improved configuration management, easier testing
     function updateVisualization(dataToRender: TreemapNode = hierarchyData) {
         try {
             if (!container) {
@@ -221,30 +246,99 @@
                 return;
             }
             
-            // Create treemap using TreemapService with modern styling
-            TreemapService.createTreemap(dataToRender, {
-                container,
-                height: 500, // Explicitly set fixed height
-                colorMap: countryColors,
-                tooltipCallback: handleShowTooltip,
-                hideTooltipCallback: hideTooltip,
-                zoomCallback: zoomToNode,
-                currentZoomedNode: zoomedNode,
-                useBreadcrumbs: true,
-                rootName: currentLang === 'en' ? 'All' : 'Tous',
-                labelOptions: {
-                    parentLabel: {
-                        fontSize: 'var(--font-size-sm)',
-                        fontWeight: 'bold',
-                        color: 'white'
+            // Create or update treemap using the new modular API
+            if (!treemapVisualization) {
+                // Create new visualization instance with modern configuration
+                const config: Partial<TreemapConfiguration> = {
+                    container,
+                    dimensions: {
+                        width: container.clientWidth,
+                        height: 500, // Explicitly set fixed height
+                        margin: { top: 10, right: 10, bottom: 10, left: 10 }
                     },
-                    childLabel: {
-                        fontSize: 'var(--font-size-xs)',
-                        color: 'var(--color-text-primary)',
-                        minWidth: 30,
-                        minHeight: 20
+                    style: {
+                        colors: colorScale,
+                        padding: { outer: 3, top: 16, inner: 1 },
+                        labelOptions: {
+                            parentLabel: {
+                                fontSize: 'var(--font-size-sm)',
+                                fontWeight: 'bold',
+                                color: 'white'
+                            },
+                            childLabel: {
+                                fontSize: 'var(--font-size-xs)',
+                                color: 'var(--color-text-primary)',
+                                minWidth: 30,
+                                minHeight: 20
+                            }
+                        },
+                        colorMap: countryColors
+                    },
+                    navigation: {
+                        useBreadcrumbs: true,
+                        rootName: currentLang === 'en' ? 'All' : 'Tous',
+                        showZoomButton: true
+                    },
+                    behavior: {
+                        minSizeThreshold: 0.001,
+                        enableZoom: true,
+                        enableTooltips: true,
+                        responsive: false
+                    },
+                    callbacks: {
+                        onTooltipShow: handleShowTooltip,
+                        onTooltipHide: hideTooltip,
+                        onZoom: (node: d3.HierarchyNode<TreemapNode> | null) => {
+                            zoomToNode(node);
+                        }
+                    },
+                    currentZoomedNode: zoomedNode
+                };
+                
+                treemapVisualization = new TreemapVisualization(container, config);
+            } else {
+                // Update existing visualization configuration
+                treemapVisualization.updateConfig({
+                    callbacks: {
+                        onTooltipShow: handleShowTooltip,
+                        onTooltipHide: hideTooltip,
+                        onZoom: (node: d3.HierarchyNode<TreemapNode> | null) => {
+                            zoomToNode(node);
+                        }
+                    },
+                    currentZoomedNode: zoomedNode,
+                    style: {
+                        colors: colorScale,
+                        colorMap: countryColors,
+                        padding: { outer: 3, top: 16, inner: 1 },
+                        labelOptions: {
+                            parentLabel: {
+                                fontSize: 'var(--font-size-sm)',
+                                fontWeight: 'bold',
+                                color: 'white'
+                            },
+                            childLabel: {
+                                fontSize: 'var(--font-size-xs)',
+                                color: 'var(--color-text-primary)',
+                                minWidth: 30,
+                                minHeight: 20
+                            }
+                        }
+                    },
+                    navigation: {
+                        useBreadcrumbs: true,
+                        rootName: currentLang === 'en' ? 'All' : 'Tous',
+                        showZoomButton: true
                     }
-                }
+                });
+            }
+            
+            // Render the visualization
+            treemapVisualization.render(dataToRender);
+            
+            logDebug(COMPONENT_ID, 'Visualization updated successfully', { 
+                itemCount: dataToRender.children?.length || 0,
+                isZoomed: !!zoomedNode
             });
         } catch (e) {
             console.error('Error in updateVisualization:', e);
@@ -263,7 +357,7 @@
                 updateVisualization(hierarchyData); // Update with new data
             } else {
                 // If zoomed, we might need to update if the underlying data changes
-                // For simplicity now, we only update if zoom level changes or language changes
+                // For simplicity now, we only update if the zoom level changes or language changes
                 // A more complex approach might recalculate the zoomed view based on new items
                 // updateVisualization(hierarchyData); // Re-render potentially stale zoomed view
             }
@@ -345,6 +439,13 @@
                         trackUnmount(COMPONENT_ID);
                         logDebug(COMPONENT_ID, 'Component cleanup started');
                         
+                        // Clean up treemap visualization
+                        if (treemapVisualization) {
+                            treemapVisualization.destroy();
+                            treemapVisualization = null;
+                            logDebug(COMPONENT_ID, 'Treemap visualization cleaned up');
+                        }
+                        
                         // Clean up D3 selections to prevent memory leaks
                         if (container) {
                             d3.select(container).selectAll('*').remove();
@@ -395,6 +496,13 @@
             logDebug(COMPONENT_ID, 'Component destroyed (backup cleanup)');
             
             try {
+                // Clean up treemap visualization
+                if (treemapVisualization) {
+                    treemapVisualization.destroy();
+                    treemapVisualization = null;
+                    logDebug(COMPONENT_ID, 'Treemap visualization cleaned up (backup)');
+                }
+                
                 // Clean up resize hook
                 if (resizeHook) {
                     resizeHook.cleanup();
@@ -561,4 +669,4 @@
             transform: scale(1);
         }
     }
-</style> 
+</style>

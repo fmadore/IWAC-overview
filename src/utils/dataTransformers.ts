@@ -1,5 +1,5 @@
 import type { OmekaItem } from '../types/OmekaItem';
-import type { TreemapNode } from '../services/treemap';
+import type { TreemapNode } from '../services/treemap/index';
 
 // Function to process Omeka items into a hierarchical structure for the word distribution treemap
 export function createWordDistributionHierarchy(items: OmekaItem[]): TreemapNode {
@@ -59,10 +59,10 @@ export function createWordDistributionHierarchy(items: OmekaItem[]): TreemapNode
 
     // Sort countries and sets by word count (descending)
     if (root.children) {
-        root.children.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
-        root.children.forEach(country => {
+        root.children.sort((a: TreemapNode, b: TreemapNode) => (b.wordCount || 0) - (a.wordCount || 0));
+        root.children.forEach((country: TreemapNode) => {
             if (country.children) {
-                country.children.sort((a, b) => (b.wordCount || 0) - (a.wordCount || 0));
+                country.children.sort((a: TreemapNode, b: TreemapNode) => (b.wordCount || 0) - (a.wordCount || 0));
             }
         });
     }
