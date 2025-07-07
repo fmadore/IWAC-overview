@@ -280,35 +280,35 @@
 }
 
 .multi-row-legend .legend-items {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: wrap !important;
-  justify-content: flex-start !important;
-  gap: var(--spacing-xs) var(--spacing-md) !important;
-  width: 100% !important;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--spacing-xs) var(--spacing-md);
+  width: 100%;
 }
 
 .multi-row-legend .legend-item {
-  display: flex !important;
-  align-items: center !important;
-  margin-bottom: var(--spacing-xs) !important;
-  margin-right: var(--spacing-sm) !important;
-  padding: var(--spacing-2xs) var(--spacing-xs) !important;
-  max-width: 150px !important;
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+  margin-right: var(--spacing-sm);
+  padding: var(--spacing-2xs) var(--spacing-xs);
+  max-width: 150px;
 }
 
 .multi-row-legend rect {
-  width: 14px !important;
-  height: 14px !important;
-  margin-right: var(--spacing-xs) !important;
+  width: 14px;
+  height: 14px;
+  margin-right: var(--spacing-xs);
 }
 
 .multi-row-legend text {
-  font-size: 12px !important;
+  font-size: 12px;
 }
 
 /* Force horizontal layout for legend title */
 .multi-row-legend .legend-title {
-  margin-bottom: var(--spacing-sm) !important;
-  font-weight: var(--font-weight-medium) !important;
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-medium);
 } 

@@ -1,12 +1,12 @@
 /* IWAC Application CSS - Main Entry Point */
 
+/* Theme must be loaded FIRST to provide CSS variables */
+@import './themes/default-theme.css';
+
 /* Base styles */
 @import './base/reset.css';
 @import './base/typography.css';
 @import './base/global.css';
-
-/* Theme */
-@import './themes/default-theme.css';
 
 /* Utilities */
 @import './utilities/colors.css';

@@ -1,15 +1,9 @@
 /*
  * Global.css - Core Global Styles
  *
- * This file contains global styles, resets, and basic element styling.
- * These styles apply to the entire application and provide a foundation
- * for consistent styling.
+ * This file contains global styles for elements that need styling beyond
+ * the basic reset. It does NOT contain resets (that's handled by reset.css).
  */
-
-/* Basic reset */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
 
 /* Document base styles */
 html {
@@ -29,8 +23,6 @@ html {
 
 body {
   font-family: var(--font-family-base);
-  margin: 0;
-  padding: 0;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -46,35 +38,7 @@ a:hover {
   color: var(--color-text-link-hover);
 }
 
-/* Headings */
-h1 {
-  font-size: var(--font-size-2xl);
-  line-height: var(--line-height-tight);
-  margin-top: 0;
-  margin-bottom: var(--spacing-md);
-}
-
-h2 {
-  font-size: var(--font-size-xl);
-  line-height: var(--line-height-tight);
-  margin-top: 0;
-  margin-bottom: var(--spacing-sm);
-}
-
-h3 {
-  font-size: var(--font-size-lg);
-  line-height: var(--line-height-tight);
-  margin-top: 0;
-  margin-bottom: var(--spacing-sm);
-}
-
-h4, h5, h6 {
-  line-height: var(--line-height-tight);
-  margin-top: 0;
-  margin-bottom: var(--spacing-sm);
-}
-
-/* Buttons */
+/* Buttons - Basic styling (detailed styles in components/buttons.css) */
 button {
   border-radius: var(--radius-sm);
   border: var(--border-width-thin) solid transparent;
@@ -99,74 +63,10 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-/* Common component reset styles */
-p {
-  margin-top: 0;
-  margin-bottom: var(--spacing-md);
-}
-
+/* Common element styles */
 img, svg {
   max-width: 100%;
   height: auto;
-}
-
-/* Common component styles - these can be moved to separate component files later */
-.card {
-  padding: var(--spacing-lg);
-  background-color: var(--color-bg-card);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-}
-
-.badge {
-  display: inline-block;
-  padding: var(--spacing-2xs) var(--spacing-xs);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-full);
-  background-color: var(--color-bg-card-alt);
-  color: var(--color-text-secondary);
-}
-
-.badge-primary {
-  background-color: var(--color-primary-100);
-  color: var(--color-primary);
-}
-
-.badge-success {
-  background-color: var(--color-success-light);
-  color: var(--color-success);
-}
-
-.badge-error {
-  background-color: var(--color-error-light);
-  color: var(--color-error);
-}
-
-.alert {
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-md);
-}
-
-.alert-info {
-  background-color: var(--color-info-light);
-  color: var(--color-info);
-}
-
-.alert-success {
-  background-color: var(--color-success-light);
-  color: var(--color-success);
-}
-
-.alert-warning {
-  background-color: var(--color-warning-light);
-  color: var(--color-warning);
-}
-
-.alert-error {
-  background-color: var(--color-error-light);
-  color: var(--color-error);
 }
 
 /* Screen reader only class for accessibility */
@@ -185,10 +85,11 @@ img, svg {
 /* Dark mode adjustments */
 @media (prefers-color-scheme: dark) {
   button {
-    background-color: #1a1a1a;
+    background-color: var(--color-bg-card);
+    color: var(--color-text-primary);
   }
   
-  /* Other dark mode styles can be added here */
+  /* Other dark mode styles will be added when dark mode is fully implemented */
 }
 
 /* Accessibility */

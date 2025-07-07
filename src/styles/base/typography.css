@@ -45,16 +45,6 @@ p {
   line-height: var(--line-height-normal);
 }
 
-a {
-  color: var(--color-text-link);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-a:hover {
-  color: var(--color-text-link-hover);
-}
-
 strong, b {
   font-weight: var(--font-weight-bold);
 }
