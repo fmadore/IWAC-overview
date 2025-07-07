@@ -2,7 +2,7 @@
     // Component props
     export let title: string = '';
     export let description: string = '';
-    export let variant: 'default' | 'primary' | 'success' | 'error' | 'warning' = 'default';
+    export let variant: 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info' = 'default';
     export let elevated: boolean = false;
     export let className: string = '';
 </script>
@@ -68,6 +68,11 @@
         background-color: var(--color-warning-light);
     }
     
+    .card.info {
+        border-left: var(--border-width-thick) solid var(--color-info);
+        background-color: var(--color-info-light);
+    }
+    
     /* Card Elements */
     .card__title {
         color: var(--color-text-primary);
@@ -92,6 +97,10 @@
     
     .card.warning .card__title {
         color: var(--color-warning);
+    }
+    
+    .card.info .card__title {
+        color: var(--color-info);
     }
     
     .card__description {
