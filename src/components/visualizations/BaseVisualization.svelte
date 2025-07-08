@@ -1,7 +1,7 @@
 <script lang="ts">
     import itemsStore from '../../stores/itemsStore';
     import { t } from '../../stores/translationStore';
-    import VisualizationHeader from './VisualizationHeader.svelte';
+    import VisualizationHeader from '../ui/VisualizationHeader.svelte';
     import { onMount, createEventDispatcher, onDestroy } from 'svelte';
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
