@@ -241,7 +241,7 @@
 
     // Handle items store changes
     function handleItemsChange(storeData: any) {
-        if (!isMounted) return;
+        if (!isMounted || isUpdating) return;
         
         logDebug(COMPONENT_ID, 'Items changed, updating visualization', { itemCount: storeData?.items?.length || 0 });
         
@@ -250,16 +250,19 @@
             
             // Use requestAnimationFrame to prevent blocking the UI
             requestAnimationFrame(() => {
-                updateVisualization();
+                if (isMounted && !isUpdating) {
+                    updateVisualization();
+                }
             });
         } catch (error) {
             console.error('Error handling items change:', error);
+            isUpdating = false; // Reset flag on error
         }
     }
 
     // Handle language changes
     function handleLanguageChange(lang: 'en' | 'fr') {
-        if (!isMounted) return;
+        if (!isMounted || isUpdating) return;
         
         logDebug(COMPONENT_ID, 'Language changed', { lang });
         
@@ -268,10 +271,13 @@
             
             // Use requestAnimationFrame to prevent blocking the UI
             requestAnimationFrame(() => {
-                updateVisualization();
+                if (isMounted && !isUpdating) {
+                    updateVisualization();
+                }
             });
         } catch (error) {
             console.error('Error handling language change:', error);
+            isUpdating = false; // Reset flag on error
         }
     }
 
@@ -290,39 +296,58 @@
     // Reactive state tracking for preventing infinite loops
     let lastItemsLength = $state(0);
     let lastLanguage = $state('en');
+    let isUpdating = $state(false);
 
-    // Svelte 5 effect to watch for store changes - prevent infinite loops
+    // Svelte 5 effect to watch for store changes - improved to prevent infinite loops
     $effect(() => {
-        if (!isMounted) return;
+        if (!isMounted || isUpdating) return;
         
         const storeData = $itemsStore;
         const currentItemsLength = storeData?.items?.length || 0;
         
-        // Only update if items actually changed
+        // Only update if items actually changed and we're not already updating
         if (currentItemsLength !== lastItemsLength) {
+            const oldLength = lastItemsLength;
             lastItemsLength = currentItemsLength;
+            
             logDebug(COMPONENT_ID, 'Items length changed', { 
-                oldLength: lastItemsLength, 
+                oldLength, 
                 newLength: currentItemsLength 
             });
+            
+            // Use a flag to prevent cascading updates
+            isUpdating = true;
             handleItemsChange(storeData);
+            // Reset the flag after a small delay to allow the update to complete
+            setTimeout(() => {
+                isUpdating = false;
+            }, 100);
         }
     });
 
-    // Svelte 5 effect to watch for language changes - prevent infinite loops  
+    // Svelte 5 effect to watch for language changes - improved to prevent infinite loops  
     $effect(() => {
-        if (!isMounted) return;
+        if (!isMounted || isUpdating) return;
         
         const lang = $languageStore;
         
-        // Only update if language actually changed
+        // Only update if language actually changed and we're not already updating
         if (lang !== lastLanguage) {
+            const oldLang = lastLanguage;
             lastLanguage = lang;
+            
             logDebug(COMPONENT_ID, 'Language changed', { 
-                oldLang: lastLanguage, 
+                oldLang, 
                 newLang: lang 
             });
+            
+            // Use a flag to prevent cascading updates
+            isUpdating = true;
             handleLanguageChange(lang);
+            // Reset the flag after a small delay to allow the update to complete
+            setTimeout(() => {
+                isUpdating = false;
+            }, 100);
         }
     });
 
@@ -331,6 +356,7 @@
         trackMount(COMPONENT_ID);
         
         let cleanupFunctions: (() => void)[] = [];
+        let initializationTimeout: number | null = null;
         
         try {
             // Set mounted state first
@@ -343,42 +369,62 @@
             const resizeObserver = new ResizeObserver(handleResize);
             cleanupFunctions.push(() => resizeObserver.disconnect());
             
-            // Wait for DOM to be ready
+            // Wait for DOM to be ready with a small delay to ensure stability
             tick().then(() => {
-                if (container) {
-                    logDebug(COMPONENT_ID, 'Container found, setting up visualization');
-                    
-                    const rect = container.getBoundingClientRect();
-                    width = rect.width || 800;
-                    height = 500; // Force fixed height
-                    
-                    resizeObserver.observe(container);
-                    
-                    // Initial data preparation and visualization
-                    try {
-                        prepareVisualizationData();
+                // Add a small delay to allow stores to stabilize, especially important for GitHub Pages
+                initializationTimeout = setTimeout(() => {
+                    if (container && isMounted) {
+                        logDebug(COMPONENT_ID, 'Container found, setting up visualization');
                         
-                        // Use requestAnimationFrame for smooth initialization
-                        requestAnimationFrame(() => {
-                            updateVisualization();
-                        });
-                    } catch (error) {
-                        console.error('Error during initial visualization setup:', error);
+                        const rect = container.getBoundingClientRect();
+                        width = rect.width || 800;
+                        height = 500; // Force fixed height
+                        
+                        resizeObserver.observe(container);
+                        
+                        // Initial data preparation and visualization
+                        try {
+                            isUpdating = true;
+                            prepareVisualizationData();
+                            
+                            // Use requestAnimationFrame for smooth initialization
+                            requestAnimationFrame(() => {
+                                if (isMounted) {
+                                    updateVisualization();
+                                    // Reset updating flag after successful initialization
+                                    setTimeout(() => {
+                                        isUpdating = false;
+                                    }, 200);
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Error during initial visualization setup:', error);
+                            isUpdating = false;
+                        }
+                    } else {
+                        console.warn('Container not found during onMount or component unmounted');
+                        isUpdating = false;
                     }
-                } else {
-                    console.warn('Container not found during onMount');
-                }
+                }, 150); // Small delay to ensure stores are ready
             }).catch(error => {
                 console.error('Error during component initialization:', error);
+                isUpdating = false;
             });
         } catch (error) {
             console.error('Error in onMount:', error);
+            isUpdating = false;
         }
 
         return () => {
             logDebug(COMPONENT_ID, 'Component unmounting');
             trackUnmount(COMPONENT_ID);
             isMounted = false;
+            isUpdating = false;
+            
+            // Clear initialization timeout
+            if (initializationTimeout) {
+                clearTimeout(initializationTimeout);
+            }
             
             try {
                 // Run all cleanup functions
@@ -407,6 +453,10 @@
     });
 
     onDestroy(() => {
+        // Ensure we stop any ongoing updates
+        isUpdating = false;
+        isMounted = false;
+        
         if (unsubscribeItems) {
             unsubscribeItems();
             unsubscribeItems = null;
