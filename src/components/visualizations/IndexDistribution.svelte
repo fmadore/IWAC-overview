@@ -1,15 +1,13 @@
 <script lang="ts">
-    import { onMount, onDestroy, tick } from 'svelte';
-    import * as d3 from 'd3';
+    import { onMount, onDestroy } from 'svelte';
     import itemsStore from '../../stores/itemsStore';
     import { log } from '../../utils/logger';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { t, translate, languageStore } from '../../stores/translationStore';
-    import BaseVisualization from './BaseVisualization.svelte';
-    import { useD3Resize } from '../../hooks/useD3Resize';
+    import VisualizationHeader from '../ui/VisualizationHeader.svelte';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
-    import { D3Service } from '../../services/d3Service';
-    import { createBarChart, BarChartUtils, type BarData, type BarChartResult } from '../../services/barChart';
+    import { EChartsBarService, type BarChartData } from '../../services/EChartsBarService';
+    import { getColorPalette } from '../../utils/colorPalette';
 
     // Define interfaces for data structures
     interface CategoryCount {
@@ -35,26 +33,17 @@
         return categoryMappings[itemSetTitle] || itemSetTitle;
     }
 
-    // States
-    let categoryCounts: CategoryCount[] = [];
-    let totalItems: number = 0;
-    let maxCount: number = 0;
-    let isMounted = false;
+    // Svelte 5 runes for reactive state
+    let categoryCounts = $state<CategoryCount[]>([]);
+    let totalItems = $state<number>(0);
+    let maxCount = $state<number>(0);
+    let isMounted = $state<boolean>(false);
     
     // Visualization variables
     let container: HTMLDivElement;
-    let currentLang: 'en' | 'fr' = 'en';
-    let titleHtml = '';
-    let width = 0;
-    let height = 0;
-    let barChartInstance: BarChartResult | null = null;
-    let storeUnsubscribe: (() => void) | null = null;
-
-    // Reference to BaseVisualization component to access its tooltip functions
-    let baseVisualization: BaseVisualization;
-
-    // Initialize resize hook after container is bound
-    let resizeHook: ReturnType<typeof useD3Resize> | null = null;
+    let currentLang = $state<'en' | 'fr'>('en');
+    let titleHtml = $state<string>('');
+    let barChartService: EChartsBarService | null = null;
 
     // Initialize data processing hook with custom filter function
     const { filterItems, groupAndCount } = useDataProcessing({
@@ -69,12 +58,8 @@
     // Define translation keys
     const indexDescriptionKey = 'viz.index_distribution_description';
 
-    // Import modern color palette
-    import { getColorPalette } from '../../utils/colorPalette';
-    
-    // Create a modern color scale
+    // Get modern color palette
     const modernColors = getColorPalette('primary');
-    const colorScale = d3.scaleOrdinal(modernColors);
 
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -101,170 +86,80 @@
         }
     }
 
-    // Subscribe to language changes
-    let languageUnsubscribe: (() => void) | null = null;
-
     onMount(async () => {
         try {
             // Set mounted flag first
             isMounted = true;
             
-            // Wait for the next tick to ensure container is bound
-            await tick();
-            
-            // Double check container after tick
-            if (!container) {
-                console.error('Container element not found in onMount');
-                return;
-            }
-            
-            // Get initial dimensions
-            const rect = container.getBoundingClientRect();
-            width = rect.width || 100;  // Provide fallback width
-            height = rect.height || 400; // Provide fallback height
-            
-            // Initialize resize hook
-            resizeHook = useD3Resize({
-                container,
-                onResize: () => {
-                    if (isMounted && container && resizeHook) {
-                        // Only update width, keep height fixed
-                        width = resizeHook.width;
-                        // Don't change height to avoid unwanted resizing
-                        renderBarChart();
-                    }
-                },
-                debounce: true,
-                debounceDelay: 200 // Longer debounce to avoid frequent updates
-            });
-            
-            // Subscribe to language changes
-            languageUnsubscribe = languageStore.subscribe(value => {
-                if (!isMounted) return;
-                currentLang = value;
-                
-                if (container) {
-                    updateTitleHtml();
-                    
-                    if ($itemsStore.items && $itemsStore.items.length > 0) {
-                        renderBarChart();
-                    }
-                }
-            });
-            
-            // Subscribe to itemsStore changes
-            storeUnsubscribe = itemsStore.subscribe(store => {
-                if (isMounted && container && store.items && store.items.length > 0) {
-                    renderBarChart();
-                }
-            });
-            
-            // Initialize data
-            if ($itemsStore.items && $itemsStore.items.length > 0) {
-                renderBarChart();
-            } else {
-                // Load items if not already loaded
-                itemsStore.loadItems();
-            }
+            // Initialize chart after mount
+            renderBarChart();
         } catch (error) {
             console.error('Error during initialization:', error);
         }
     });
 
-    // Create bar chart visualization using the new BarChart service
+    // Reactive effect for language changes
+    $effect(() => {
+        currentLang = $languageStore;
+        console.log('Language changed to:', currentLang);
+        if (isMounted) {
+            updateTitleHtml();
+            // Dispose and recreate chart when language changes to update axis labels
+            if (barChartService) {
+                barChartService.dispose();
+                barChartService = null;
+            }
+            renderBarChart();
+        }
+    });
+
+    // Reactive effect for items store changes
+    $effect(() => {
+        if (isMounted && $itemsStore.items && $itemsStore.items.length > 0) {
+            renderBarChart();
+        }
+    });
+
+    // Create bar chart visualization using ECharts
     function renderBarChart() {
         if (!isMounted || !container) return;
         
         try {
-            // Get dimensions from container
-            const rect = container.getBoundingClientRect();
-            width = rect.width;
-            height = 500; // Reduce height to eliminate excess white space
-            
             // Process data with current filters
             const data = processData();
             if (!data || data.length === 0) {
-                D3Service.handleNoData(container, t('viz.no_data'));
+                // Clear container and show no data message
+                container.innerHTML = `<div class="flex items-center justify-center h-full text-secondary">${t('viz.no_data')}</div>`;
                 return;
             }
             
             // Update categoryCounts for reactive updates
             categoryCounts = data;
             
-            // Check if mobile view (width < 768px)
-            const isMobile = width < 768;
-            
-            // Clean up previous chart if it exists
-            if (barChartInstance) {
-                barChartInstance.destroy();
-                barChartInstance = null;
-            }
-            
-            // Convert data to BarData format
-            const barData: BarData[] = data.map(item => ({
+            // Convert data to BarChartData format
+            const barData: BarChartData[] = data.map(item => ({
                 key: item.category,
                 value: item.count,
                 originalKey: item.originalCategory,
                 percentage: item.percentage
             }));
             
-            // Calculate margins based on data - use more space if we have many categories
-            const hasManyCatetgories = data.length > 5;
-            const margin = {
-                top: 20,
-                right: 30,
-                // Reduce the excessive bottom margin but still keep enough for labels
-                bottom: 120, 
-                left: 60
-            };
-            
-            // Create the bar chart with the BarChart service using modern styling
-            barChartInstance = createBarChart({
-                container,
-                width,
-                height,
-                data: barData,
-                margin,
-                className: 'index-distribution-chart chart-modern',
-                isMobile,
-                barColors: colorScale,
-                barPadding: 0.2,
-                barCornerRadius: 6, // More rounded corners for modern look
-                xAxisLabel: t('viz.categories'),
-                yAxisLabel: t('viz.number_of_items'),
-                // Change rotation to -45 degrees
-                xAxisRotation: -45,
-                // Limit the number of ticks based on available width
-                xAxisTicks: Math.max(3, Math.floor(width / 120)),
-                yAxisTicks: isMobile ? 3 : 5,
-                // Format axis ticks
-                xAxisTickFormat: (d: string) => {
-                    // Truncate long category names
-                    return d.length > 15 ? d.substring(0, 12) + '...' : d;
-                },
-                valueFormatter: formatNumber,
-                // Event handlers for tooltips with modern styling
-                onBarMouseEnter: (event: MouseEvent, d: BarData) => {
-                    if (!isMounted) return;
-                    const categoryData = categoryCounts.find(c => c.category === d.key);
-                    if (categoryData) {
-                        handleShowTooltip(event, categoryData);
-                    }
-                },
-                onBarMouseMove: (event: MouseEvent, d: BarData) => {
-                    if (!isMounted) return;
-                    const categoryData = categoryCounts.find(c => c.category === d.key);
-                    if (categoryData) {
-                        handleShowTooltip(event, categoryData);
-                    }
-                },
-                onBarMouseLeave: () => {
-                    if (!isMounted) return;
-                    if (baseVisualization) {
-                        baseVisualization.hideTooltip();
-                    }
-                }
-            });
+            // Initialize or update chart service
+            if (!barChartService) {
+                barChartService = new EChartsBarService(container, {
+                    colors: modernColors,
+                    responsive: true,
+                    xAxisLabel: t('viz.categories'),
+                    yAxisLabel: t('viz.number_of_items'),
+                    valueFormatter: formatNumber
+                });
+                
+                // Render the chart
+                barChartService.render(barData);
+            } else {
+                // Update existing chart with new data
+                barChartService.updateData(barData);
+            }
             
         } catch (e) {
             console.error('Error creating bar chart:', e);
@@ -311,25 +206,10 @@
         
         // Update state
         totalItems = results.reduce((sum, r) => sum + r.count, 0);
-        maxCount = d3.max(categoryCounts, d => d.count) || 0;
+        maxCount = Math.max(...categoryCounts.map(d => d.count));
         updateTitleHtml();
         
         return categoryCounts;
-    }
-
-    // Show tooltip with category information
-    function handleShowTooltip(event: MouseEvent, d: CategoryCount) {
-        if (!isMounted || !baseVisualization) return;
-        
-        const content = baseVisualization.createGridTooltipContent(
-            d.category,
-            [
-                { label: t('viz.items'), value: formatNumber(d.count) },
-                { label: t('viz.percent_of_total'), value: `${d.percentage.toFixed(2)}%` }
-            ]
-        );
-        
-        baseVisualization.showTooltip(event, content);
     }
 
     // Add onDestroy to ensure cleanup
@@ -337,28 +217,13 @@
         try {
             isMounted = false;
             
-            if (barChartInstance) {
-                barChartInstance.destroy();
-                barChartInstance = null;
-            }
-            
-            if (resizeHook) {
-                resizeHook.cleanup();
-                resizeHook = null;
-            }
-            
-            if (languageUnsubscribe) {
-                languageUnsubscribe();
-                languageUnsubscribe = null;
-            }
-            
-            if (storeUnsubscribe) {
-                storeUnsubscribe();
-                storeUnsubscribe = null;
+            if (barChartService) {
+                barChartService.dispose();
+                barChartService = null;
             }
             
             if (container) {
-                d3.select(container).selectAll('*').remove();
+                container.innerHTML = '';
             }
         } catch (e) {
             console.error('Error during cleanup:', e);
@@ -367,66 +232,47 @@
 </script>
 
 <div class="w-full index-visualization-container">
-    <BaseVisualization
-        titleHtml={titleHtml}
+    <VisualizationHeader
+        title={titleHtml}
         descriptionTranslationKey={indexDescriptionKey}
-        theme="default"
-        className="index-visualization"
-        bind:this={baseVisualization}
-    >
-        <div class="relative bg-card rounded p-md overflow-hidden min-h-400 w-full chart-container chart-modern" bind:this={container}>
-            {#if $itemsStore.loading}
-                <div class="absolute inset-center text-secondary loading">{t('ui.loading')}</div>
-            {:else if $itemsStore.error}
-                <div class="absolute inset-center text-error error">{$itemsStore.error}</div>
-            {/if}
-        </div>
-    </BaseVisualization>
+        descriptionId="index-distribution-description"
+        className="index-visualization-header"
+    />
+    
+    <div class="chart-container" bind:this={container}>
+        {#if $itemsStore.loading}
+            <div class="flex items-center justify-center h-full text-secondary loading">
+                {t('ui.loading')}
+            </div>
+        {:else if $itemsStore.error}
+            <div class="flex items-center justify-center h-full text-error error">
+                {$itemsStore.error}
+            </div>
+        {:else if (!$itemsStore.items || $itemsStore.items.length === 0)}
+            <div class="flex items-center justify-center h-full text-secondary">
+                {t('viz.no_data')}
+            </div>
+        {/if}
+        <!-- ECharts chart will be rendered here -->
+    </div>
 </div>
 
 <style>
-    /* Modern chart styling */
-    :global(.index-distribution-chart) {
-        height: 100%;
+    /* Modern chart container styling */
+    .index-visualization-container {
+        width: 100%;
     }
     
-    :global(.index-distribution-chart text) {
-        font-family: var(--font-family-base);
-        font-size: var(--font-size-xs);
-        fill: var(--color-text-secondary);
-    }
-    
-    :global(.index-distribution-chart .axis-modern text) {
-        font-size: var(--font-size-xs);
-        fill: var(--color-text-secondary);
-    }
-    
-    :global(.index-distribution-chart .x-axis-label, .index-distribution-chart .y-axis-label) {
-        font-size: var(--font-size-sm);
-        fill: var(--color-text-secondary);
-        font-weight: var(--font-weight-medium);
-    }
-    
-    :global(.index-distribution-chart .bar-modern) {
-        transition: all var(--transition-fast);
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-    }
-    
-    :global(.index-distribution-chart .bar-modern:hover) {
-        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
-        transform: translateY(-1px);
-    }
-    
-    :global(.index-distribution-chart .bar-label) {
-        font-size: var(--font-size-xs);
-        fill: var(--color-text-secondary);
-    }
-    
-    /* Modern grid lines */
-    :global(.index-distribution-chart .grid line) {
-        stroke: var(--color-border-light);
-        stroke-dasharray: 2,2;
-        opacity: 0.6;
+    .chart-container {
+        position: relative;
+        background: var(--color-bg-card);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-sm);
+        overflow: hidden;
+        min-height: 500px;
+        height: 500px;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     /* Loading and error states with modern styling */
@@ -440,5 +286,30 @@
     .error {
         background: rgba(245, 101, 101, 0.1);
         border: 1px solid var(--color-error-light);
+    }
+    
+    /* ECharts styling integration with CSS variables */
+    :global(.echarts-tooltip) {
+        border-radius: var(--radius-sm) !important;
+        border: 1px solid var(--color-border-light) !important;
+        background: var(--color-bg-card) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .chart-container {
+            min-height: 350px;
+            height: 350px;
+            padding: var(--spacing-xs);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .chart-container {
+            min-height: 300px;
+            height: 300px;
+            padding: var(--spacing-xs);
+        }
     }
 </style> 

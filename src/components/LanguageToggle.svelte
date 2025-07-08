@@ -2,8 +2,8 @@
     import { languageStore, translate } from '../stores/translationStore';
     import type { TranslationFunction } from '../types/translations';
 
-    // Create a derived store for the toggle button text
-    const toggleText = translate('ui.toggle_language');
+    // Create a reactive derived value for the toggle button text
+    const toggleText = $derived(translate('ui.toggle_language'));
 
     // Toggle language when the button is clicked
     function toggleLanguage() {
@@ -13,7 +13,7 @@
 
 <button 
     class="btn btn-primary text-sm px-md py-sm"
-    on:click={toggleLanguage}
+    onclick={toggleLanguage}
     aria-label={$toggleText}
 >
     {$toggleText}

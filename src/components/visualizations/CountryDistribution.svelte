@@ -1318,7 +1318,6 @@
                                 on:navigate={handleBreadcrumbNavigation} 
                                 separator="/"
                                 navItemClass="text-sm hover:text-primary transition-colors cursor-pointer font-medium"
-                                activeItemClass="text-primary font-bold"
                             />
                         {/if}
                     </div>
