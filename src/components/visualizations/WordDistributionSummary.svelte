@@ -3,13 +3,20 @@
     import type { HierarchyNode } from 'd3-hierarchy'; // Import specific type
     import type { EChartsTreemapNode } from '../../services/treemap/index'; // Use ECharts-based type
 
-    // Props for the summary component
-    export let totalItems: number;
-    export let totalWordCount: number;
-    export let zoomedNode: HierarchyNode<EChartsTreemapNode> | null;
-    export let formatNumber: (num: number) => string;
+    // Svelte 5 props using $props rune
+    let { 
+        totalItems = $bindable(0), 
+        totalWordCount = $bindable(0), 
+        zoomedNode = $bindable(null), 
+        formatNumber 
+    }: {
+        totalItems: number;
+        totalWordCount: number;
+        zoomedNode: HierarchyNode<EChartsTreemapNode> | null;
+        formatNumber: (num: number) => string;
+    } = $props();
 
-    // Reactive translations
+    // Reactive translations - translate returns derived stores, so we access them directly
     const summaryText = translate('viz.summary');
     const totalItemsWithWordCountText = translate('viz.total_items_with_word_count');
     const totalWordsText = translate('viz.total_words');

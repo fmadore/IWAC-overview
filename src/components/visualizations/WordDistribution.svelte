@@ -4,8 +4,27 @@
   Cette version utilise ECharts au lieu de D3, ce qui simplifie considérablement 
   le code tout en offrant plus de fonctionnalités intégrées.
   
-  Avantages d'ECharts:
-  - Code beaucoup plus simple (~200 lignes vs ~700 lignes)
+  Avantages     // Handle items store changes
+    function handleItemsChange(storeData: any) {
+        if (!isMounted) return;
+        
+        logDebug(COMPONENT_ID, 'Items changed, updating visualization', { itemCount: storeData?.items?.length || 0 });
+        prepareVisualizationData();
+        
+        tick().then(() => {
+            updateVisualization();
+        });
+    }
+
+    // Handle language changes
+    function handleLanguageChange(lang: 'en' | 'fr') {
+        if (isMounted) {
+            prepareVisualizationData();
+            tick().then(() => {
+                updateVisualization();
+            });
+        }
+    } beaucoup plus simple (~200 lignes vs ~700 lignes)
   - Fonctionnalités intégrées: zoom, navigation, tooltips, breadcrumbs
   - Performance optimisée pour de gros datasets
   - Animation et interactions fluides
@@ -28,28 +47,29 @@
     import { useStandardVisualizationHeader } from '../../hooks/useVisualizationHeader';
 
     const COMPONENT_ID = 'WordDistributionECharts';
-    let isMounted = false;
-    let unsubscribeItems: () => void;
+    
+    // Svelte 5 reactive state using $state rune
+    let isMounted = $state(false);
+    let unsubscribeItems: (() => void) | null = $state(null);
 
-    // Visualization state
+    // Visualization state with $state rune
     let container: HTMLDivElement;
-    let width = 0;
-    let height = 0;
-    let totalWordCount = 0;
-    let totalItems = 0;
-    let hierarchyData: EChartsTreemapNode = { name: 'root', children: [] };
-    let grandTotalWordCount = 0;
+    let width = $state(0);
+    let height = $state(0);
+    let totalWordCount = $state(0);
+    let totalItems = $state(0);
+    let hierarchyData = $state<EChartsTreemapNode>({ name: 'root', children: [] });
+    let grandTotalWordCount = $state(0);
     
     // ECharts treemap service instance
-    let treemapService: EChartsTreemapService | null = null;
+    let treemapService: EChartsTreemapService | null = $state(null);
     
     // Initialize header management hook
     const headerHook = useStandardVisualizationHeader('word');
     
-    // Reactive variables for header - destructure the state store
-    const { state: headerState } = headerHook;
-    $: currentLang = $headerState.currentLang;
-    $: titleHtml = $headerState.titleHtml;
+    // Reactive variables for header using $derived
+    const currentLang = $derived(headerHook.currentLang);
+    const titleHtml = $derived(headerHook.titleHtml);
     
     // Initialize professional color palette
     const modernColors = getColorPalette('professional');
@@ -57,7 +77,7 @@
     // Initialize data processing hook
     const { filterItems } = useDataProcessing({});
 
-    // Create reactive translations
+    // Create reactive translations - translate returns derived stores, so we access them directly
     const noDataText = translate('viz.no_data');
     const loadingText = translate('ui.loading');
     const wordDistributionText = translate('viz.word_distribution');
@@ -249,6 +269,22 @@
         }
     }
 
+    // Svelte 5 effect to watch for store changes
+    $effect(() => {
+        if (isMounted) {
+            const storeData = $itemsStore;
+            handleItemsChange(storeData);
+        }
+    });
+
+    // Svelte 5 effect to watch for language changes
+    $effect(() => {
+        if (isMounted) {
+            const lang = $languageStore;
+            handleLanguageChange(lang);
+        }
+    });
+
     onMount((): (() => void) => {
         logDebug(COMPONENT_ID, 'Component mounting');
         trackMount(COMPONENT_ID);
@@ -256,10 +292,6 @@
 
         // Initialize header hook
         headerHook.initialize({ totalCount: 0, additionalCount: 0 });
-
-        // Subscribe to stores
-        unsubscribeItems = itemsStore.subscribe(handleItemsChange);
-        const unsubscribeLanguage = languageStore.subscribe(handleLanguageChange);
 
         // Set up resize observer
         const resizeObserver = new ResizeObserver(handleResize);
@@ -281,6 +313,7 @@
         return () => {
             logDebug(COMPONENT_ID, 'Component unmounting');
             trackUnmount(COMPONENT_ID);
+            isMounted = false;
             
             // Cleanup header hook
             headerHook.destroy();
@@ -292,14 +325,13 @@
             }
             
             resizeObserver.disconnect();
-            unsubscribeLanguage();
-            isMounted = false;
         };
     });
 
     onDestroy(() => {
         if (unsubscribeItems) {
             unsubscribeItems();
+            unsubscribeItems = null;
         }
         if (treemapService) {
             treemapService.destroy();
