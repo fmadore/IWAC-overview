@@ -86,16 +86,26 @@
         }
     }
 
-    onMount(async () => {
-        try {
-            // Set mounted flag first
-            isMounted = true;
-            
-            // Initialize chart after mount
-            renderBarChart();
-        } catch (error) {
-            console.error('Error during initialization:', error);
-        }
+    onMount(() => {
+        // Set mounted flag first
+        isMounted = true;
+        
+        // Initialize chart after mount
+        renderBarChart();
+        
+        // Add additional resize listener to ensure proper handling
+        const handleResize = () => {
+            if (barChartService && isMounted) {
+                barChartService.resize();
+            }
+        };
+        
+        window.addEventListener('resize', handleResize);
+        
+        // Return cleanup function
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     });
 
     // Reactive effect for language changes

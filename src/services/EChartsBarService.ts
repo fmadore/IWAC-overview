@@ -33,6 +33,7 @@ export class EChartsBarService {
     private windowResizeHandler: (() => void) | null = null;
     private isInitialized: boolean = false;
     private isDisposed: boolean = false;
+    private resizeTimeout: number | null = null;
 
     constructor(container: HTMLElement, options: EChartsBarOptions = {}) {
         this.container = container;
@@ -284,13 +285,13 @@ export class EChartsBarService {
 
         this.resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                if (entry.target === this.container && this.chart) {
-                    // Debounce resize to avoid too many calls
-                    setTimeout(() => {
-                        if (this.chart && !this.isDisposed) {
-                            this.chart.resize();
-                        }
-                    }, 100);
+                if (entry.target === this.container && this.chart && !this.isDisposed) {
+                    // Get the new dimensions
+                    const rect = this.container.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                        // Debounce resize to avoid too many calls
+                        this.debounceResize();
+                    }
                 }
             }
         });
@@ -306,11 +307,7 @@ export class EChartsBarService {
 
         this.windowResizeHandler = () => {
             if (this.chart && !this.isDisposed) {
-                setTimeout(() => {
-                    if (this.chart && !this.isDisposed) {
-                        this.chart.resize();
-                    }
-                }, 150);
+                this.debounceResize();
             }
         };
 
@@ -318,11 +315,49 @@ export class EChartsBarService {
     }
 
     /**
+     * Debounced resize method to avoid excessive resize calls
+     */
+    private debounceResize(): void {
+        if (this.resizeTimeout) {
+            clearTimeout(this.resizeTimeout);
+        }
+        
+        this.resizeTimeout = window.setTimeout(() => {
+            if (this.chart && !this.isDisposed) {
+                try {
+                    // Get current container dimensions
+                    const rect = this.container.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                        // Resize the chart with explicit dimensions
+                        this.chart.resize({
+                            width: rect.width,
+                            height: rect.height
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error resizing chart:', error);
+                }
+            }
+            this.resizeTimeout = null;
+        }, 100);
+    }
+
+    /**
      * Resize chart manually
      */
     resize(): void {
         if (this.chart && !this.isDisposed) {
-            this.chart.resize();
+            try {
+                const rect = this.container.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    this.chart.resize({
+                        width: rect.width,
+                        height: rect.height
+                    });
+                }
+            } catch (error) {
+                console.error('Error resizing chart:', error);
+            }
         }
     }
 
@@ -340,6 +375,12 @@ export class EChartsBarService {
         if (this.isDisposed) return;
 
         try {
+            // Clear resize timeout
+            if (this.resizeTimeout) {
+                clearTimeout(this.resizeTimeout);
+                this.resizeTimeout = null;
+            }
+
             // Remove window resize listener
             if (this.windowResizeHandler) {
                 window.removeEventListener('resize', this.windowResizeHandler);
