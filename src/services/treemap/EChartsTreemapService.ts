@@ -31,6 +31,9 @@ export class EChartsTreemapService {
     private chart: echarts.ECharts | null = null;
     private container: HTMLElement;
     private currentOptions: EChartsTreemapOptions;
+    private resizeObserver: ResizeObserver | null = null;
+    private isInitialized: boolean = false;
+    private isDisposed: boolean = false;
 
     constructor(container: HTMLElement, options: EChartsTreemapOptions = {}) {
         this.container = container;
@@ -55,19 +58,262 @@ export class EChartsTreemapService {
      * Crée ou met à jour la visualisation treemap
      */
     render(data: EChartsTreemapNode): echarts.ECharts {
-        // Nettoyer le conteneur existant
-        if (this.chart) {
-            this.chart.dispose();
+        if (this.isDisposed) {
+            console.warn('Cannot render on disposed service');
+            throw new Error('Service has been disposed');
         }
 
-        // Initialiser le graphique ECharts
-        this.chart = echarts.init(this.container, null, {
-            width: this.currentOptions.width,
-            height: this.currentOptions.height,
-            renderer: 'canvas'
+        // Vérifier que le conteneur est valide et visible
+        if (!this.container || !this.container.isConnected) {
+            console.warn('Container is not connected to DOM');
+            throw new Error('Container is not connected to DOM');
+        }
+
+        // Vérifier les dimensions du conteneur
+        const containerRect = this.container.getBoundingClientRect();
+        if (containerRect.width === 0 || containerRect.height === 0) {
+            console.warn('Container has zero dimensions, cannot render chart');
+            // Ne pas essayer de re-rendre automatiquement pour éviter les boucles infinies
+            return this.chart || ({} as echarts.ECharts);
+        }
+
+        try {
+            // Nettoyer le graphique existant seulement si nécessaire
+            if (this.chart && this.isInitialized) {
+                this.chart.clear();
+            } else if (this.chart) {
+                this.chart.dispose();
+                this.chart = null;
+            }
+
+            // Initialiser le graphique ECharts seulement si pas encore fait
+            if (!this.chart) {
+                this.chart = echarts.init(this.container, null, {
+                    width: this.currentOptions.width || containerRect.width,
+                    height: this.currentOptions.height || containerRect.height,
+                    renderer: 'svg', // Utiliser SVG pour de meilleures performances en production
+                    devicePixelRatio: window.devicePixelRatio || 1
+                });
+            }
+
+            // Configuration des options ECharts
+            const option: any = this.buildChartOptions(data);
+
+            // Définir les options avec gestion d'erreur
+            this.chart.setOption(option, !this.isInitialized);
+
+            // Gérer les événements de clic seulement si pas encore attachés
+            if (!this.isInitialized && this.currentOptions.onNodeClick) {
+                this.chart.on('click', this.currentOptions.onNodeClick);
+            }
+
+            // Gérer le redimensionnement responsive seulement lors de la première initialisation
+            if (!this.isInitialized && this.currentOptions.responsive) {
+                this.setupResponsive();
+            }
+
+            this.isInitialized = true;
+            return this.chart;
+
+        } catch (error) {
+            console.error('Error rendering treemap:', error);
+            // En cas d'erreur, nettoyer et re-essayer une seule fois
+            if (this.chart) {
+                this.chart.dispose();
+                this.chart = null;
+                this.isInitialized = false;
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Met à jour les données sans recréer le graphique
+     */
+    updateData(data: EChartsTreemapNode): void {
+        if (!this.chart || this.isDisposed) {
+            console.warn('Chart not initialized or disposed, call render() first');
+            return;
+        }
+
+        try {
+            this.chart.setOption({
+                series: [{
+                    data: data.children || [data]
+                }]
+            }, false); // Merge the data instead of replacing
+        } catch (error) {
+            console.error('Error updating chart data:', error);
+            // En cas d'erreur, essayer de re-rendre complètement
+            this.render(data);
+        }
+    }
+
+    /**
+     * Met à jour les options
+     */
+    updateOptions(options: Partial<EChartsTreemapOptions>): void {
+        this.currentOptions = { ...this.currentOptions, ...options };
+        
+        if (this.chart) {
+            // Redimensionner si nécessaire
+            if (options.width || options.height) {
+                this.chart.resize({
+                    width: this.currentOptions.width,
+                    height: this.currentOptions.height
+                });
+            }
+        }
+    }
+
+    /**
+     * Zoom vers un noeud spécifique
+     */
+    zoomToNode(nodeId: string): void {
+        if (!this.chart) return;
+        
+        this.chart.dispatchAction({
+            type: 'treemapZoomToNode',
+            seriesId: 'treemap-visualization',
+            targetNodeId: nodeId
+        });
+    }
+
+    /**
+     * Revenir à la vue racine
+     */
+    zoomOut(): void {
+        if (!this.chart) return;
+        
+        this.chart.dispatchAction({
+            type: 'treemapRootToNode',
+            seriesId: 'treemap-visualization'
+        });
+    }
+
+    /**
+     * Redimensionne le graphique
+     */
+    resize(): void {
+        if (this.chart && !this.isDisposed) {
+            try {
+                // Vérifier que le conteneur est toujours connecté
+                if (!this.container.isConnected) {
+                    console.warn('Cannot resize: container is not connected to DOM');
+                    return;
+                }
+                
+                this.chart.resize();
+            } catch (error) {
+                console.warn('Error during chart resize:', error);
+            }
+        }
+    }
+
+    /**
+     * Détruit le graphique et nettoie les ressources
+     */
+    destroy(): void {
+        if (this.isDisposed) return;
+        
+        this.isDisposed = true;
+        
+        // Nettoyer le ResizeObserver
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+        
+        // Nettoyer le graphique ECharts
+        if (this.chart) {
+            try {
+                this.chart.dispose();
+            } catch (error) {
+                console.warn('Error disposing chart:', error);
+            }
+            this.chart = null;
+        }
+        
+        this.isInitialized = false;
+    }
+
+    /**
+     * Obtient l'instance ECharts
+     */
+    getChart(): echarts.ECharts | null {
+        return this.chart;
+    }
+
+    /**
+     * Formatter de tooltip par défaut
+     */
+    private defaultTooltipFormatter = (params: any): string => {
+        const data = params.data;
+        if (!data) return '';
+
+        let tooltip = `<strong>${data.name}</strong><br/>`;
+        
+        if (data.wordCount !== undefined) {
+            tooltip += `Mots: ${data.wordCount.toLocaleString()}<br/>`;
+        }
+        
+        if (data.itemCount !== undefined) {
+            tooltip += `Éléments: ${data.itemCount.toLocaleString()}<br/>`;
+        }
+        
+        if (data.value !== undefined) {
+            tooltip += `Valeur: ${data.value.toLocaleString()}`;
+        }
+
+        return tooltip;
+    };
+
+    /**
+     * Configuration du redimensionnement responsive
+     */
+    private setupResponsive(): void {
+        if (!this.chart || this.resizeObserver) return;
+
+        let lastWidth = 0;
+        let lastHeight = 0;
+        let resizeTimeout: number | null = null;
+
+        this.resizeObserver = new ResizeObserver((entries) => {
+            if (this.isDisposed || !this.chart) return;
+
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                
+                // Seulement redimensionner si les dimensions ont vraiment changé
+                if (Math.abs(width - lastWidth) > 5 || Math.abs(height - lastHeight) > 5) {
+                    lastWidth = width;
+                    lastHeight = height;
+                    
+                    // Débouncer les événements de redimensionnement
+                    if (resizeTimeout) {
+                        clearTimeout(resizeTimeout);
+                    }
+                    
+                    resizeTimeout = setTimeout(() => {
+                        if (!this.isDisposed && this.chart) {
+                            try {
+                                this.chart.resize();
+                            } catch (error) {
+                                console.warn('Error during chart resize:', error);
+                            }
+                        }
+                    }, 150);
+                }
+            }
         });
 
-        // Configuration des options ECharts
+        this.resizeObserver.observe(this.container);
+    }
+
+    /**
+     * Construit les options de configuration pour ECharts
+     */
+    private buildChartOptions(data: EChartsTreemapNode): any {
         const option: any = {
             tooltip: {
                 trigger: 'item',
@@ -165,8 +411,8 @@ export class EChartsTreemapService {
                     }
                 ],
 
-                // Animation
-                animationDurationUpdate: 750,
+                // Animation réduite pour améliorer la performance
+                animationDurationUpdate: 300,
                 animationEasing: 'cubicInOut'
             }],
 
@@ -183,148 +429,7 @@ export class EChartsTreemapService {
             option.color = this.currentOptions.colors;
         }
 
-        // Définir les options
-        this.chart.setOption(option);
-
-        // Gérer les événements de clic
-        if (this.currentOptions.onNodeClick) {
-            this.chart.on('click', this.currentOptions.onNodeClick);
-        }
-
-        // Gérer le redimensionnement responsive
-        if (this.currentOptions.responsive) {
-            this.setupResponsive();
-        }
-
-        return this.chart;
-    }
-
-    /**
-     * Met à jour les données sans recréer le graphique
-     */
-    updateData(data: EChartsTreemapNode): void {
-        if (!this.chart) {
-            console.warn('Chart not initialized, call render() first');
-            return;
-        }
-
-        this.chart.setOption({
-            series: [{
-                data: data.children || [data]
-            }]
-        });
-    }
-
-    /**
-     * Met à jour les options
-     */
-    updateOptions(options: Partial<EChartsTreemapOptions>): void {
-        this.currentOptions = { ...this.currentOptions, ...options };
-        
-        if (this.chart) {
-            // Redimensionner si nécessaire
-            if (options.width || options.height) {
-                this.chart.resize({
-                    width: this.currentOptions.width,
-                    height: this.currentOptions.height
-                });
-            }
-        }
-    }
-
-    /**
-     * Zoom vers un noeud spécifique
-     */
-    zoomToNode(nodeId: string): void {
-        if (!this.chart) return;
-        
-        this.chart.dispatchAction({
-            type: 'treemapZoomToNode',
-            seriesId: 'treemap-visualization',
-            targetNodeId: nodeId
-        });
-    }
-
-    /**
-     * Revenir à la vue racine
-     */
-    zoomOut(): void {
-        if (!this.chart) return;
-        
-        this.chart.dispatchAction({
-            type: 'treemapRootToNode',
-            seriesId: 'treemap-visualization'
-        });
-    }
-
-    /**
-     * Redimensionne le graphique
-     */
-    resize(): void {
-        if (this.chart) {
-            this.chart.resize();
-        }
-    }
-
-    /**
-     * Détruit le graphique et nettoie les ressources
-     */
-    destroy(): void {
-        if (this.chart) {
-            this.chart.dispose();
-            this.chart = null;
-        }
-    }
-
-    /**
-     * Obtient l'instance ECharts
-     */
-    getChart(): echarts.ECharts | null {
-        return this.chart;
-    }
-
-    /**
-     * Formatter de tooltip par défaut
-     */
-    private defaultTooltipFormatter = (params: any): string => {
-        const data = params.data;
-        if (!data) return '';
-
-        let tooltip = `<strong>${data.name}</strong><br/>`;
-        
-        if (data.wordCount !== undefined) {
-            tooltip += `Mots: ${data.wordCount.toLocaleString()}<br/>`;
-        }
-        
-        if (data.itemCount !== undefined) {
-            tooltip += `Éléments: ${data.itemCount.toLocaleString()}<br/>`;
-        }
-        
-        if (data.value !== undefined) {
-            tooltip += `Valeur: ${data.value.toLocaleString()}`;
-        }
-
-        return tooltip;
-    };
-
-    /**
-     * Configuration du redimensionnement responsive
-     */
-    private setupResponsive(): void {
-        if (!this.chart) return;
-
-        const resizeObserver = new ResizeObserver(() => {
-            this.resize();
-        });
-
-        resizeObserver.observe(this.container);
-
-        // Nettoyer l'observer lors de la destruction
-        const originalDispose = this.chart.dispose.bind(this.chart);
-        this.chart.dispose = () => {
-            resizeObserver.disconnect();
-            originalDispose();
-        };
+        return option;
     }
 }
 
