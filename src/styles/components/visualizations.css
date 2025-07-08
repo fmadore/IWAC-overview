@@ -17,14 +17,78 @@
 
 .chart-modern:hover {
   box-shadow: var(--shadow-xl);
+}
+
+/* Glassmorphism Chart Container - Enhanced Modern Version */
+.chart-glassmorphism {
+  background: rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-lg);
+  box-shadow: 
+    var(--shadow-lg),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal) var(--ease-out);
+}
+
+.chart-glassmorphism::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    transparent
+  );
+  z-index: var(--z-above);
+}
+
+.chart-glassmorphism:hover {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    var(--shadow-xl),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    var(--shadow-glow);
   transform: translateY(-2px);
+}
+
+/* Glassmorphism Summary Cards */
+.summary-glassmorphism {
+  background: rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-lg);
+  box-shadow: 
+    var(--shadow-md),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all var(--transition-normal) var(--ease-out);
+}
+
+.summary-glassmorphism:hover {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    var(--shadow-lg),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 /* Glassmorphism effect for overlays */
 .glass-overlay {
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
@@ -33,8 +97,8 @@
 /* Modern tooltip styling */
 .tooltip-modern {
   background: rgba(26, 32, 44, 0.95);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   color: var(--color-text-light);
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);
@@ -133,7 +197,6 @@
 
 /* Timeline enhancements */
 .timeline-modern .timeline-bar {
-  rx: 4;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.1));
   transition: all var(--transition-fast) var(--ease-out);
 }
@@ -147,7 +210,6 @@
 .treemap-rect-modern {
   stroke: var(--color-bg-card);
   stroke-width: 2;
-  rx: 4;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
   transition: all var(--transition-fast) var(--ease-out);
 }
@@ -309,4 +371,4 @@
   .viz-header-modern {
     padding: var(--spacing-md) var(--spacing-lg);
   }
-} 
+}

@@ -1,8 +1,8 @@
 import type { OmekaItem } from '../types/OmekaItem';
-import type { TreemapNode } from '../services/treemap/index';
+import type { EChartsTreemapNode } from '../services/treemap/index';
 
 // Function to process Omeka items into a hierarchical structure for the word distribution treemap
-export function createWordDistributionHierarchy(items: OmekaItem[]): TreemapNode {
+export function createWordDistributionHierarchy(items: OmekaItem[]): EChartsTreemapNode {
     if (!items || items.length === 0) {
         return { name: 'root', children: [] };
     }
@@ -42,10 +42,11 @@ export function createWordDistributionHierarchy(items: OmekaItem[]): TreemapNode
     });
 
     // Convert map to TreemapNode structure
-    const root: TreemapNode = {
+    const root: EChartsTreemapNode = {
         name: 'Word Distribution', // Root node name
         children: Array.from(countryMap.entries()).map(([countryName, countryData]) => ({
             name: countryName,
+            value: countryData.words, // Add value for ECharts sizing
             wordCount: countryData.words,
             itemCount: countryData.items,
             children: Array.from(countryData.sets.entries()).map(([setName, setData]) => ({
@@ -59,10 +60,10 @@ export function createWordDistributionHierarchy(items: OmekaItem[]): TreemapNode
 
     // Sort countries and sets by word count (descending)
     if (root.children) {
-        root.children.sort((a: TreemapNode, b: TreemapNode) => (b.wordCount || 0) - (a.wordCount || 0));
-        root.children.forEach((country: TreemapNode) => {
+        root.children.sort((a: EChartsTreemapNode, b: EChartsTreemapNode) => (b.wordCount || 0) - (a.wordCount || 0));
+        root.children.forEach((country: EChartsTreemapNode) => {
             if (country.children) {
-                country.children.sort((a: TreemapNode, b: TreemapNode) => (b.wordCount || 0) - (a.wordCount || 0));
+                country.children.sort((a: EChartsTreemapNode, b: EChartsTreemapNode) => (b.wordCount || 0) - (a.wordCount || 0));
             }
         });
     }

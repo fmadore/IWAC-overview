@@ -332,9 +332,46 @@ Creates a legend with the specified options.
 - `getLegendElement()`: Returns the legend DOM element or D3 selection
 - `cleanup()`: Cleans up the legend (removes event listeners, etc.)
 
+### useVisualizationHeader
+
+The `useVisualizationHeader` hook provides a centralized way to manage visualization headers, titles, and descriptions with language support.
+
+#### Features
+- Dynamic title generation with data counts
+- Language-aware formatting and translations
+- Number formatting with locale-specific separators
+- Reactive updates when language or data changes
+- Pre-configured patterns for common visualization types
+
+#### Usage
+
+```typescript
+import { useStandardVisualizationHeader } from '../hooks/useVisualizationHeader';
+
+// In your component
+const headerHook = useStandardVisualizationHeader('word'); // or 'country', 'type', etc.
+const { state: headerState } = headerHook;
+
+// Reactive variables
+$: titleHtml = $headerState.titleHtml;
+$: currentLang = $headerState.currentLang;
+
+// Update when data changes
+headerHook.updateTitle({ 
+    totalCount: totalItems, 
+    additionalCount: totalWordCount 
+});
+
+// Lifecycle management
+onMount(() => headerHook.initialize({ totalCount: 0 }));
+onDestroy(() => headerHook.destroy());
+```
+
+See `README_VisualizationHeader.md` for detailed documentation and migration guide.
+
 ## Planned Hooks
 
 Future hooks to be implemented:
 
 1. `useAxis`: Create and manage D3.js axes
-2. `useZoom`: Handle zoom behavior in visualizations 
+2. `useZoom`: Handle zoom behavior in visualizations

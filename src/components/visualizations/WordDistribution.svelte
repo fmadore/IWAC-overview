@@ -1,40 +1,33 @@
 <!--
-  WordDistribution Component - Refactored to use Modular Treemap API
+  WordDistribution Component - ECharts Version
   
-  This component has been updated to use the new modular TreemapVisualization class
-  instead of the legacy TreemapService.createTreemap() method.
+  Cette version utilise ECharts au lieu de D3, ce qui simplifie considérablement 
+  le code tout en offrant plus de fonctionnalités intégrées.
   
-  Key improvements:
-  - Better separation of concerns with modular architecture
-  - Type-safe configuration with TreemapConfiguration
-  - Proper cleanup and memory management
-  - More maintainable and testable code structure
-  
-  Migration changes:
-  - TreemapService.createTreemap() → TreemapVisualization class
-  - Options object → TreemapConfiguration interface
-  - Added proper cleanup with treemapVisualization.destroy()
-  - Improved configuration management with updateConfig()
+  Avantages d'ECharts:
+  - Code beaucoup plus simple (~200 lignes vs ~700 lignes)
+  - Fonctionnalités intégrées: zoom, navigation, tooltips, breadcrumbs
+  - Performance optimisée pour de gros datasets
+  - Animation et interactions fluides
+  - Maintenance simplifiée
 -->
 
 <script lang="ts">
     import { onMount, onDestroy, tick } from 'svelte';
-    import * as d3 from 'd3';
     import itemsStore from '../../stores/itemsStore';
     import type { OmekaItem } from '../../types/OmekaItem';
     import { log } from '../../utils/logger';
-    import { t, translate, languageStore } from '../../stores/translationStore';
+    import { translate, languageStore } from '../../stores/translationStore';
     import { logDebug, trackMount, trackUnmount } from '../../utils/debug';
     import BaseVisualization from './BaseVisualization.svelte';
     import WordDistributionSummary from './WordDistributionSummary.svelte';
-    import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
-    import { useD3Resize } from '../../hooks/useD3Resize';
     import { useDataProcessing } from '../../hooks/useDataProcessing';
-    import { TreemapVisualization, type TreemapNode, type TreemapConfiguration } from '../../services/treemap/index';
+    import { EChartsTreemapService, type EChartsTreemapNode, type EChartsTreemapOptions } from '../../services/treemap/index';
     import { createWordDistributionHierarchy } from '../../utils/dataTransformers';
     import { getColorPalette } from '../../utils/colorPalette';
+    import { useStandardVisualizationHeader } from '../../hooks/useVisualizationHeader';
 
-    const COMPONENT_ID = 'WordDistributionRefactored';
+    const COMPONENT_ID = 'WordDistributionECharts';
     let isMounted = false;
     let unsubscribeItems: () => void;
 
@@ -44,36 +37,32 @@
     let height = 0;
     let totalWordCount = 0;
     let totalItems = 0;
-    let hierarchyData: TreemapNode = { name: 'root', children: [] };
-    let zoomedNode: d3.HierarchyNode<TreemapNode> | null = null;
+    let hierarchyData: EChartsTreemapNode = { name: 'root', children: [] };
     let grandTotalWordCount = 0;
-    let titleHtml = '';
-    let currentLang: 'en' | 'fr' = 'en';
-    // Store country colors to maintain consistency when zooming - use modern palette
-    let countryColors: Map<string, string> = new Map();
     
-    // Treemap visualization instance
-    let treemapVisualization: TreemapVisualization | null = null;
+    // ECharts treemap service instance
+    let treemapService: EChartsTreemapService | null = null;
     
-    // Initialize professional color palette and create D3 scale
+    // Initialize header management hook
+    const headerHook = useStandardVisualizationHeader('word');
+    
+    // Reactive variables for header - destructure the state store
+    const { state: headerState } = headerHook;
+    $: currentLang = $headerState.currentLang;
+    $: titleHtml = $headerState.titleHtml;
+    
+    // Initialize professional color palette
     const modernColors = getColorPalette('professional');
-    const colorScale = d3.scaleOrdinal<string>().range(modernColors);
     
-    // Initialize tooltip hook
-    const { showTooltip, hideTooltip } = useTooltip({
-        maxWidth: '250px'
-    });
-    
-    // Initialize resize hook after container is bound
-    let resizeHook: ReturnType<typeof useD3Resize>;
-    
+    // Initialize data processing hook
+    const { filterItems } = useDataProcessing({});
+
     // Create reactive translations
     const noDataText = translate('viz.no_data');
+    const loadingText = translate('ui.loading');
     const wordDistributionText = translate('viz.word_distribution');
     const totalWordsText = translate('viz.total_words');
     const avgWordsPerItemText = translate('viz.avg_words_per_item');
-    const clickZoomInText = translate('viz.click_zoom_in');
-    const clickZoomOutText = translate('viz.click_zoom_out');
     const unknownText = translate('viz.unknown');
     const noSetText = translate('viz.no_set');
     const backToAllText = translate('viz.back_to_all');
@@ -82,591 +71,434 @@
     const itemsText = translate('viz.items');
     const percentOfCountryText = translate('viz.percent_of_country');
     const percentOfTotalText = translate('viz.percent_of_total');
-    const itemSetSummaryText = translate('viz.item_set_summary');
 
-    // Initialize data processing hook
-    const { filterItems } = useDataProcessing({
-        filterMissingValues: true,
-        requiredFields: ['word_count', 'country'],
-        filterFn: (item: OmekaItem): boolean => 
-            !!(item.word_count !== undefined && item.word_count > 0 && item.country)
-    });
-
-    // Function to format numbers with spaces as thousands separator
+    // Helper function to format numbers (delegate to header hook)
     function formatNumber(num: number): string {
-        // Use locale-specific formatting
-        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+        return headerHook.formatNumber(num);
     }
 
-    // Function to update the title HTML
-    function updateTitleHtml() {
-        if (totalItems > 0) {
-            // Show "Distribution of X words by country and sub-collection"
-            if (currentLang === 'en') {
-                titleHtml = `Distribution of ${formatNumber(totalWordCount)} ${$wordsText} by country and sub-collection`;
-            } else {
-                titleHtml = `Répartition de ${formatNumber(totalWordCount)} ${$wordsText} par pays et sous-collection`;
-            }
-        } else {
-            titleHtml = t('viz.word_distribution');
-        }
-    }
-
-    // Update zoomed node title
-    function updateZoomedNodeTitle() {
-        if (!zoomedNode) return;
-        
-        if (currentLang === 'en') {
-            titleHtml = `${zoomedNode.data.name}: ${formatNumber(zoomedNode.data.wordCount || 0)} ${$wordsText}`;
-        } else {
-            titleHtml = `${zoomedNode.data.name}: ${formatNumber(zoomedNode.data.wordCount || 0)} ${$wordsText}`;
-        }
-    }
-
-    // Process data using the external transformer with modern colors
+    // Process data using the external transformer
     function prepareVisualizationData() {
-        if (!$itemsStore.items || $itemsStore.items.length === 0) {
-            totalItems = 0;
+        const storeData = $itemsStore;
+        const items = storeData.items || [];
+        
+        if (!items || items.length === 0) {
+            log('No items available for WordDistribution visualization');
+            hierarchyData = { name: 'root', children: [] };
             totalWordCount = 0;
-            updateTitleHtml();
-            return { name: 'root', children: [] };
-        }
-
-        const hierarchy = createWordDistributionHierarchy($itemsStore.items);
-
-        // Assign modern colors to countries
-        if (hierarchy.children) {
-            hierarchy.children.forEach((country: TreemapNode, index: number) => {
-                if (!countryColors.has(country.name)) {
-                    const colorIndex = index % modernColors.length;
-                    countryColors.set(country.name, modernColors[colorIndex]);
-                }
+            totalItems = 0;
+            // Update header with empty data
+            headerHook.updateTitle({ 
+                totalCount: 0, 
+                additionalCount: 0 
             });
+            return;
         }
 
-        // Recalculate totals based on the processed hierarchy root
-        totalItems = hierarchy.children?.reduce((sum: number, country: TreemapNode) => sum + (country.itemCount || 0), 0) || 0;
-        totalWordCount = hierarchy.children?.reduce((sum: number, country: TreemapNode) => sum + (country.wordCount || 0), 0) || 0;
-        
-        // Store the grand total when data is first processed
-        grandTotalWordCount = totalWordCount;
-
-        updateTitleHtml();
-        return hierarchy;
-    }
-
-    // Zoom to a node
-    function zoomToNode(node: d3.HierarchyNode<TreemapNode> | null) {
-        zoomedNode = node;
-        
-        if (zoomedNode) {
-            // Update summary statistics for the zoomed node
-            totalItems = zoomedNode.data.itemCount || 0;
-            totalWordCount = zoomedNode.data.wordCount || 0;
-            
-            // Update title for zoomed node
-            updateZoomedNodeTitle();
-        } else {
-            // Reset to global statistics when zooming out
-            if ($itemsStore.items && $itemsStore.items.length > 0) {
-                // Use filterItems from the hook to get filtered items
-                const filteredItems = filterItems($itemsStore.items);
-                
-                totalItems = filteredItems.length;
-                totalWordCount = filteredItems.reduce((sum, item) => sum + (item.word_count || 0), 0);
-            }
-            
-            // Update title for main view
-            updateTitleHtml();
-        }
-        
-        updateVisualization();
-    }
-
-    // Handle tooltip display
-    function handleShowTooltip(event: MouseEvent, d: d3.HierarchyNode<TreemapNode>) {
         try {
-            if (!event) {
-                logDebug(COMPONENT_ID, 'Event object is undefined in handleShowTooltip');
-                return;
-            }
+            // Use the external data transformer
+            const result = createWordDistributionHierarchy(items);
+            hierarchyData = result;
             
-            const country = d.parent ? d.parent.data.name : d.data.name;
-            const itemSet = d.parent ? d.data.name : 'All';
-            const wordCount = d.data.wordCount || 0;
-            const itemCount = d.data.itemCount || 0;
-            const avgWordsPerItem = itemCount > 0 ? Math.round(wordCount / itemCount) : 0;
+            // Calculate totals from the hierarchy
+            totalWordCount = 0;
+            totalItems = 0;
+            grandTotalWordCount = 0;
             
-            const countryWordCount = zoomedNode ? zoomedNode.data.wordCount : (d.parent ? d.parent.data.wordCount : 0);
-            const percentOfCountry = countryWordCount && countryWordCount > 0 ? 
-                ((wordCount / countryWordCount) * 100).toFixed(1) + '%' : 'N/A';
-                
-            const percentOfTotal = grandTotalWordCount > 0 ? 
-                ((wordCount / grandTotalWordCount) * 100).toFixed(1) + '%' : 'N/A';
-            
-            const content = createGridTooltipContent(
-                `${country} > ${itemSet}`,
-                [
-                    { label: $wordsText, value: wordCount.toLocaleString() },
-                    { label: $itemsText, value: itemCount },
-                    { label: $avgWordsPerItemText, value: avgWordsPerItem },
-                    { label: $percentOfCountryText, value: percentOfCountry },
-                    { label: $percentOfTotalText, value: percentOfTotal }
-                ]
-            );
-            
-            showTooltip(event, content, 250, 150);
-            
-            logDebug(COMPONENT_ID, 'Tooltip shown', { 
-                country, 
-                itemSet
-            });
-        } catch (e) {
-            console.error('Error showing tooltip:', e);
-            logDebug(COMPONENT_ID, 'Error showing tooltip', e);
-        }
-    }
-
-    // Create or update the visualization using the new modular API
-    // MIGRATION NOTE: Updated from TreemapService.createTreemap() to TreemapVisualization class
-    // Benefits: Better separation of concerns, improved configuration management, easier testing
-    function updateVisualization(dataToRender: TreemapNode = hierarchyData) {
-        try {
-            if (!container) {
-                console.error('Container element not found');
-                return;
-            }
-            
-            // Use the passed data, handle empty case
-            if (!dataToRender.children || dataToRender.children.length === 0) {
-                d3.select(container).select('svg').remove();
-                d3.select(container).append('div')
-                    .attr('class', 'absolute inset-center text-secondary')
-                    .text($noDataText);
-                return;
-            }
-            
-            // Create or update treemap using the new modular API
-            if (!treemapVisualization) {
-                // Create new visualization instance with modern configuration
-                const config: Partial<TreemapConfiguration> = {
-                    container,
-                    dimensions: {
-                        width: container.clientWidth,
-                        height: 500, // Explicitly set fixed height
-                        margin: { top: 10, right: 10, bottom: 10, left: 10 }
-                    },
-                    style: {
-                        colors: colorScale,
-                        padding: { outer: 3, top: 16, inner: 1 },
-                        labelOptions: {
-                            parentLabel: {
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 'bold',
-                                color: 'white'
-                            },
-                            childLabel: {
-                                fontSize: 'var(--font-size-xs)',
-                                color: 'var(--color-text-primary)',
-                                minWidth: 30,
-                                minHeight: 20
-                            }
-                        },
-                        colorMap: countryColors
-                    },
-                    navigation: {
-                        useBreadcrumbs: true,
-                        rootName: currentLang === 'en' ? 'All' : 'Tous',
-                        showZoomButton: true
-                    },
-                    behavior: {
-                        minSizeThreshold: 0.001,
-                        enableZoom: true,
-                        enableTooltips: true,
-                        responsive: false
-                    },
-                    callbacks: {
-                        onTooltipShow: handleShowTooltip,
-                        onTooltipHide: hideTooltip,
-                        onZoom: (node: d3.HierarchyNode<TreemapNode> | null) => {
-                            zoomToNode(node);
-                        }
-                    },
-                    currentZoomedNode: zoomedNode
-                };
-                
-                treemapVisualization = new TreemapVisualization(container, config);
-            } else {
-                // Update existing visualization configuration
-                treemapVisualization.updateConfig({
-                    callbacks: {
-                        onTooltipShow: handleShowTooltip,
-                        onTooltipHide: hideTooltip,
-                        onZoom: (node: d3.HierarchyNode<TreemapNode> | null) => {
-                            zoomToNode(node);
-                        }
-                    },
-                    currentZoomedNode: zoomedNode,
-                    style: {
-                        colors: colorScale,
-                        colorMap: countryColors,
-                        padding: { outer: 3, top: 16, inner: 1 },
-                        labelOptions: {
-                            parentLabel: {
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 'bold',
-                                color: 'white'
-                            },
-                            childLabel: {
-                                fontSize: 'var(--font-size-xs)',
-                                color: 'var(--color-text-primary)',
-                                minWidth: 30,
-                                minHeight: 20
-                            }
-                        }
-                    },
-                    navigation: {
-                        useBreadcrumbs: true,
-                        rootName: currentLang === 'en' ? 'All' : 'Tous',
-                        showZoomButton: true
+            if (result.children) {
+                result.children.forEach(country => {
+                    if (country.children) {
+                        country.children.forEach(set => {
+                            totalWordCount += set.wordCount || 0;
+                            totalItems += set.itemCount || 0;
+                        });
                     }
                 });
             }
-            
-            // Render the visualization
-            treemapVisualization.render(dataToRender);
-            
-            logDebug(COMPONENT_ID, 'Visualization updated successfully', { 
-                itemCount: dataToRender.children?.length || 0,
-                isZoomed: !!zoomedNode
+            grandTotalWordCount = totalWordCount;
+
+            // Update header with current data
+            headerHook.updateTitle({ 
+                totalCount: totalItems, 
+                additionalCount: totalWordCount 
             });
-        } catch (e) {
-            console.error('Error in updateVisualization:', e);
+            
+            log(`WordDistribution data prepared: ${totalWordCount} words, ${totalItems} items`);
+        } catch (error) {
+            console.error('Error preparing visualization data:', error);
+            hierarchyData = { name: 'root', children: [] };
+            totalWordCount = 0;
+            totalItems = 0;
+            // Update header with empty data
+            headerHook.updateTitle({ 
+                totalCount: 0, 
+                additionalCount: 0 
+            });
         }
     }
 
-    function handleItemsChange(items: any) {
-        if (!isMounted || !container) return;
+    // Custom tooltip formatter
+    function createTooltip(params: any): string {
+        const data = params.data;
+        if (!data) return '';
+
+        let tooltip = `<div class="echarts-tooltip">`;
         
-        logDebug(COMPONENT_ID, 'Items store changed', { itemCount: items?.length || 0 });
+        // Afficher différemment selon le niveau hiérarchique
+        if (params.treePathInfo && params.treePathInfo.length > 1) {
+            // C'est un enfant (collection), afficher pays > collection
+            const country = params.treePathInfo[1]?.name || 'Inconnu';
+            const collection = data.name;
+            tooltip += `<div class="font-semibold text-base mb-2">${country} › ${collection}</div>`;
+        } else {
+            // C'est un parent (pays)
+            tooltip += `<div class="font-semibold text-base mb-2">${data.name}</div>`;
+        }
         
-        // Only update if the component is still mounted and not zoomed
-        if (document.body.contains(container)) {
-            if (!zoomedNode) {
-                hierarchyData = prepareVisualizationData(); // Recalculate data
-                updateVisualization(hierarchyData); // Update with new data
+        if (data.wordCount !== undefined) {
+            const percentOfTotal = grandTotalWordCount > 0 ? ((data.wordCount / grandTotalWordCount) * 100).toFixed(1) : '0';
+            tooltip += `<div><span class="text-blue-600">📝</span> ${$wordsText}: <strong>${headerHook.formatNumber(data.wordCount)}</strong> (${percentOfTotal}%)</div>`;
+        }
+        
+        if (data.itemCount !== undefined) {
+            tooltip += `<div><span class="text-green-600">📄</span> ${$itemsText}: <strong>${headerHook.formatNumber(data.itemCount)}</strong></div>`;
+        }
+        
+        if (data.wordCount && data.itemCount) {
+            const avgWords = Math.round(data.wordCount / data.itemCount);
+            tooltip += `<div><span class="text-purple-600">📊</span> Moyenne: <strong>${headerHook.formatNumber(avgWords)}</strong> mots/élément</div>`;
+        }
+
+        tooltip += `</div>`;
+        return tooltip;
+    }
+
+    // Create or update the visualization using ECharts
+    function updateVisualization() {
+        if (!container || !hierarchyData?.children?.length) {
+            log('No container or data available for visualization');
+            return;
+        }
+
+        try {
+            // Configure ECharts options
+            const options: EChartsTreemapOptions = {
+                width: container.clientWidth,
+                height: 500, // Fixed height to match the container
+                colors: modernColors,
+                enableZoom: true,
+                showBreadcrumb: true,
+                roam: false,
+                onTooltip: createTooltip,
+                labelOptions: {
+                    show: true,
+                    fontSize: 12,
+                    fontWeight: 'normal',
+                    color: '#333'
+                },
+                responsive: true
+            };
+
+            // Create or update the treemap service
+            if (!treemapService) {
+                treemapService = new EChartsTreemapService(container, options);
             } else {
-                // If zoomed, we might need to update if the underlying data changes
-                // For simplicity now, we only update if the zoom level changes or language changes
-                // A more complex approach might recalculate the zoomed view based on new items
-                // updateVisualization(hierarchyData); // Re-render potentially stale zoomed view
+                treemapService.updateOptions(options);
             }
+
+            // Render the visualization
+            treemapService.render(hierarchyData);
+            
+            log('ECharts treemap visualization updated successfully');
+        } catch (error) {
+            console.error('Error updating visualization:', error);
+        }
+    }
+
+    // Handle items store changes
+    function handleItemsChange(storeData: any) {
+        if (!isMounted) return;
+        
+        logDebug(COMPONENT_ID, 'Items changed, updating visualization', { itemCount: storeData?.items?.length || 0 });
+        prepareVisualizationData();
+        
+        tick().then(() => {
+            updateVisualization();
+        });
+    }
+
+    // Handle language changes
+    function handleLanguageChange(lang: 'en' | 'fr') {
+        if (isMounted) {
+            prepareVisualizationData();
+            tick().then(() => {
+                updateVisualization();
+            });
+        }
+    }
+
+    // Handle container resize
+    function handleResize() {
+        if (treemapService && container) {
+            const rect = container.getBoundingClientRect();
+            width = rect.width;
+            height = 500; // Keep fixed height
+            
+            treemapService.updateOptions({ width, height });
+            treemapService.resize();
         }
     }
 
     onMount((): (() => void) => {
-        try {
-            isMounted = true;
-            trackMount(COMPONENT_ID);
-            logDebug(COMPONENT_ID, 'Component mounted');
-            
-            // Use tick() in a separate function to avoid Promise return type issues
-            const initialize = async (): Promise<() => void> => {
-                await tick();
-                
-                if (!container) {
-                    console.error('Container element not found in onMount');
-                    return () => {}; // Return empty cleanup function for this path
-                }
-                
-                // Initialize resize hook
-                resizeHook = useD3Resize({
-                    container,
-                    onResize: () => {
-                        if (isMounted && container) {
-                            // Only update width, keep height fixed at 500px to prevent expansion
-                            const { width: newWidth } = resizeHook.dimensions;
-                            width = newWidth;
-                            height = 500; // Force fixed height
-                            updateVisualization();
-                        }
-                    },
-                    debounce: true,
-                    debounceDelay: 300 // Increase debounce delay to prevent frequent updates
-                });
-                
-                // Set initial dimensions
-                width = container.clientWidth;
-                height = Math.min(container.clientHeight, 500); // Ensure height is capped
+        logDebug(COMPONENT_ID, 'Component mounting');
+        trackMount(COMPONENT_ID);
+        isMounted = true;
 
-                // Add language subscription here
-                const languageUnsubscribe = languageStore.subscribe(value => {
-                    if (!isMounted) return;
-                    currentLang = value;
-                    
-                    // Update title when language changes
-                    if (zoomedNode) {
-                        updateZoomedNodeTitle();
-                    } else {
-                        updateTitleHtml();
-                    }
-                    
-                    // Update visualization if needed
-                    if (container && document.body.contains(container)) {
-                        updateVisualization();
-                    }
-                });
-                
-                // Subscribe to the items store
-                unsubscribeItems = itemsStore.subscribe(store => {
-                    handleItemsChange(store.items);
-                });
-                
-                // Create visualization if data is available
-                if ($itemsStore.items && $itemsStore.items.length > 0) {
-                    hierarchyData = prepareVisualizationData(); // Initial data prep
-                    updateVisualization(hierarchyData);
-                } else {
-                    // Load items if not already loaded
-                    itemsStore.loadItems();
-                }
-                
-                // Return cleanup function
-                return () => {
-                    try {
-                        // This cleanup function is called when the component is unmounted
-                        isMounted = false;
-                        trackUnmount(COMPONENT_ID);
-                        logDebug(COMPONENT_ID, 'Component cleanup started');
-                        
-                        // Clean up treemap visualization
-                        if (treemapVisualization) {
-                            treemapVisualization.destroy();
-                            treemapVisualization = null;
-                            logDebug(COMPONENT_ID, 'Treemap visualization cleaned up');
-                        }
-                        
-                        // Clean up D3 selections to prevent memory leaks
-                        if (container) {
-                            d3.select(container).selectAll('*').remove();
-                            logDebug(COMPONENT_ID, 'D3 selections removed');
-                        }
-                        
-                        // Clean up resize hook
-                        if (resizeHook) {
-                            resizeHook.cleanup();
-                            logDebug(COMPONENT_ID, 'Resize hook cleaned up');
-                        }
-                        
-                        // Clean up store subscriptions
-                        if (unsubscribeItems) {
-                            unsubscribeItems();
-                            logDebug(COMPONENT_ID, 'Unsubscribed from items store');
-                        }
+        // Initialize header hook
+        headerHook.initialize({ totalCount: 0, additionalCount: 0 });
 
-                        // Clean up language subscription
-                        if (languageUnsubscribe) {
-                            languageUnsubscribe();
-                            logDebug(COMPONENT_ID, 'Unsubscribed from language store');
-                        }
-                        
-                        logDebug(COMPONENT_ID, 'Component cleanup completed');
-                    } catch (e) {
-                        console.error('Error during cleanup:', e);
-                    }
-                };
-            };
-            
-            // Start initialization and return its result
-            const cleanup = initialize();
-            return () => {
-                cleanup.then(cleanupFn => cleanupFn());
-            };
-        } catch (e) {
-            console.error('Error in onMount:', e);
-            return () => {}; // Return empty cleanup function in case of error
-        }
-    });
-    
-    onDestroy(() => {
-        // This is a backup in case the cleanup function in onMount doesn't run
-        if (isMounted) {
-            isMounted = false;
-            trackUnmount(COMPONENT_ID);
-            logDebug(COMPONENT_ID, 'Component destroyed (backup cleanup)');
-            
-            try {
-                // Clean up treemap visualization
-                if (treemapVisualization) {
-                    treemapVisualization.destroy();
-                    treemapVisualization = null;
-                    logDebug(COMPONENT_ID, 'Treemap visualization cleaned up (backup)');
-                }
+        // Subscribe to stores
+        unsubscribeItems = itemsStore.subscribe(handleItemsChange);
+        const unsubscribeLanguage = languageStore.subscribe(handleLanguageChange);
+
+        // Set up resize observer
+        const resizeObserver = new ResizeObserver(handleResize);
+        
+        // Initial setup
+        tick().then(() => {
+            if (container) {
+                const rect = container.getBoundingClientRect();
+                width = rect.width;
+                height = 500; // Force fixed height
                 
-                // Clean up resize hook
-                if (resizeHook) {
-                    resizeHook.cleanup();
-                    logDebug(COMPONENT_ID, 'Resize hook cleaned up (backup)');
-                }
+                resizeObserver.observe(container);
                 
-                // Clean up store subscriptions
-                if (unsubscribeItems) {
-                    unsubscribeItems();
-                    logDebug(COMPONENT_ID, 'Unsubscribed from items store (backup)');
-                }
-            } catch (e) {
-                console.error('Error during backup cleanup:', e);
+                prepareVisualizationData();
+                updateVisualization();
             }
+        });
+
+        return () => {
+            logDebug(COMPONENT_ID, 'Component unmounting');
+            trackUnmount(COMPONENT_ID);
+            
+            // Cleanup header hook
+            headerHook.destroy();
+            
+            // Cleanup
+            if (treemapService) {
+                treemapService.destroy();
+                treemapService = null;
+            }
+            
+            resizeObserver.disconnect();
+            unsubscribeLanguage();
+            isMounted = false;
+        };
+    });
+
+    onDestroy(() => {
+        if (unsubscribeItems) {
+            unsubscribeItems();
         }
+        if (treemapService) {
+            treemapService.destroy();
+            treemapService = null;
+        }
+        // Clean up header hook
+        headerHook.destroy();
     });
 </script>
 
-<div class="w-full h-full flex flex-col gap-md">
+<div class="w-full h-full flex flex-col gap-2">
     <BaseVisualization
-        title=""
+        title={titleHtml}
         translationKey=""
-        description="This visualization shows the distribution of words across items by country and collection. The size of each block represents the word count in that country or collection."
+        description="Cette visualisation montre la distribution des mots à travers les éléments par pays et collection. La taille de chaque bloc représente le nombre de mots dans ce pays ou cette collection."
         descriptionTranslationKey="viz.word_distribution_description"
         {titleHtml}
         className="word-visualization-compact-header"
+        padding="8px"
+        minHeight="520px"
     >
         <div 
-            class="flex-1 min-h-500 relative overflow-hidden bg-card rounded shadow chart-modern" 
+            class="chart-container-glass flex-1 min-h-500 relative overflow-hidden" 
             bind:this={container}
-            style="height: 500px; max-height: 500px;"
+            style="height: 500px; max-height: 500px; padding: 0;"
         >
             {#if $itemsStore.loading}
-                <div class="absolute inset-center text-secondary">{t('ui.loading')}</div>
+                <div class="loading-state">{$loadingText}</div>
             {:else if $itemsStore.error}
-                <div class="absolute inset-center text-error">{$itemsStore.error}</div>
+                <div class="error-state">{$itemsStore.error}</div>
+            {:else if !hierarchyData?.children?.length}
+                <div class="no-data-state">{$noDataText}</div>
             {/if}
-            <!-- SVG will be rendered here by TreemapService -->
+            <!-- ECharts visualization will be rendered here -->
         </div>
         
-        <!-- Use the new summary component -->
+        <!-- Use the summary component -->
         <WordDistributionSummary 
             {totalItems}
             {totalWordCount}
-            {zoomedNode}
-            {formatNumber}
+            zoomedNode={null}
+            formatNumber={headerHook.formatNumber}
         />
         
     </BaseVisualization>
 </div>
 
 <style>
-    /* Modern styling for word distribution treemap */
+    /* Modern glassmorphism styling for word distribution treemap */
     
-    /* Enhanced chart container with modern effects */
-    :global(.chart-modern) {
+    /* Enhanced chart container with glassmorphism effect */
+    :global(.chart-container-glass) {
+        background: rgba(255, 255, 255, 0.85);
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: var(--radius-lg);
+        box-shadow: 
+            var(--shadow-lg),
+            0 0 0 1px rgba(255, 255, 255, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        position: relative;
+        overflow: hidden;
         transition: all var(--transition-normal) var(--ease-out);
-        border: 1px solid var(--color-border-light);
     }
     
-    :global(.chart-modern:hover) {
-        box-shadow: var(--shadow-xl);
-        transform: translateY(-2px);
+    :global(.chart-container-glass::before) {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+            90deg, 
+            transparent, 
+            rgba(255, 255, 255, 0.6) 50%, 
+            transparent
+        );
+        z-index: var(--z-above);
     }
     
-    /* Modern treemap styling */
-    :global(.treemap-rect-modern) {
-        stroke: var(--color-bg-card);
-        stroke-width: 2;
-        rx: 4;
-        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
-        transition: all var(--transition-fast) var(--ease-out);
-    }
-    
-    :global(.treemap-rect-modern:hover) {
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-        stroke-width: 3;
-        transform: scale(1.02);
-    }
-    
-    /* Modern text styling for treemap labels */
-    :global(.treemap-text) {
-        font-weight: var(--font-weight-medium);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        pointer-events: none;
-    }
-    
-    /* Modern breadcrumb styling */
-    :global(.breadcrumb-nav) {
-        background: var(--color-bg-card);
-        border: 1px solid var(--color-border-light);
-        border-radius: var(--radius-md);
-        padding: var(--spacing-xs) var(--spacing-sm);
-        box-shadow: var(--shadow-sm);
-        backdrop-filter: blur(4px);
-    }
-    
-    :global(.breadcrumb-link) {
-        color: var(--color-primary);
-        text-decoration: none;
-        font-weight: var(--font-weight-medium);
-        transition: color var(--transition-fast);
-    }
-    
-    :global(.breadcrumb-link:hover) {
-        color: var(--color-primary-dark);
-        text-decoration: underline;
-    }
-    
-    /* Modern loading and error states */
-    :global(.absolute.inset-center) {
-        padding: var(--spacing-lg);
-        border-radius: var(--radius-md);
-        backdrop-filter: blur(8px);
+    :global(.chart-container-glass:hover) {
         background: rgba(255, 255, 255, 0.9);
-        box-shadow: var(--shadow-md);
+        box-shadow: 
+            var(--shadow-xl),
+            0 0 0 1px rgba(255, 255, 255, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3),
+            var(--shadow-glow);
+        transform: translateY(-2px);
+        border-color: rgba(var(--color-primary), 0.3);
+    }
+
+    /* Modern state indicators with glassmorphism */
+    :global(.loading-state),
+    :global(.error-state),
+    :global(.no-data-state) {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: var(--spacing-lg) var(--spacing-xl);
+        border-radius: var(--radius-lg);
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 
+            var(--shadow-md),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
         font-weight: var(--font-weight-medium);
+        font-size: var(--font-size-md);
+        z-index: var(--z-popover);
+        animation: fadeInGlass var(--transition-normal) var(--ease-out);
     }
     
-    /* Enhanced tooltip styling for treemap */
-    :global(.tooltip-modern) {
-        background: rgba(26, 32, 44, 0.95);
-        backdrop-filter: blur(8px);
-        color: var(--color-text-light);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-lg);
-        font-size: var(--font-size-sm);
-        padding: var(--spacing-sm) var(--spacing-md);
+    :global(.loading-state) {
+        color: var(--color-text-secondary);
+        background: rgba(var(--color-primary-50), 0.9);
+        border-color: rgba(var(--color-primary), 0.2);
     }
     
-    /* Modern zoom controls */
-    :global(.zoom-out-button) {
-        background: var(--color-primary);
-        color: var(--color-text-light);
-        border: none;
-        border-radius: var(--radius-md);
-        padding: var(--spacing-xs) var(--spacing-sm);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        box-shadow: var(--shadow-sm);
+    :global(.error-state) {
+        color: var(--color-error);
+        background: rgba(var(--color-error-light), 0.9);
+        border-color: rgba(var(--color-error), 0.2);
     }
     
-    :global(.zoom-out-button:hover) {
-        background: var(--color-primary-dark);
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
+    :global(.no-data-state) {
+        color: var(--color-text-secondary);
+    }
+
+    /* Enhanced ECharts tooltip with glassmorphism */
+    :global(.echarts-tooltip) {
+        background: rgba(26, 32, 44, 0.95) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        backdrop-filter: blur(20px) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: var(--radius-lg) !important;
+        box-shadow: 
+            var(--shadow-xl),
+            0 0 0 1px rgba(255, 255, 255, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+        font-size: var(--font-size-sm) !important;
+        padding: var(--spacing-md) var(--spacing-lg) !important;
+        font-weight: var(--font-weight-medium) !important;
+        font-family: var(--font-family-base) !important;
+        line-height: var(--line-height-relaxed) !important;
+        max-width: 280px !important;
+    }
+
+    :global(.echarts-tooltip > div) {
+        margin-bottom: var(--spacing-xs);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+    }
+
+    :global(.echarts-tooltip > div:last-child) {
+        margin-bottom: 0;
     }
     
-    /* Animation for treemap elements */
-    :global(.treemap-rect) {
-        animation: fadeInScale var(--transition-normal) var(--ease-out);
-    }
-    
-    @keyframes fadeInScale {
+    /* Glassmorphism animations */
+    @keyframes fadeInGlass {
         from {
             opacity: 0;
-            transform: scale(0.9);
+            transform: translate(-50%, -50%) scale(0.95);
+            -webkit-backdrop-filter: blur(0px);
+            backdrop-filter: blur(0px);
         }
         to {
             opacity: 1;
-            transform: scale(1);
+            transform: translate(-50%, -50%) scale(1);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
         }
+    }
+    
+    /* Compact visualization header with glassmorphism touch */
+    :global(.word-visualization-compact-header) {
+        margin-bottom: var(--spacing-sm);
+        position: relative;
+    }
+    
+    :global(.word-visualization-compact-header::after) {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+            90deg, 
+            transparent, 
+            rgba(var(--color-primary), 0.3) 20%, 
+            rgba(var(--color-primary), 0.1) 50%,
+            rgba(var(--color-primary), 0.3) 80%, 
+            transparent
+        );
     }
 </style>
