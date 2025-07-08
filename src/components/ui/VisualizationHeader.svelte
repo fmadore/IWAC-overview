@@ -58,11 +58,11 @@
 </script>
 
 <div class="mb-md relative visualization-header {className}">
-    <div class="flex items-center gap-sm pb-sm bg-page relative z-above title-container">
-        <h2 class="m-0 text-lg text-primary flex-1">{@html title}</h2>
+    <div class="flex items-center gap-sm pb-sm bg-page relative z-above title-container modern-header">
+        <h2 class="m-0 text-lg flex-1 modern-title">{@html title}</h2>
         {#if description || descriptionTranslationKey}
             <button 
-                class="p-xs flex items-center justify-center rounded-full cursor-pointer bg-card border border-solid border-light info-button"
+                class="p-xs flex items-center justify-center rounded-full cursor-pointer modern-info-button"
                 on:click={toggleDescription}
                 aria-expanded={showDescription}
                 aria-controls={descriptionId}
@@ -82,7 +82,7 @@
     {#if showDescription && (description || descriptionTranslationKey)}
         <div 
             id={descriptionId}
-            class="absolute top-100 left-0 right-0 bg-card rounded p-md mt-xs border border-solid border-default shadow-lg z-popover description"
+            class="absolute top-100 left-0 right-0 modern-description"
             transition:slide={{ duration: 150, easing: t => t }}
             role="region"
             aria-label={$visualizationDescriptionText}
@@ -94,14 +94,58 @@
 </div>
 
 <style>
-    /* Only keep styles that can't be achieved with utility classes */
-    .info-button:hover {
-        background-color: var(--color-bg-hover);
+    /* Modern header styling */
+    .modern-header {
+        background: linear-gradient(135deg, 
+            rgba(91, 110, 232, 0.08) 0%, 
+            rgba(255, 107, 157, 0.08) 100%
+        );
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+        border: 1px solid var(--color-border-light);
+        transition: all var(--transition-fast) var(--ease-out);
     }
     
-    /* Add a stronger position for the description to prevent it from being hidden */
-    .description {
-        display: block;
-        z-index: 9999 !important;
+    .modern-header:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-primary-200);
+    }
+    
+    /* Modern title with gradient text */
+    .modern-title {
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: var(--font-weight-bold);
+    }
+    
+    /* Modern info button */
+    .modern-info-button {
+        background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card-alt) 100%);
+        border: 1px solid var(--color-border-light);
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-fast) var(--ease-out);
+    }
+    
+    .modern-info-button:hover {
+        background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-secondary-50) 100%);
+        transform: scale(1.05);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-primary-200);
+    }
+    
+    /* Modern description popup */
+    .modern-description {
+        background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card-alt) 100%);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-md);
+        margin-top: var(--spacing-xs);
+        border: 1px solid var(--color-border-light);
+        box-shadow: var(--shadow-lg);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
     }
 </style> 

@@ -58,8 +58,8 @@
     // Define translation keys
     const indexDescriptionKey = 'viz.index_distribution_description';
 
-    // Get modern color palette
-    const modernColors = getColorPalette('primary');
+    // Get modern color palette - use a more vibrant palette
+    const modernColors = getColorPalette('professional');
 
     // Function to format numbers with spaces as thousands separator
     function formatNumber(num: number): string {
@@ -249,18 +249,22 @@
         className="index-visualization-header"
     />
     
-    <div class="chart-container" bind:this={container}>
+    <div class="chart-container chart-modern" bind:this={container}>
         {#if $itemsStore.loading}
             <div class="flex items-center justify-center h-full text-secondary loading">
-                {t('ui.loading')}
+                <div class="chart-skeleton"></div>
             </div>
         {:else if $itemsStore.error}
             <div class="flex items-center justify-center h-full text-error error">
-                {$itemsStore.error}
+                <div class="bg-error-light rounded-lg p-4 border-l-4 border-error">
+                    {$itemsStore.error}
+                </div>
             </div>
         {:else if (!$itemsStore.items || $itemsStore.items.length === 0)}
             <div class="flex items-center justify-center h-full text-secondary">
-                {t('viz.no_data')}
+                <div class="bg-info-light rounded-lg p-4 border-l-4 border-info">
+                    {t('viz.no_data')}
+                </div>
             </div>
         {/if}
         <!-- ECharts chart will be rendered here -->
@@ -268,58 +272,142 @@
 </div>
 
 <style>
-    /* Modern chart container styling */
+    /* Modern chart container styling using global CSS variables */
     .index-visualization-container {
         width: 100%;
+        position: relative;
     }
     
     .chart-container {
         position: relative;
-        background: var(--color-bg-card);
-        border-radius: var(--radius-md);
-        padding: var(--spacing-sm);
+        background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card-alt) 100%);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        padding: var(--spacing-lg);
         overflow: hidden;
         min-height: 500px;
         height: 500px;
         width: 100%;
         box-sizing: border-box;
+        border: 1px solid var(--color-border-light);
+        transition: all var(--transition-fast) var(--ease-out);
     }
     
-    /* Loading and error states with modern styling */
-    .loading, .error {
+    .chart-container:hover {
+        transform: translateY(-2px);
+        box-shadow: 
+            var(--shadow-xl),
+            0 0 20px rgba(91, 110, 232, 0.15);
+        border-color: var(--color-primary-200);
+    }
+    
+    /* Modern loading and error states */
+    .loading {
         padding: var(--spacing-lg);
-        border-radius: var(--radius-md);
-        backdrop-filter: blur(8px);
-        background: rgba(255, 255, 255, 0.9);
+        border-radius: var(--radius-lg);
+        background: var(--gradient-primary);
+        color: var(--color-text-light);
+        font-weight: var(--font-weight-medium);
     }
     
     .error {
-        background: rgba(245, 101, 101, 0.1);
-        border: 1px solid var(--color-error-light);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        font-weight: var(--font-weight-medium);
     }
     
-    /* ECharts styling integration with CSS variables */
+    /* ECharts styling integration with modern design */
     :global(.echarts-tooltip) {
-        border-radius: var(--radius-sm) !important;
+        border-radius: var(--radius-md) !important;
         border: 1px solid var(--color-border-light) !important;
         background: var(--color-bg-card) !important;
-        box-shadow: var(--shadow-md) !important;
+        box-shadow: var(--shadow-lg) !important;
+        backdrop-filter: blur(8px) !important;
     }
     
-    /* Responsive adjustments */
+    /* Modern chart skeleton animation */
+    .chart-skeleton {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+            var(--color-bg-card) 0%, 
+            var(--color-primary-100) 25%,
+            var(--color-secondary-100) 50%,
+            var(--color-primary-100) 75%,
+            var(--color-bg-card) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+        border-radius: var(--radius-md);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chart-skeleton::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--color-primary-200);
+        border-top: 3px solid var(--color-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    
+    @keyframes spin {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    
+    /* Responsive adjustments with modern styling */
     @media (max-width: 768px) {
         .chart-container {
-            min-height: 350px;
-            height: 350px;
-            padding: var(--spacing-xs);
+            min-height: 400px;
+            height: 400px;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+        }
+        
+        .chart-container:hover {
+            transform: none; /* Disable hover effects on mobile */
         }
     }
     
     @media (max-width: 480px) {
         .chart-container {
-            min-height: 300px;
-            height: 300px;
-            padding: var(--spacing-xs);
+            min-height: 350px;
+            height: 350px;
+            padding: var(--spacing-sm);
         }
+    }
+    
+    /* Add modern gradient overlay for enhanced visual appeal */
+    .chart-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, 
+            rgba(91, 110, 232, 0.02) 0%, 
+            rgba(255, 107, 157, 0.02) 100%
+        );
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    /* Ensure chart content is above the gradient */
+    .chart-container > :global(*) {
+        position: relative;
+        z-index: 2;
     }
 </style> 

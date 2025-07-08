@@ -40,7 +40,7 @@ export class EChartsBarService {
         this.currentOptions = {
             width: 800,
             height: 400,
-            colors: getColorPalette('primary'),
+            colors: getColorPalette('professional'),
             responsive: true,
             showGrid: true,
             showLegend: false,
@@ -123,30 +123,39 @@ export class EChartsBarService {
             tooltip: {
                 trigger: 'axis',
                 axisPointer: {
-                    type: 'shadow'
+                    type: 'shadow',
+                    shadowStyle: {
+                        color: 'rgba(91, 110, 232, 0.1)',
+                        shadowBlur: 8
+                    }
                 },
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderColor: 'var(--color-border-light)',
-                borderWidth: 1,
-                borderRadius: 8,
+                borderColor: 'var(--color-primary-200)',
+                borderWidth: 2,
+                borderRadius: 12,
                 textStyle: {
                     color: 'var(--color-text-primary)',
-                    fontSize: isMobile ? 11 : 12,
-                    fontFamily: 'var(--font-family-base)'
+                    fontSize: isMobile ? 12 : 14,
+                    fontFamily: 'var(--font-family-base)',
+                    fontWeight: 500
                 },
-                padding: [8, 12],
+                padding: [12, 16],
+                extraCssText: 'box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12); backdrop-filter: blur(8px);',
                 formatter: (params: any) => {
                     if (Array.isArray(params)) {
                         params = params[0]; // Take first item if array
                     }
                     const dataItem = data[params.dataIndex];
                     const formatter = this.currentOptions.valueFormatter || ((v: number) => v.toString());
-                    let content = `<div style="font-weight: 600; margin-bottom: 4px;">${params.name}</div>`;
-                    content += `<div style="display: flex; align-items: center;">`;
-                    content += `<span style="display: inline-block; width: 10px; height: 10px; background-color: ${params.color}; border-radius: 50%; margin-right: 6px;"></span>`;
-                    content += `${formatter(params.value)}`;
+                    const colorIndex = params.dataIndex % colors.length;
+                    const barColor = colors[colorIndex];
+                    
+                    let content = `<div style="font-weight: 600; margin-bottom: 8px; color: var(--color-text-primary);">${params.name}</div>`;
+                    content += `<div style="display: flex; align-items: center; gap: 8px;">`;
+                    content += `<div style="width: 12px; height: 12px; background: linear-gradient(135deg, ${barColor} 0%, ${this.darkenColor(barColor, 0.2)} 100%); border-radius: 3px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`;
+                    content += `<span style="font-weight: 600; color: var(--color-text-primary);">${formatter(params.value)}</span>`;
                     if (dataItem.percentage !== undefined) {
-                        content += ` (${dataItem.percentage.toFixed(1)}%)`;
+                        content += `<span style="color: var(--color-text-secondary); font-size: 0.9em;">(${dataItem.percentage.toFixed(1)}%)</span>`;
                     }
                     content += `</div>`;
                     return content;
@@ -154,47 +163,51 @@ export class EChartsBarService {
             },
             grid: {
                 left: isMobile ? '15%' : '12%',
-                right: isMobile ? '5%' : '8%',
-                bottom: isMobile ? '25%' : '20%',
-                top: isMobile ? '5%' : '8%',
+                right: isMobile ? '8%' : '10%',
+                bottom: isMobile ? '28%' : '22%',
+                top: isMobile ? '8%' : '10%',
                 containLabel: true,
                 show: this.currentOptions.showGrid,
                 borderColor: 'var(--color-border-light)',
-                borderWidth: 1
+                borderWidth: 0,
+                backgroundColor: 'rgba(91, 110, 232, 0.02)'
             },
             xAxis: {
                 type: this.currentOptions.horizontal ? 'value' : 'category',
                 data: this.currentOptions.horizontal ? undefined : categories,
                 name: this.currentOptions.xAxisLabel,
                 nameLocation: 'middle',
-                nameGap: isMobile ? 40 : 50,
+                nameGap: isMobile ? 45 : 55,
                 nameTextStyle: {
-                    color: 'var(--color-text-secondary)',
-                    fontSize: isMobile ? 11 : 13,
+                    color: 'var(--color-text-primary)',
+                    fontSize: isMobile ? 12 : 14,
                     fontFamily: 'var(--font-family-base)',
-                    fontWeight: 500
+                    fontWeight: 600
                 },
                 axisLine: {
                     lineStyle: {
-                        color: 'var(--color-border-default)'
+                        color: 'var(--color-border-default)',
+                        width: 2
                     }
                 },
                 axisLabel: {
                     color: 'var(--color-text-secondary)',
-                    fontSize: isMobile ? 10 : 11,
+                    fontSize: isMobile ? 10 : 12,
                     fontFamily: 'var(--font-family-base)',
-                    rotate: this.currentOptions.horizontal ? 0 : (isMobile ? -60 : -45),
+                    fontWeight: 500,
+                    rotate: this.currentOptions.horizontal ? 0 : (isMobile ? -45 : -35),
                     interval: 0,
-                    margin: isMobile ? 8 : 12,
+                    margin: isMobile ? 12 : 16,
                     formatter: (value: string) => {
-                        const maxLength = isMobile ? 8 : 12;
+                        const maxLength = isMobile ? 10 : 15;
                         return value.length > maxLength ? value.substring(0, maxLength - 2) + '...' : value;
                     }
                 },
                 axisTick: {
                     alignWithLabel: true,
                     lineStyle: {
-                        color: 'var(--color-border-light)'
+                        color: 'var(--color-border-light)',
+                        width: 1
                     }
                 }
             },
@@ -203,28 +216,37 @@ export class EChartsBarService {
                 data: this.currentOptions.horizontal ? categories : undefined,
                 name: this.currentOptions.yAxisLabel,
                 nameLocation: 'middle',
-                nameGap: isMobile ? 40 : 50,
+                nameGap: isMobile ? 45 : 55,
                 nameTextStyle: {
-                    color: 'var(--color-text-secondary)',
-                    fontSize: isMobile ? 11 : 13,
-                    fontFamily: 'var(--font-family-base)'
+                    color: 'var(--color-text-primary)',
+                    fontSize: isMobile ? 12 : 14,
+                    fontFamily: 'var(--font-family-base)',
+                    fontWeight: 600
                 },
                 axisLine: {
                     lineStyle: {
-                        color: 'var(--color-border-default)'
+                        color: 'var(--color-border-default)',
+                        width: 2
                     }
                 },
                 axisLabel: {
                     color: 'var(--color-text-secondary)',
-                    fontSize: isMobile ? 10 : 11,
+                    fontSize: isMobile ? 10 : 12,
                     fontFamily: 'var(--font-family-base)',
+                    fontWeight: 500,
                     formatter: this.currentOptions.valueFormatter
                 },
                 splitLine: {
+                    show: true,
                     lineStyle: {
                         color: 'var(--color-border-light)',
-                        type: 'dashed'
+                        type: 'dashed',
+                        width: 1,
+                        opacity: 0.6
                     }
+                },
+                axisTick: {
+                    show: false
                 }
             },
             series: [{
@@ -232,25 +254,67 @@ export class EChartsBarService {
                 type: 'bar',
                 data: this.currentOptions.horizontal ? values : values,
                 itemStyle: {
-                    borderRadius: [4, 4, 0, 0],
-                    borderWidth: 1,
-                    borderColor: 'rgba(255, 255, 255, 0.2)'
+                    borderRadius: [6, 6, 0, 0],
+                    borderWidth: 0,
+                    color: (params: any) => {
+                        const colorIndex = params.dataIndex % colors.length;
+                        // Create gradient effect for each bar
+                        return {
+                            type: 'linear',
+                            x: 0,
+                            y: 0,
+                            x2: 0,
+                            y2: 1,
+                            colorStops: [
+                                {
+                                    offset: 0,
+                                    color: colors[colorIndex]
+                                },
+                                {
+                                    offset: 1,
+                                    color: this.darkenColor(colors[colorIndex], 0.2)
+                                }
+                            ]
+                        };
+                    }
                 },
                 emphasis: {
                     itemStyle: {
-                        opacity: 0.8,
-                        shadowBlur: 10,
-                        shadowColor: 'rgba(0, 0, 0, 0.2)'
+                        borderRadius: [8, 8, 0, 0],
+                        shadowBlur: 15,
+                        shadowColor: 'rgba(0, 0, 0, 0.3)',
+                        shadowOffsetY: 3,
+                        color: (params: any) => {
+                            const colorIndex = params.dataIndex % colors.length;
+                            return {
+                                type: 'linear',
+                                x: 0,
+                                y: 0,
+                                x2: 0,
+                                y2: 1,
+                                colorStops: [
+                                    {
+                                        offset: 0,
+                                        color: this.lightenColor(colors[colorIndex], 0.1)
+                                    },
+                                    {
+                                        offset: 1,
+                                        color: colors[colorIndex]
+                                    }
+                                ]
+                            };
+                        }
                     }
                 },
-                animationDelay: (idx: number) => idx * 50,
-                animationDuration: 800,
+                animationDelay: (idx: number) => idx * 80,
+                animationDuration: 1000,
                 animationEasing: 'elasticOut'
             }],
             animation: true,
             animationThreshold: 2000,
-            animationDuration: 1000,
-            animationEasing: 'cubicInOut'
+            animationDuration: 1200,
+            animationEasing: 'cubicOut',
+            animationDelay: (idx: number) => idx * 100
         };
     }
 
@@ -404,5 +468,37 @@ export class EChartsBarService {
         } catch (error) {
             console.error('Error disposing bar chart:', error);
         }
+    }
+
+    /**
+     * Lighten a color by a factor
+     */
+    private lightenColor(color: string, factor: number): string {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        
+        const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
+        const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
+        const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
+        
+        return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+    }
+
+    /**
+     * Darken a color by a factor
+     */
+    private darkenColor(color: string, factor: number): string {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        
+        const newR = Math.max(0, Math.floor(r * (1 - factor)));
+        const newG = Math.max(0, Math.floor(g * (1 - factor)));
+        const newB = Math.max(0, Math.floor(b * (1 - factor)));
+        
+        return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
     }
 }
