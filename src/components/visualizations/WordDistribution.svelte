@@ -25,7 +25,6 @@
     import { EChartsTreemapService, type EChartsTreemapNode, type EChartsTreemapOptions } from '../../services/treemap/index';
     import { createWordDistributionHierarchy } from '../../utils/dataTransformers';
     import { getColorPalette } from '../../utils/colorPalette';
-    import { useStandardVisualizationHeader } from '../../hooks/useVisualizationHeader';
 
     const COMPONENT_ID = 'WordDistributionECharts';
     
@@ -45,12 +44,32 @@
     // ECharts treemap service instance
     let treemapService: EChartsTreemapService | null = $state(null);
     
-    // Initialize header management hook
-    const headerHook = useStandardVisualizationHeader('word');
+    // Simple title management like IndexDistribution
+    let currentLang = $state<'en' | 'fr'>('en');
+    let titleHtml = $state<string>('');
     
-    // Reactive variables for header using $derived
-    const currentLang = $derived(headerHook.currentLang);
-    const titleHtml = $derived(headerHook.titleHtml);
+    // Function to format numbers with spaces as thousands separator
+    function formatNumber(num: number): string {
+        return num.toLocaleString(currentLang === 'fr' ? 'fr-FR' : 'en-US');
+    }
+    
+    // Function to get the title with current count and proper formatting
+    function getTitle(wordCount: number): string {
+        const formattedCount = formatNumber(wordCount);
+        if (wordCount > 0) {
+            if (currentLang === 'en') {
+                return `Distribution of ${formattedCount} words by country and sub-collection`;
+            } else {
+                return `Répartition de ${formattedCount} mots par pays et sous-collection`;
+            }
+        }
+        return currentLang === 'en' ? 'Word Distribution' : 'Répartition des mots';
+    }
+    
+    // Update title when needed
+    function updateTitleHtml() {
+        titleHtml = getTitle(totalWordCount);
+    }
     
     // Initialize professional color palette
     const modernColors = getColorPalette('professional');
@@ -73,9 +92,9 @@
     const percentOfCountryText = translate('viz.percent_of_country');
     const percentOfTotalText = translate('viz.percent_of_total');
 
-    // Helper function to format numbers (delegate to header hook)
-    function formatNumber(num: number): string {
-        return headerHook.formatNumber(num);
+    // Helper function to format numbers (simple version)
+    function formatNumberForSummary(num: number): string {
+        return formatNumber(num);
     }
 
     // Process data using the external transformer
@@ -94,11 +113,7 @@
             hierarchyData = { name: 'root', children: [] };
             totalWordCount = 0;
             totalItems = 0;
-            // Update header with empty data
-            headerHook.updateTitle({ 
-                totalCount: 0, 
-                additionalCount: 0 
-            });
+            updateTitleHtml();
             return;
         }
 
@@ -128,11 +143,8 @@
             }
             grandTotalWordCount = totalWordCount;
 
-            // Update header with current data
-            headerHook.updateTitle({ 
-                totalCount: totalItems, 
-                additionalCount: totalWordCount 
-            });
+            // Update title with current data
+            updateTitleHtml();
             
             log(`WordDistribution data prepared: ${totalWordCount} words, ${totalItems} items`);
         } catch (error) {
@@ -140,11 +152,7 @@
             hierarchyData = { name: 'root', children: [] };
             totalWordCount = 0;
             totalItems = 0;
-            // Update header with empty data
-            headerHook.updateTitle({ 
-                totalCount: 0, 
-                additionalCount: 0 
-            });
+            updateTitleHtml();
         }
     }
 
@@ -168,16 +176,16 @@
         
         if (data.wordCount !== undefined) {
             const percentOfTotal = grandTotalWordCount > 0 ? ((data.wordCount / grandTotalWordCount) * 100).toFixed(1) : '0';
-            tooltip += `<div><span class="text-blue-600">📝</span> ${$wordsText}: <strong>${headerHook.formatNumber(data.wordCount)}</strong> (${percentOfTotal}%)</div>`;
+            tooltip += `<div><span class="text-blue-600">📝</span> ${$wordsText}: <strong>${formatNumber(data.wordCount)}</strong> (${percentOfTotal}%)</div>`;
         }
         
         if (data.itemCount !== undefined) {
-            tooltip += `<div><span class="text-green-600">📄</span> ${$itemsText}: <strong>${headerHook.formatNumber(data.itemCount)}</strong></div>`;
+            tooltip += `<div><span class="text-green-600">📄</span> ${$itemsText}: <strong>${formatNumber(data.itemCount)}</strong></div>`;
         }
         
         if (data.wordCount && data.itemCount) {
             const avgWords = Math.round(data.wordCount / data.itemCount);
-            tooltip += `<div><span class="text-purple-600">📊</span> Moyenne: <strong>${headerHook.formatNumber(avgWords)}</strong> mots/élément</div>`;
+            tooltip += `<div><span class="text-purple-600">📊</span> Moyenne: <strong>${formatNumber(avgWords)}</strong> mots/élément</div>`;
         }
 
         tooltip += `</div>`;
@@ -298,6 +306,14 @@
     let lastLanguage = $state('en');
     let isUpdating = $state(false);
 
+    // Reactive effect for language changes
+    $effect(() => {
+        currentLang = $languageStore;
+        if (isMounted) {
+            updateTitleHtml();
+        }
+    });
+
     // Svelte 5 effect to watch for store changes - improved to prevent infinite loops
     $effect(() => {
         if (!isMounted || isUpdating) return;
@@ -361,9 +377,6 @@
         try {
             // Set mounted state first
             isMounted = true;
-
-            // Initialize header hook
-            headerHook.initialize({ totalCount: 0, additionalCount: 0 });
 
             // Set up resize observer
             const resizeObserver = new ResizeObserver(handleResize);
@@ -436,11 +449,6 @@
                     }
                 });
                 
-                // Cleanup header hook
-                if (headerHook) {
-                    headerHook.destroy();
-                }
-                
                 // Cleanup treemap service
                 if (treemapService) {
                     treemapService.destroy();
@@ -465,8 +473,6 @@
             treemapService.destroy();
             treemapService = null;
         }
-        // Clean up header hook
-        headerHook.destroy();
     });
 </script>
 
@@ -500,7 +506,7 @@
             {totalItems}
             {totalWordCount}
             zoomedNode={null}
-            formatNumber={headerHook.formatNumber}
+            formatNumber={formatNumberForSummary}
         />
         
     </BaseVisualization>
