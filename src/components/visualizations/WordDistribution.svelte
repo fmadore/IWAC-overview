@@ -4,27 +4,8 @@
   Cette version utilise ECharts au lieu de D3, ce qui simplifie considérablement 
   le code tout en offrant plus de fonctionnalités intégrées.
   
-  Avantages     // Handle items store changes
-    function handleItemsChange(storeData: any) {
-        if (!isMounted) return;
-        
-        logDebug(COMPONENT_ID, 'Items changed, updating visualization', { itemCount: storeData?.items?.length || 0 });
-        prepareVisualizationData();
-        
-        tick().then(() => {
-            updateVisualization();
-        });
-    }
-
-    // Handle language changes
-    function handleLanguageChange(lang: 'en' | 'fr') {
-        if (isMounted) {
-            prepareVisualizationData();
-            tick().then(() => {
-                updateVisualization();
-            });
-        }
-    } beaucoup plus simple (~200 lignes vs ~700 lignes)
+  Avantages:
+  - Code beaucoup plus simple (~200 lignes vs ~700 lignes)
   - Fonctionnalités intégrées: zoom, navigation, tooltips, breadcrumbs
   - Performance optimisée pour de gros datasets
   - Animation et interactions fluides
@@ -102,6 +83,12 @@
         const storeData = $itemsStore;
         const items = storeData.items || [];
         
+        logDebug(COMPONENT_ID, 'Preparing visualization data', { 
+            itemsLength: items.length,
+            storeLoading: storeData.loading,
+            storeError: storeData.error
+        });
+        
         if (!items || items.length === 0) {
             log('No items available for WordDistribution visualization');
             hierarchyData = { name: 'root', children: [] };
@@ -119,6 +106,10 @@
             // Use the external data transformer
             const result = createWordDistributionHierarchy(items);
             hierarchyData = result;
+            
+            logDebug(COMPONENT_ID, 'Hierarchy data created', { 
+                resultChildren: result.children?.length || 0
+            });
             
             // Calculate totals from the hierarchy
             totalWordCount = 0;
@@ -195,15 +186,25 @@
 
     // Create or update the visualization using ECharts
     function updateVisualization() {
-        if (!container || !hierarchyData?.children?.length) {
-            log('No container or data available for visualization');
+        if (!container) {
+            log('Container not available for visualization');
+            return;
+        }
+        
+        if (!hierarchyData?.children?.length) {
+            log('No hierarchy data available for visualization');
             return;
         }
 
         try {
+            logDebug(COMPONENT_ID, 'Updating visualization', { 
+                containerWidth: container.clientWidth,
+                hierarchyChildren: hierarchyData.children.length 
+            });
+
             // Configure ECharts options
             const options: EChartsTreemapOptions = {
-                width: container.clientWidth,
+                width: container.clientWidth || 800,
                 height: 500, // Fixed height to match the container
                 colors: modernColors,
                 enableZoom: true,
@@ -221,8 +222,10 @@
 
             // Create or update the treemap service
             if (!treemapService) {
+                logDebug(COMPONENT_ID, 'Creating new treemap service');
                 treemapService = new EChartsTreemapService(container, options);
             } else {
+                logDebug(COMPONENT_ID, 'Updating existing treemap service');
                 treemapService.updateOptions(options);
             }
 
@@ -232,6 +235,7 @@
             log('ECharts treemap visualization updated successfully');
         } catch (error) {
             console.error('Error updating visualization:', error);
+            log(`Error updating visualization: ${error}`);
         }
     }
 
@@ -240,20 +244,34 @@
         if (!isMounted) return;
         
         logDebug(COMPONENT_ID, 'Items changed, updating visualization', { itemCount: storeData?.items?.length || 0 });
-        prepareVisualizationData();
         
-        tick().then(() => {
-            updateVisualization();
-        });
+        try {
+            prepareVisualizationData();
+            
+            // Use requestAnimationFrame to prevent blocking the UI
+            requestAnimationFrame(() => {
+                updateVisualization();
+            });
+        } catch (error) {
+            console.error('Error handling items change:', error);
+        }
     }
 
     // Handle language changes
     function handleLanguageChange(lang: 'en' | 'fr') {
-        if (isMounted) {
+        if (!isMounted) return;
+        
+        logDebug(COMPONENT_ID, 'Language changed', { lang });
+        
+        try {
             prepareVisualizationData();
-            tick().then(() => {
+            
+            // Use requestAnimationFrame to prevent blocking the UI
+            requestAnimationFrame(() => {
                 updateVisualization();
             });
+        } catch (error) {
+            console.error('Error handling language change:', error);
         }
     }
 
@@ -269,18 +287,41 @@
         }
     }
 
-    // Svelte 5 effect to watch for store changes
+    // Reactive state tracking for preventing infinite loops
+    let lastItemsLength = $state(0);
+    let lastLanguage = $state('en');
+
+    // Svelte 5 effect to watch for store changes - prevent infinite loops
     $effect(() => {
-        if (isMounted) {
-            const storeData = $itemsStore;
+        if (!isMounted) return;
+        
+        const storeData = $itemsStore;
+        const currentItemsLength = storeData?.items?.length || 0;
+        
+        // Only update if items actually changed
+        if (currentItemsLength !== lastItemsLength) {
+            lastItemsLength = currentItemsLength;
+            logDebug(COMPONENT_ID, 'Items length changed', { 
+                oldLength: lastItemsLength, 
+                newLength: currentItemsLength 
+            });
             handleItemsChange(storeData);
         }
     });
 
-    // Svelte 5 effect to watch for language changes
+    // Svelte 5 effect to watch for language changes - prevent infinite loops  
     $effect(() => {
-        if (isMounted) {
-            const lang = $languageStore;
+        if (!isMounted) return;
+        
+        const lang = $languageStore;
+        
+        // Only update if language actually changed
+        if (lang !== lastLanguage) {
+            lastLanguage = lang;
+            logDebug(COMPONENT_ID, 'Language changed', { 
+                oldLang: lastLanguage, 
+                newLang: lang 
+            });
             handleLanguageChange(lang);
         }
     });
@@ -288,43 +329,80 @@
     onMount((): (() => void) => {
         logDebug(COMPONENT_ID, 'Component mounting');
         trackMount(COMPONENT_ID);
-        isMounted = true;
-
-        // Initialize header hook
-        headerHook.initialize({ totalCount: 0, additionalCount: 0 });
-
-        // Set up resize observer
-        const resizeObserver = new ResizeObserver(handleResize);
         
-        // Initial setup
-        tick().then(() => {
-            if (container) {
-                const rect = container.getBoundingClientRect();
-                width = rect.width;
-                height = 500; // Force fixed height
-                
-                resizeObserver.observe(container);
-                
-                prepareVisualizationData();
-                updateVisualization();
-            }
-        });
+        let cleanupFunctions: (() => void)[] = [];
+        
+        try {
+            // Set mounted state first
+            isMounted = true;
+
+            // Initialize header hook
+            headerHook.initialize({ totalCount: 0, additionalCount: 0 });
+
+            // Set up resize observer
+            const resizeObserver = new ResizeObserver(handleResize);
+            cleanupFunctions.push(() => resizeObserver.disconnect());
+            
+            // Wait for DOM to be ready
+            tick().then(() => {
+                if (container) {
+                    logDebug(COMPONENT_ID, 'Container found, setting up visualization');
+                    
+                    const rect = container.getBoundingClientRect();
+                    width = rect.width || 800;
+                    height = 500; // Force fixed height
+                    
+                    resizeObserver.observe(container);
+                    
+                    // Initial data preparation and visualization
+                    try {
+                        prepareVisualizationData();
+                        
+                        // Use requestAnimationFrame for smooth initialization
+                        requestAnimationFrame(() => {
+                            updateVisualization();
+                        });
+                    } catch (error) {
+                        console.error('Error during initial visualization setup:', error);
+                    }
+                } else {
+                    console.warn('Container not found during onMount');
+                }
+            }).catch(error => {
+                console.error('Error during component initialization:', error);
+            });
+        } catch (error) {
+            console.error('Error in onMount:', error);
+        }
 
         return () => {
             logDebug(COMPONENT_ID, 'Component unmounting');
             trackUnmount(COMPONENT_ID);
             isMounted = false;
             
-            // Cleanup header hook
-            headerHook.destroy();
-            
-            // Cleanup
-            if (treemapService) {
-                treemapService.destroy();
-                treemapService = null;
+            try {
+                // Run all cleanup functions
+                cleanupFunctions.forEach(cleanup => {
+                    try {
+                        cleanup();
+                    } catch (error) {
+                        console.error('Error during cleanup:', error);
+                    }
+                });
+                
+                // Cleanup header hook
+                if (headerHook) {
+                    headerHook.destroy();
+                }
+                
+                // Cleanup treemap service
+                if (treemapService) {
+                    treemapService.destroy();
+                    treemapService = null;
+                }
+            } catch (error) {
+                console.error('Error during component cleanup:', error);
             }
-            
-            resizeObserver.disconnect();
         };
     });
 
@@ -348,15 +426,14 @@
         translationKey=""
         description="Cette visualisation montre la distribution des mots à travers les éléments par pays et collection. La taille de chaque bloc représente le nombre de mots dans ce pays ou cette collection."
         descriptionTranslationKey="viz.word_distribution_description"
-        {titleHtml}
         className="word-visualization-compact-header"
         padding="8px"
         minHeight="520px"
     >
         <div 
-            class="chart-container-glass flex-1 min-h-500 relative overflow-hidden" 
+            class="chart-container-glass flex-1 relative overflow-hidden" 
             bind:this={container}
-            style="height: 500px; max-height: 500px; padding: 0;"
+            style="height: 500px; max-height: 500px; padding: 0; min-height: 500px;"
         >
             {#if $itemsStore.loading}
                 <div class="loading-state">{$loadingText}</div>
