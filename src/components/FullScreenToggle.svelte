@@ -1,9 +1,8 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
     import { t } from '../stores/translationStore';
     
     // Track fullscreen state
-    let isFullScreen = false;
+    let isFullScreen = $state(false);
     
     // Function to toggle fullscreen
     function toggleFullScreen() {
@@ -41,7 +40,7 @@
         isFullScreen = !!document.fullscreenElement;
     }
     
-    onMount(() => {
+    $effect(() => {
         // Add event listener for fullscreen changes
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         
@@ -54,7 +53,7 @@
 
 <button 
     class="btn btn-primary btn-icon p-sm"
-    on:click={toggleFullScreen} 
+    onclick={toggleFullScreen} 
     title={isFullScreen ? t('ui.exit_fullscreen') : t('ui.enter_fullscreen')}
     aria-label={isFullScreen ? t('ui.exit_fullscreen') : t('ui.enter_fullscreen')}
 >
