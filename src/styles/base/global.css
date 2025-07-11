@@ -50,6 +50,11 @@ button {
   color: var(--color-text-primary);
   cursor: pointer;
   transition: all var(--transition-fast) var(--ease-out);
+  text-decoration: none;  /* Prevent any inherited text decoration */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 button:hover {

@@ -19,8 +19,38 @@
   color: var(--color-text-primary);
   cursor: pointer;
   transition: all var(--transition-fast) var(--ease-out);
-  text-decoration: none;
+  text-decoration: none !important;  /* Force no text decoration */
   outline: none;
+  line-height: 1;
+}
+
+/* Ensure no text decoration for any button-like elements */
+button,
+.btn,
+[role="button"],
+[role="tab"] {
+  text-decoration: none !important;
+}
+
+button:hover,
+.btn:hover,
+[role="button"]:hover,
+[role="tab"]:hover {
+  text-decoration: none !important;
+}
+
+button:focus,
+.btn:focus,
+[role="button"]:focus,
+[role="tab"]:focus {
+  text-decoration: none !important;
+}
+
+button:active,
+.btn:active,
+[role="button"]:active,
+[role="tab"]:active {
+  text-decoration: none !important;
 }
 
 .btn-primary {
