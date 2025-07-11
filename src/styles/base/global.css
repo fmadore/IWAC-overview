@@ -134,22 +134,6 @@ img, svg {
 
 /* Legacy compatibility */
 :root {
-  /* These are kept for backwards compatibility with older components */
-  --primary-color: var(--color-primary);
-  --secondary-color: var(--color-secondary);
-  --text-color: var(--color-text-primary);
-  --background-color: var(--color-bg-page);
-  --card-background: var(--color-bg-card);
-  --border-color: var(--color-border);
-  --card-shadow: var(--shadow-md);
-  --text-color-light: var(--color-text-light);
-  --text-color-primary: var(--color-text-primary);
-  --text-color-secondary: var(--color-text-secondary);
+  /* Minimal legacy compatibility - only variables still in use */
   --border-radius-sm: var(--radius-sm);
-  --border-radius-md: var(--radius-md);
-  --border-radius-lg: var(--radius-lg);
-  --font-family-primary: var(--font-family-base);
-  --primary-color-faded: var(--color-primary-300);
-  --divider-color: var(--color-border-light);
-  --font-size-xxl: var(--font-size-2xl);
 } 

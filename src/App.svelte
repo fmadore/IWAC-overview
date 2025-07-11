@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, afterUpdate, beforeUpdate } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import itemsStore from './stores/itemsStore';
   import { t, languageStore, translate } from './stores/translationStore';
   import TranslationContext from './components/TranslationContext.svelte';
@@ -10,17 +10,10 @@
   import TimelineDistribution from './components/visualizations/TimelineDistribution.svelte';
   import TypeDistribution from './components/visualizations/TypeDistribution.svelte';
   import WordDistribution from './components/visualizations/WordDistribution.svelte';
-  import { logDebug, trackMount, trackUnmount, DEBUG } from './utils/debug';
   import { parseUrlParams, updateUrl } from './utils/urlUtils';
-  
-  // Only import DebugPanel when DEBUG is true
-  import DebugPanel from './components/DebugPanel.svelte';
 
-  const COMPONENT_ID = 'App';
   let isMounted = false;
-  let updateCount = 0;
   let unsubscribe: () => void = () => {};
-  let renderCount = 0;
   
   // Component references
   let appHeader: any;
@@ -66,18 +59,14 @@
     
     const { lang, tab } = parseUrlParams();
     
-    logDebug(COMPONENT_ID, `URL parameters: lang=${lang}, tab=${tab}`);
-    
     // Set language if valid
     if (lang) {
       languageStore.setLanguage(lang);
-      logDebug(COMPONENT_ID, `Setting language from URL: ${lang}`);
     }
     
     // Set tab if valid
     if (tab && tabs.some(t => t.id === tab)) {
       activeTab = tab;
-      logDebug(COMPONENT_ID, `Setting tab from URL: ${tab}`);
     }
   }
   
@@ -92,7 +81,6 @@
   
   function handleLanguageChange(newLang: string) {
     if (!isMounted) {
-      logDebug(COMPONENT_ID, `Language change ignored (not mounted): ${newLang}`);
       return;
     }
     
@@ -108,18 +96,6 @@
       translatedLabel: t(tab.label)
     }));
     
-    logDebug(COMPONENT_ID, `Language changed from ${previousLanguage} to ${newLang}`, {
-      isMounted,
-      updateCount,
-      subscriptionActive: !!unsubscribe
-    });
-    
-    logDebug(COMPONENT_ID, 'Current translations:', {
-      title: t('app.title'),
-      loading: t('ui.loading'),
-      activeTab: t(tabs.find(tab => tab.id === activeTab)?.label || '')
-    });
-    
     // Re-check tabs overflow after translation update
     setTimeout(() => {
       if (appHeader) {
@@ -129,27 +105,12 @@
     }, 100);
   }
 
-  beforeUpdate(() => {
-    renderCount++;
-    logDebug(COMPONENT_ID, `Before update (render #${renderCount})`, {
-      isMounted,
-      currentLanguage,
-      activeTab
-    });
-  });
-
   onMount(() => {
     try {
       isMounted = true;
-      trackMount(COMPONENT_ID);
       
       // Parse URL parameters first
       handleUrlParams();
-      
-      logDebug(COMPONENT_ID, `Component mounted, initial language: ${$languageStore}`, {
-        storeValue: $languageStore,
-        activeTab
-      });
       
       // Set initial language
       currentLanguage = $languageStore;
@@ -168,10 +129,8 @@
         
         // Assign the unsubscribe function
         unsubscribe = unsub;
-        
-        logDebug(COMPONENT_ID, 'Successfully subscribed to language store');
       } catch (error) {
-        logDebug(COMPONENT_ID, `Error subscribing to language store: ${error}`);
+        console.error('Error subscribing to language store:', error);
       }
       
       // Load items if not already loaded
@@ -189,21 +148,9 @@
         unsubscribe();
       }
       isMounted = false;
-      trackUnmount(COMPONENT_ID);
-      logDebug(COMPONENT_ID, 'Component unmounted');
     } catch (e) {
       console.error('[App] Error in onDestroy:', e);
     }
-  });
-  
-  afterUpdate(() => {
-    updateCount++;
-    logDebug(COMPONENT_ID, `Component updated (${updateCount})`, {
-      isMounted,
-      currentLanguage,
-      storeValue: $languageStore,
-      activeTab
-    });
   });
 </script>
 
@@ -243,11 +190,6 @@
       {/if}
     </div>
   </main>
-  
-  <!-- Only render the debug panel when DEBUG is true -->
-  {#if DEBUG}
-    <DebugPanel />
-  {/if}
 </TranslationContext>
 
 <style>
@@ -258,25 +200,9 @@
    * Custom styles here are only for complex interactions that can't be achieved with utilities.
    */
 
-  /* Legacy variable mappings for backwards compatibility - will be phased out */
+  /* Legacy variable mappings - minimal set for backwards compatibility */
   :global(:root) {
-    --primary-color: var(--color-primary);
-    --secondary-color: var(--color-secondary);
-    --text-color: var(--color-text-primary);
-    --background-color: var(--color-bg-page);
-    --card-background: var(--color-bg-card);
-    --border-color: var(--color-border);
-    --card-shadow: var(--shadow-md);
-    --text-color-light: var(--color-text-light);
-    --text-color-primary: var(--color-text-primary);
-    --text-color-secondary: var(--color-text-secondary);
     --border-radius-sm: var(--radius-sm);
-    --border-radius-md: var(--radius-md);
-    --border-radius-lg: var(--radius-lg);
-    --font-family-primary: var(--font-family-base);
-    --primary-color-faded: var(--color-primary-300);
-    --divider-color: var(--color-border-light);
-    --font-size-xxl: var(--font-size-2xl);
   }
 
   /* Mobile responsive adjustments */
