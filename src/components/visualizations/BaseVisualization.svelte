@@ -6,43 +6,70 @@
     import { useTooltip, createGridTooltipContent } from '../../hooks/useTooltip';
 
     // Title props - make title handling more consistent
-    export let title: string = '';
-    export let translationKey: string = '';
-    export let titleHtml: string = '';
-
-    // Description props
-    export let description: string = '';
-    export let descriptionTranslationKey: string = '';
-    export let showDescription: boolean = false;
-
-    // Accessibility props
-    export let ariaLabel: string = '';
+    let { 
+        title = '',
+        translationKey = '',
+        titleHtml = '',
+        
+        // Description props
+        description = '',
+        descriptionTranslationKey = '',
+        showDescription = $bindable(false),
+        
+        // Accessibility props
+        ariaLabel = '',
+        
+        // Container reference for resize handling
+        enableResizeObserver = true,
+        
+        // Theme and style customization
+        theme = 'default' as 'default' | 'light' | 'dark' | 'custom',
+        customBackground = '',
+        customTextColor = '',
+        minHeight = 'var(--spacing-3xl)', // Use global spacing instead of hardcoded 400px
+        padding = 'var(--spacing-lg)',
+        className = '',
+        modernStyle = true, // Enable modern styling by default
+        
+        // Tooltip configuration
+        enableTooltip = true,
+        tooltipBackgroundColor = 'var(--color-text-primary)', // Use global color instead of hardcoded
+        tooltipTextColor = 'var(--color-text-light)',
+        tooltipMaxWidth = '250px',
+        
+        // Snippet/children content
+        children
+    }: {
+        title?: string;
+        translationKey?: string;
+        titleHtml?: string;
+        description?: string;
+        descriptionTranslationKey?: string;
+        showDescription?: boolean;
+        ariaLabel?: string;
+        enableResizeObserver?: boolean;
+        theme?: 'default' | 'light' | 'dark' | 'custom';
+        customBackground?: string;
+        customTextColor?: string;
+        minHeight?: string;
+        padding?: string;
+        className?: string;
+        modernStyle?: boolean;
+        enableTooltip?: boolean;
+        tooltipBackgroundColor?: string;
+        tooltipTextColor?: string;
+        tooltipMaxWidth?: string;
+        children?: import('svelte').Snippet;
+    } = $props();
     
     // Generate unique IDs for accessibility
     const descriptionId = `viz-desc-${Math.random().toString(36).slice(2, 11)}`;
     
-    // Add container reference for resize handling
-    export let enableResizeObserver: boolean = true;
     let contentContainer: HTMLElement;
     let resizeObserver: ResizeObserver;
     const dispatch = createEventDispatcher<{
         resize: { width: number; height: number };
     }>();
-    
-    // Theme and style customization
-    export let theme: 'default' | 'light' | 'dark' | 'custom' = 'default';
-    export let customBackground: string = '';
-    export let customTextColor: string = '';
-    export let minHeight: string = '400px';
-    export let padding: string = 'var(--spacing-md)';
-    export let className: string = '';
-    export let modernStyle: boolean = true; // Enable modern styling by default
-    
-    // Tooltip configuration
-    export let enableTooltip: boolean = true;
-    export let tooltipBackgroundColor: string = 'rgba(0, 0, 0, 0.8)';
-    export let tooltipTextColor: string = 'white';
-    export let tooltipMaxWidth: string = '250px';
 
     // Initialize tooltip hook conditionally
     const tooltipHook = enableTooltip ? useTooltip({
@@ -74,24 +101,24 @@
     export { showTooltip, hideTooltip, updateTooltipContent, createGridTooltipContent };
     
     // Computed styles for custom styling that can't be done with utility classes
-    $: containerStyle = `
+    let containerStyle = $derived(`
         min-height: ${minHeight};
         padding: ${padding};
         ${customBackground ? `background: ${customBackground};` : ''}
         ${customTextColor ? `color: ${customTextColor};` : ''}
-    `;
+    `);
 
     // Computed title - prioritize titleHtml over translated title
-    $: computedTitle = titleHtml || (translationKey ? t(translationKey) : title);
+    let computedTitle = $derived(titleHtml || (translationKey ? t(translationKey) : title));
     
     // Computed description - use translated description if key provided
-    $: computedDescription = descriptionTranslationKey ? t(descriptionTranslationKey) : description;
+    let computedDescription = $derived(descriptionTranslationKey ? t(descriptionTranslationKey) : description);
     
     // Computed aria label - use title if not explicitly provided
-    $: computedAriaLabel = ariaLabel || computedTitle;
+    let computedAriaLabel = $derived(ariaLabel || computedTitle);
     
     // Computed aria-describedby - only set if we have a description
-    $: hasDescription = Boolean(description || descriptionTranslationKey);
+    let hasDescription = $derived(Boolean(description || descriptionTranslationKey));
     
     // Setup resize observer
     onMount(() => {
@@ -124,10 +151,10 @@
 >
     <VisualizationHeader
         title={computedTitle}
-        description={description}
+        {description}
         {descriptionTranslationKey}
         bind:showDescription
-        descriptionId={descriptionId}
+        {descriptionId}
         className="z-above"
     />
     
@@ -135,24 +162,26 @@
          role="presentation" 
          bind:this={contentContainer}
     >
-        <slot>
+        {#if children}
+            {@render children()}
+        {:else}
             <!-- Default content if no slot is provided -->
             <div class="empty-visualization {modernStyle ? 'chart-skeleton' : ''}" aria-live="polite" style={containerStyle}>
                 {#if $itemsStore.loading}
-                    <div class="text-center text-secondary">
+                    <div class="flex items-center justify-center text-secondary">
                         {t('ui.loading')}
                     </div>
                 {:else if $itemsStore.error}
-                    <div class="text-center text-error" role="alert">
+                    <div class="flex items-center justify-center text-error" role="alert">
                         {$itemsStore.error}
                     </div>
                 {:else}
-                    <div class="text-center text-secondary">
+                    <div class="flex items-center justify-center text-secondary">
                         {t('ui.no_visualization_content')}
                     </div>
                 {/if}
             </div>
-        </slot>
+        {/if}
     </div>
 </div>
 
@@ -163,27 +192,27 @@
      */
     .empty-visualization {
         width: 100%;
-        height: 400px;
+        height: var(--spacing-3xl); /* Use global spacing instead of hardcoded 400px */
         position: relative;
         background: var(--color-bg-card);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-lg);
         box-shadow: var(--shadow-md);
-        padding: var(--spacing-md);
+        padding: var(--spacing-lg);
         display: flex;
         align-items: center;
         justify-content: center;
     }
     
-    /* Theme variations */
+    /* Theme variations - use global color variables */
     .light {
-        --color-bg-card: #ffffff;
-        --color-text-primary: #1A202C;
-        --color-text-secondary: #4A5568;
-        --color-error: #F56565;
+        --color-bg-card: var(--color-bg-card);
+        --color-text-primary: var(--color-text-primary);
+        --color-text-secondary: var(--color-text-secondary);
+        --color-error: var(--color-error);
     }
     
     .dark {
-        --color-bg-card: #2d2d2d;
+        --color-bg-card: #2d2d2d; /* Keep as fallback until dark mode CSS variables are implemented */
         --color-text-primary: #f5f5f5;
         --color-text-secondary: #bbbbbb;
         --color-error: #ff6b6b;
