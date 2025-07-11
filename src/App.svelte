@@ -12,13 +12,13 @@
   import WordDistribution from './components/visualizations/WordDistribution.svelte';
   import { parseUrlParams, updateUrl } from './utils/urlUtils';
 
-  let isMounted = false;
+  let isMounted = $state(false);
   let unsubscribe: () => void = () => {};
   
   // Component references
   let appHeader: any;
 
-  let activeTab = 'countries';
+  let activeTab = $state('countries');
 
   // Tab definitions with translation keys
   // Note: Tab labels have been updated in translationStore.ts:
@@ -35,23 +35,15 @@
     { id: 'timeline', label: 'tab.timeline' },
   ];
 
-  // Create reactive translations for tab labels
-  $: tabLabels = tabs.map(tab => ({
+  // Create reactive translations for tab labels using $derived
+  let tabLabels = $derived(tabs.map(tab => ({
     ...tab,
     translatedLabel: t(tab.label)
-  }));
-
-  // Update tab labels when language changes
-  $: if ($languageStore && isMounted) {
-    tabLabels = tabs.map(tab => ({
-      ...tab,
-      translatedLabel: t(tab.label)
-    }));
-  }
+  })));
 
   // Manually track the language to avoid reactive statements
-  let currentLanguage = '';
-  let previousLanguage = '';
+  let currentLanguage = $state('');
+  let previousLanguage = $state('');
   
   // Function to handle URL parameters
   function handleUrlParams() {
@@ -90,12 +82,6 @@
     // Update URL when language changes
     updateUrl(newLang as any, activeTab);
     
-    // Force refresh of tab labels
-    tabLabels = tabs.map(tab => ({
-      ...tab,
-      translatedLabel: t(tab.label)
-    }));
-    
     // Re-check tabs overflow after translation update
     setTimeout(() => {
       if (appHeader) {
@@ -114,12 +100,6 @@
       
       // Set initial language
       currentLanguage = $languageStore;
-      
-      // Initialize tab labels
-      tabLabels = tabs.map(tab => ({
-        ...tab,
-        translatedLabel: t(tab.label)
-      }));
       
       // Manually subscribe to the language store
       try {
