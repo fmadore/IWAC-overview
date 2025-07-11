@@ -2,10 +2,8 @@
   import { onMount, onDestroy, afterUpdate, beforeUpdate } from 'svelte';
   import itemsStore from './stores/itemsStore';
   import { t, languageStore, translate } from './stores/translationStore';
-  import LanguageToggle from './components/LanguageToggle.svelte';
-  import FullScreenToggle from './components/FullScreenToggle.svelte';
-  import DownloadToggle from './components/DownloadToggle.svelte';
   import TranslationContext from './components/TranslationContext.svelte';
+  import AppHeader from './components/ui/AppHeader.svelte';
   import CountryDistribution from './components/visualizations/CountryDistribution.svelte';
   import LanguageDistribution from './components/visualizations/LanguageDistribution.svelte';
   import IndexDistribution from './components/visualizations/IndexDistribution.svelte';
@@ -24,14 +22,8 @@
   let unsubscribe: () => void = () => {};
   let renderCount = 0;
   
-  // DOM References
-  let tabsContainer: HTMLElement;
-
-  // Create a reactive title
-  const appTitle = translate('app.title');
-
-  // Import visualization components here
-  // They will be created in the next steps
+  // Component references
+  let appHeader: any;
 
   let activeTab = 'countries';
 
@@ -89,64 +81,13 @@
     }
   }
   
-  // Function to check if tabs need a scrollbar indicator
-  function checkTabsOverflow() {
-    if (!tabsContainer) return;
-    
-    const hasOverflow = tabsContainer.scrollWidth > tabsContainer.clientWidth;
-    if (hasOverflow) {
-      tabsContainer.classList.add('tab-scroll-active');
-    } else {
-      tabsContainer.classList.remove('tab-scroll-active');
-    }
-  }
-  
-  // Scroll to make the active tab visible
-  function scrollToActiveTab() {
-    if (!tabsContainer) return;
-    
-    const activeTabEl = tabsContainer.querySelector('.tab-item.active') as HTMLElement;
-    if (!activeTabEl) return;
-    
-    // Calculate position to scroll
-    const containerRect = tabsContainer.getBoundingClientRect();
-    const tabRect = activeTabEl.getBoundingClientRect();
-    
-    // Check if tab is partially outside visible area
-    const isTabRightVisible = tabRect.right <= containerRect.right;
-    const isTabLeftVisible = tabRect.left >= containerRect.left;
-    
-    if (!isTabRightVisible) {
-      // If tab is to the right of view, scroll it into view
-      // Use scrollIntoView for better cross-browser support when available
-      try {
-        activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      } catch (e) {
-        // Fallback for browsers that don't support smooth scrolling options
-        tabsContainer.scrollLeft += (tabRect.right - containerRect.right + 16);
-      }
-    } else if (!isTabLeftVisible) {
-      // If tab is to the left of view, scroll it into view
-      try {
-        activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      } catch (e) {
-        // Fallback for browsers that don't support smooth scrolling options
-        tabsContainer.scrollLeft += (tabRect.left - containerRect.left - 16);
-      }
-    }
-  }
-  
   // Function to handle tab changes
-  function handleTabChange(tabId: string) {
+  function handleTabChange(event: CustomEvent) {
+    const tabId = event.detail;
     activeTab = tabId;
     if (currentLanguage) {
       updateUrl(currentLanguage as any, tabId);
     }
-    
-    // Schedule scroll to the selected tab after UI update
-    setTimeout(() => {
-      scrollToActiveTab();
-    }, 50);
   }
   
   function handleLanguageChange(newLang: string) {
@@ -181,8 +122,10 @@
     
     // Re-check tabs overflow after translation update
     setTimeout(() => {
-      checkTabsOverflow();
-      scrollToActiveTab();
+      if (appHeader) {
+        appHeader.checkOverflow();
+        appHeader.scrollToActive();
+      }
     }, 100);
   }
 
@@ -235,35 +178,6 @@
       if (!$itemsStore.items || $itemsStore.items.length === 0) {
         itemsStore.loadItems();
       }
-      
-      // Set up tab container listeners
-      if (tabsContainer) {
-        // Check for tab overflow
-        checkTabsOverflow();
-        
-        // Firefox-specific scrollbar hiding (since we can't use scrollbar-width CSS property)
-        // This adds a Firefox-only CSS rule dynamically
-        if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-          const style = document.createElement('style');
-          style.textContent = '.tabs-container { scrollbar-width: none; }';
-          style.setAttribute('data-firefox-scrollbar', 'true');
-          document.head.appendChild(style);
-        }
-        
-        // Add scroll listener to toggle indicator
-        tabsContainer.addEventListener('scroll', handleScroll);
-        
-        // Trigger initial scroll check
-        tabsContainer.dispatchEvent(new Event('scroll'));
-        
-        // Add window resize listener
-        window.addEventListener('resize', handleResize);
-        
-        // Scroll to active tab
-        setTimeout(() => {
-          scrollToActiveTab();
-        }, 100);
-      }
     } catch (e) {
       console.error('[App] Error in onMount:', e);
     }
@@ -277,20 +191,6 @@
       isMounted = false;
       trackUnmount(COMPONENT_ID);
       logDebug(COMPONENT_ID, 'Component unmounted');
-      
-      // Clean up all event listeners
-      if (tabsContainer) {
-        // Remove scroll listener
-        tabsContainer.removeEventListener('scroll', handleScroll);
-        // Remove the Firefox-specific style if added
-        const firefoxStyle = document.querySelector('style[data-firefox-scrollbar]');
-        if (firefoxStyle) {
-          firefoxStyle.remove();
-        }
-      }
-      
-      // Remove window resize listener
-      window.removeEventListener('resize', handleResize);
     } catch (e) {
       console.error('[App] Error in onDestroy:', e);
     }
@@ -304,72 +204,18 @@
       storeValue: $languageStore,
       activeTab
     });
-    
-    // Check tabs overflow after update
-    setTimeout(() => {
-      checkTabsOverflow();
-    }, 50);
   });
-
-  // Handle tab scroll events
-  function handleScroll() {
-    if (!tabsContainer) return;
-    
-    // Check if we're at the end of the scroll
-    const isAtEnd = tabsContainer.scrollLeft + tabsContainer.clientWidth >= tabsContainer.scrollWidth - 5;
-    // Check if we're at the beginning of the scroll
-    const isAtStart = tabsContainer.scrollLeft <= 5;
-    
-    if (isAtEnd) {
-      tabsContainer.classList.remove('tab-scroll-active');
-    } else {
-      tabsContainer.classList.add('tab-scroll-active');
-    }
-    
-    if (isAtStart) {
-      tabsContainer.classList.remove('tab-scroll-not-at-start');
-    } else {
-      tabsContainer.classList.add('tab-scroll-not-at-start');
-    }
-  }
-  
-  // Handle window resize events
-  function handleResize() {
-    checkTabsOverflow();
-    scrollToActiveTab();
-  }
 </script>
 
 <TranslationContext>
   <main class="container mx-auto p-md">
-    <header class="mb-lg">
-      <div class="flex justify-between items-center mb-md header-top">
-        <h1 class="m-0 text-2xl font-bold text-primary header-title">{@html $appTitle}</h1>
-        <div class="flex gap-md items-center header-actions">
-          <DownloadToggle />
-          <FullScreenToggle />
-          <LanguageToggle />
-        </div>
-      </div>
-      <nav>
-        <ul class="flex p-0 m-0 border-b border-solid border-default list-style-none app-tabs tabs-container" bind:this={tabsContainer}>
-          <div class="tab-scroll-left-indicator"></div>
-          <div class="tab-scroll-indicator"></div>
-          {#each tabLabels as tab}
-            <li 
-              class="py-sm px-md cursor-pointer transition-colors tab-item tab-flexible tabs-mobile {activeTab === tab.id ? 'active' : ''}"
-              on:click={() => handleTabChange(tab.id)}
-              on:keydown={(e) => e.key === 'Enter' && handleTabChange(tab.id)}
-              role="tab"
-              tabindex="0"
-              aria-selected={activeTab === tab.id}
-            >
-              {tab.translatedLabel}
-            </li>
-          {/each}
-        </ul>
-      </nav>
-    </header>
+    <AppHeader 
+      bind:this={appHeader}
+      {activeTab}
+      {tabs}
+      {tabLabels}
+      on:tabChange={handleTabChange}
+    />
 
     <div class="bg-card rounded shadow p-md min-h-500">
       {#if $itemsStore.loading}
@@ -433,128 +279,16 @@
     --font-size-xxl: var(--font-size-2xl);
   }
 
-  /* Tab navigation styles - uses design system variables */
-  .app-tabs {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
-  }
-
-  .app-tabs::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
-
-  .tab-item {
-    border-bottom: var(--border-width-normal) solid transparent;
-    transition: all var(--transition-fast) var(--ease-out);
-    white-space: nowrap;
-    flex-shrink: 0;
-    position: relative;
-  }
-
-  .tab-item:hover {
-    background-color: var(--color-bg-hover);
-  }
-
-  .tab-item:focus {
-    outline: var(--border-width-normal) solid var(--color-primary);
-    outline-offset: -2px;
-  }
-
-  .tab-item.active {
-    border-bottom-color: var(--color-primary);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-primary);
-  }
-
-  /* Tab scroll indicators */
-  .tab-scroll-indicator,
-  .tab-scroll-left-indicator {
-    position: absolute;
-    top: 0;
-    width: var(--spacing-md);
-    height: 100%;
-    pointer-events: none;
-    z-index: 1;
-    transition: opacity var(--transition-fast);
-  }
-
-  .tab-scroll-indicator {
-    right: 0;
-    background: linear-gradient(to left, var(--color-bg-page), transparent);
-  }
-
-  .tab-scroll-left-indicator {
-    left: 0;
-    background: linear-gradient(to right, var(--color-bg-page), transparent);
-  }
-
-  .tabs-container:not(.tab-scroll-active) .tab-scroll-indicator {
-    opacity: 0;
-  }
-
-  .tabs-container:not(.tab-scroll-not-at-start) .tab-scroll-left-indicator {
-    opacity: 0;
-  }
-
-  /* Mobile tab adjustments */
+  /* Mobile responsive adjustments */
   @media (max-width: 768px) {
-    .tab-item {
-      padding: var(--spacing-xs) var(--spacing-sm);
-      font-size: var(--font-size-sm);
-    }
-    
-    /* Mobile header improvements */
-    header {
-      margin-bottom: var(--spacing-md);
-    }
-    
-    /* Make the header more compact on mobile */
-    .header-top {
-      flex-direction: column;
-      gap: var(--spacing-sm);
-      align-items: flex-start;
-    }
-    
-    .header-title {
-      font-size: var(--font-size-xl);
-      line-height: var(--line-height-tight);
-    }
-    
-    .header-actions {
-      align-self: flex-end;
-      gap: var(--spacing-sm);
-    }
-    
     /* Make the container more compact on mobile */
     main {
       padding: var(--spacing-sm);
-    }
-    
-    /* Improve tabs container for mobile */
-    .tabs-container {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-    
-    .tabs-container::-webkit-scrollbar {
-      display: none;
     }
   }
   
   /* Extra small mobile devices */
   @media (max-width: 480px) {
-    .header-title {
-      font-size: var(--font-size-lg);
-    }
-    
-    .header-actions {
-      gap: var(--spacing-xs);
-    }
-    
     main {
       padding: var(--spacing-xs);
     }
@@ -562,13 +296,11 @@
 
   /* 
    * Utility classes used in this component:
-   * Layout: container, mx-auto, p-md, mb-lg, flex, justify-between, items-center, gap-md
-   * Typography: m-0, text-2xl, font-bold, text-primary, text-lg, text-error
-   * Spacing: py-sm, px-md, p-0, border-b, border-solid, border-default
-   * Interactive: cursor-pointer, transition-colors
-   * Display: list-style-none, bg-card, rounded, shadow, min-h-500, h-full, justify-center
+   * Layout: container, mx-auto, p-md, flex, justify-center, items-center
+   * Typography: text-lg, text-error
+   * Display: bg-card, rounded, shadow, min-h-500, h-full
    * 
    * This demonstrates the utility-first approach while maintaining necessary custom styles
-   * for complex tab navigation behavior and responsive design.
+   * for responsive design and legacy compatibility.
    */
 </style>
