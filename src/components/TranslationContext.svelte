@@ -1,14 +1,14 @@
 <script lang="ts">
-    import { onMount, onDestroy, setContext } from 'svelte';
+    import { setContext } from 'svelte';
     import { languageStore } from '../stores/translationStore';
     import type { Language, TranslationStore } from '../types/translations';
 
+    let { children } = $props();
+
     const COMPONENT_ID = 'TranslationContext';
-    let isMounted = false;
-    let unsubscribe: () => void = () => {};
     
-    // Track the current language
-    let currentLanguage: Language = $languageStore;
+    // Track the current language using reactive state
+    let currentLanguage = $state($languageStore);
     
     // Set context for child components to access
     setContext('translationContext', {
@@ -17,26 +17,10 @@
         languageStore: languageStore as TranslationStore
     });
     
-    function handleLanguageChange(newLanguage: Language) {
-        if (!isMounted) return;
-        currentLanguage = newLanguage;
-    }
-
-    onMount(() => {
-        isMounted = true;
-        
-        // Subscribe to the language store
-        unsubscribe = languageStore.subscribe(value => {
-            handleLanguageChange(value);
-        });
-    });
-    
-    onDestroy(() => {
-        if (unsubscribe) {
-            unsubscribe();
-        }
-        isMounted = false;
+    // Use $effect to handle language changes
+    $effect(() => {
+        currentLanguage = $languageStore;
     });
 </script>
 
-<slot />
+{@render children()}

@@ -1,21 +1,17 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { t, translate } from '../../stores/translationStore';
   import LanguageToggle from '../LanguageToggle.svelte';
   import FullScreenToggle from '../FullScreenToggle.svelte';
   import DownloadToggle from '../DownloadToggle.svelte';
 
   // Props - Svelte 5 syntax
-  let { activeTab, tabs, tabLabels } = $props();
-
-  // Create event dispatcher
-  const dispatch = createEventDispatcher();
+  let { activeTab, tabs, tabLabels, ontabChange } = $props();
 
   // DOM References
-  let tabsContainer: HTMLUListElement;
+  let tabsContainer: HTMLUListElement | undefined = $state();
 
-  // Create a reactive title
-  const appTitle = translate('app.title');
+  // Create a reactive title using $derived
+  let appTitle = $derived(translate('app.title'));
 
   // Function to check if tabs need a scrollbar indicator
   function checkTabsOverflow() {
@@ -65,7 +61,7 @@
 
   // Function to handle tab changes
   function handleTabChange(tabId: string) {
-    dispatch('tabChange', tabId);
+    ontabChange?.(tabId);
     
     // Schedule scroll to the selected tab after UI update
     setTimeout(() => {
@@ -97,11 +93,19 @@
     }
   }
 
-  // Handle window resize events
-  function handleResize() {
-    checkTabsOverflow();
-    scrollToActiveTab();
-  }
+  // Handle window resize events using $effect
+  $effect(() => {
+    function handleResize() {
+      checkTabsOverflow();
+      scrollToActiveTab();
+    }
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  });
 
   // Export methods that parent can call
   export function checkOverflow() {
@@ -112,8 +116,6 @@
     scrollToActiveTab();
   }
 </script>
-
-<svelte:window onresize={handleResize} />
 
 <header class="app-header">
   <div class="header-container">

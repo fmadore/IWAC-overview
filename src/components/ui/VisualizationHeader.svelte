@@ -1,29 +1,19 @@
 <script lang="ts">
     import { t, translate } from '../../stores/translationStore';
     import { slide } from 'svelte/transition';
-    import { onMount, onDestroy } from 'svelte';
     
     // Title props
-    export let title: string = '';
-    
-    // Description props
-    export let description: string = '';
-    export let descriptionTranslationKey: string = '';
-    export let showDescription: boolean = false;
-    export let descriptionId: string;
+    let { title = '', description = '', descriptionTranslationKey = '', showDescription = $bindable(false), descriptionId, className = '' } = $props();
 
-    // Style props
-    export let className: string = '';
-
-    // Create reactive translations
-    $: hideInfoText = translate('ui.hide_info');
-    $: showInfoText = translate('ui.show_info');
-    $: visualizationDescriptionText = translate('ui.visualization_description');
-    $: descriptionText = descriptionTranslationKey ? translate(descriptionTranslationKey) : undefined;
+    // Create reactive translations using $derived
+    let hideInfoText = $derived(translate('ui.hide_info'));
+    let showInfoText = $derived(translate('ui.show_info'));
+    let visualizationDescriptionText = $derived(translate('ui.visualization_description'));
+    let descriptionText = $derived(descriptionTranslationKey ? translate(descriptionTranslationKey) : undefined);
     
     // References
-    let infoButton: HTMLButtonElement;
-    let descriptionEl: HTMLDivElement;
+    let infoButton: HTMLButtonElement | undefined = $state();
+    let descriptionEl: HTMLDivElement | undefined = $state();
 
     // Toggle description visibility with event handling
     function toggleDescription(event: MouseEvent) {
@@ -47,13 +37,13 @@
         }
     }
     
-    // Set up and tear down global event listeners
-    onMount(() => {
+    // Set up and tear down global event listeners using $effect
+    $effect(() => {
         document.addEventListener('click', handleGlobalClick);
-    });
-    
-    onDestroy(() => {
-        document.removeEventListener('click', handleGlobalClick);
+        
+        return () => {
+            document.removeEventListener('click', handleGlobalClick);
+        };
     });
 </script>
 
@@ -63,7 +53,7 @@
         {#if description || descriptionTranslationKey}
             <button 
                 class="p-xs flex items-center justify-center rounded-full cursor-pointer modern-info-button"
-                on:click={toggleDescription}
+                onclick={toggleDescription}
                 aria-expanded={showDescription}
                 aria-controls={descriptionId}
                 type="button"

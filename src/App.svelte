@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
   import itemsStore from './stores/itemsStore';
   import { t, languageStore, translate } from './stores/translationStore';
   import TranslationContext from './components/TranslationContext.svelte';
@@ -13,7 +12,6 @@
   import { parseUrlParams, updateUrl } from './utils/urlUtils';
 
   let isMounted = $state(false);
-  let unsubscribe: () => void = () => {};
   
   // Component references
   let appHeader: any;
@@ -35,11 +33,21 @@
     { id: 'timeline', label: 'tab.timeline' },
   ];
 
-  // Create reactive translations for tab labels using $derived
-  let tabLabels = $derived(tabs.map(tab => ({
+  // Create reactive translations for tab labels
+  let tabLabels = $state(tabs.map(tab => ({
     ...tab,
     translatedLabel: t(tab.label)
   })));
+
+  // Force reactivity by watching the language store
+  $effect(() => {
+    const lang = $languageStore;
+    // This will trigger a re-evaluation of tabLabels when language changes
+    tabLabels = tabs.map(tab => ({
+      ...tab,
+      translatedLabel: t(tab.label) // Use t() which gets current language
+    }));
+  });
 
   // Manually track the language to avoid reactive statements
   let currentLanguage = $state('');
@@ -63,8 +71,7 @@
   }
   
   // Function to handle tab changes
-  function handleTabChange(event: CustomEvent) {
-    const tabId = event.detail;
+  function handleTabChange(tabId: string) {
     activeTab = tabId;
     if (currentLanguage) {
       updateUrl(currentLanguage as any, tabId);
@@ -91,85 +98,75 @@
     }, 100);
   }
 
-  onMount(() => {
-    try {
-      isMounted = true;
-      
-      // Parse URL parameters first
-      handleUrlParams();
-      
-      // Set initial language
-      currentLanguage = $languageStore;
-      
-      // Manually subscribe to the language store
+  // Use $effect to handle component initialization and language changes
+  $effect(() => {
+    if (!isMounted) {
       try {
-        const unsub = languageStore.subscribe(value => {
-          handleLanguageChange(value);
-        });
+        isMounted = true;
         
-        // Assign the unsubscribe function
-        unsubscribe = unsub;
-      } catch (error) {
-        console.error('Error subscribing to language store:', error);
+        // Parse URL parameters first
+        handleUrlParams();
+        
+        // Set initial language
+        currentLanguage = $languageStore;
+        
+        // Load items if not already loaded
+        if (!$itemsStore.items || $itemsStore.items.length === 0) {
+          itemsStore.loadItems();
+        }
+      } catch (e) {
+        console.error('[App] Error in initialization:', e);
       }
-      
-      // Load items if not already loaded
-      if (!$itemsStore.items || $itemsStore.items.length === 0) {
-        itemsStore.loadItems();
-      }
-    } catch (e) {
-      console.error('[App] Error in onMount:', e);
     }
   });
   
-  onDestroy(() => {
-    try {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-      isMounted = false;
-    } catch (e) {
-      console.error('[App] Error in onDestroy:', e);
+  // Use $effect to watch for language changes
+  $effect(() => {
+    const newLang = $languageStore;
+    if (isMounted && newLang !== currentLanguage) {
+      handleLanguageChange(newLang);
     }
   });
 </script>
 
 <TranslationContext>
-  <main class="container mx-auto p-md">
-    <AppHeader 
-      bind:this={appHeader}
-      {activeTab}
-      {tabs}
-      {tabLabels}
-      on:tabChange={handleTabChange}
-    />
+  {#snippet children()}
+    <main class="container mx-auto p-md">
+      <AppHeader 
+        bind:this={appHeader}
+        {activeTab}
+        {tabs}
+        {tabLabels}
+        ontabChange={handleTabChange}
+      />
 
-    <div class="bg-card rounded shadow p-md min-h-500">
-      {#if $itemsStore.loading}
-        <div class="flex justify-center items-center text-lg h-full">
-          {t('ui.loading')}
-        </div>
-      {:else if $itemsStore.error}
-        <div class="flex justify-center items-center text-lg text-error h-full">
-          {$itemsStore.error}
-        </div>
-      {:else}
-        {#if activeTab === 'countries'}
-          <CountryDistribution />
-        {:else if activeTab === 'types'}
-          <TypeDistribution />
-        {:else if activeTab === 'words'}
-          <WordDistribution />
-        {:else if activeTab === 'languages'}
-          <LanguageDistribution />
-        {:else if activeTab === 'categories'}
-          <IndexDistribution />
-        {:else if activeTab === 'timeline'}
-          <TimelineDistribution />
+      <div class="bg-card rounded shadow p-md min-h-500">
+        {#if $itemsStore.loading}
+          <div class="flex justify-center items-center text-lg h-full">
+            {t('ui.loading')}
+          </div>
+        {:else if $itemsStore.error}
+          <div class="flex justify-center items-center text-lg text-error h-full">
+            {$itemsStore.error}
+          </div>
+        {:else}
+          {#if activeTab === 'countries'}
+            <CountryDistribution />
+          {:else if activeTab === 'types'}
+            <TypeDistribution />
+          {:else if activeTab === 'words'}
+            <WordDistribution />
+          {:else if activeTab === 'languages'}
+            <LanguageDistribution />
+          {:else if activeTab === 'categories'}
+            <IndexDistribution />
+          {:else if activeTab === 'timeline'}
+            <TimelineDistribution />
+          {/if}
         {/if}
-      {/if}
-    </div>
-  </main>
+      </div>
+    </main>
+  {/snippet}
 </TranslationContext>
 
 <style>
