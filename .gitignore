@@ -46,3 +46,4 @@ coverage
 
 # Yarn Integrity file
 .yarn-integrity
+.github/instructions/copilot-instructions.md
